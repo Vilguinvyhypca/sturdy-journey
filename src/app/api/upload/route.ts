@@ -1,9 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { addMedia } from "@/lib/db";
+import { authOptions, isAdmin } from "@/lib/auth";
 import { uploadMedia } from "@/lib/storage";
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Choose a file first." }, { status: 400 });
