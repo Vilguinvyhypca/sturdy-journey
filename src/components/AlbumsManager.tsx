@@ -40,7 +40,7 @@ export function AlbumsManager() {
   }
 
   return <main className="mx-auto min-h-screen max-w-4xl px-5 py-8 sm:px-8">
-    <p className="text-sm font-bold uppercase tracking-[.2em] text-indigo-600">Personal library</p>
+    <Link href="/" className="text-sm font-bold uppercase tracking-[.2em] text-indigo-600 hover:underline">MediaSpace</Link>
     <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Albums</h1>
     <p className="mt-2 text-slate-500">Group photos and videos by a moment, trip, or project.</p>
 
