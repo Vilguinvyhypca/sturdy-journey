@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Local media library (keep uploads private and out of source control)
+/public/uploads/
+/data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
