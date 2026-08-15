@@ -122,3 +122,32 @@ export async function createAlbum(id: string, name: string, description: string)
   const row = rows[0];
   return { id: String(row.id), name: String(row.name), description: String(row.description), mediaCount: 0, createdAt: new Date(String(row.created_at)).toISOString() };
 }
+
+export async function getAlbum(id: string): Promise<{ album: Album; media: MediaItem[] } | null> {
+  await ensureDatabase();
+  const db = sql();
+  const albumRows = await db.query("SELECT id, name, description, created_at FROM albums WHERE id = $1", [id]);
+  const albumRow = albumRows[0];
+  if (!albumRow) return null;
+  const mediaRows = await db.query(
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at
+     FROM media m
+     INNER JOIN media_albums ma ON ma.media_id = m.id
+     WHERE ma.album_id = $1
+     ORDER BY m.created_at DESC`,
+    [id],
+  );
+  const media = mediaRows.map((row) => ({
+    id: String(row.id),
+    title: String(row.caption),
+    type: String(row.media_type) as MediaItem["type"],
+    url: String(row.storage_url),
+    createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    album: String(albumRow.name),
+    albumIds: [id],
+  }));
+  return {
+    album: { id: String(albumRow.id), name: String(albumRow.name), description: String(albumRow.description), mediaCount: media.length, createdAt: new Date(String(albumRow.created_at)).toISOString() },
+    media,
+  };
+}

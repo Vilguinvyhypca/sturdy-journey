@@ -17,10 +17,11 @@ Last updated: 2026-08-15
 - New uploads create both a Blob file and a matching database media record.
 - The Albums page now reads from the database and lets the administrator create albums.
 - The administrator can assign a photo or video to one or more albums from its viewer.
+- Album cards open public album pages that show their assigned media.
 
 ## Next build phase
 
-1. Add public album browsing and filtering.
+1. Add filtering from the main library by album.
 2. Read useful metadata from uploaded media, beginning with date taken and video duration.
 
 ## Backlog

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album } from "@/lib/database";
 
@@ -53,11 +54,11 @@ export function AlbumsManager() {
     <section className="mt-8 grid gap-4 sm:grid-cols-2">
       {loading && <p className="text-slate-500">Loading albums...</p>}
       {!loading && albums.length === 0 && <p className="rounded-2xl border border-dashed border-slate-300 p-5 text-slate-500">No albums yet. {session ? "Create your first one above." : "Sign in as the administrator to create one."}</p>}
-      {albums.map((album) => <article key={album.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {albums.map((album) => <Link href={`/albums/${album.id}`} key={album.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md">
         <p className="text-lg font-black text-slate-900">{album.name}</p>
         {album.description && <p className="mt-1 text-sm text-slate-500">{album.description}</p>}
-        <p className="mt-4 text-sm font-semibold text-indigo-600">{album.mediaCount} {album.mediaCount === 1 ? "item" : "items"}</p>
-      </article>)}
+        <p className="mt-4 text-sm font-semibold text-indigo-600">Open album → · {album.mediaCount} {album.mediaCount === 1 ? "item" : "items"}</p>
+      </Link>)}
     </section>
   </main>;
 }
