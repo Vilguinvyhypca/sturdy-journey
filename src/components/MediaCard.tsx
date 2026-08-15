@@ -4,7 +4,7 @@ import { VideoThumbnail } from "./VideoThumbnail";
 export function MediaCard({ item, onSelect }: { item: MediaItem; onSelect: (item: MediaItem) => void }) {
   return <button onClick={() => onSelect(item)} className="group aspect-square overflow-hidden bg-slate-200 text-left">
     <div className="relative h-full w-full overflow-hidden">
-      {item.type === "video" ? <VideoThumbnail src={item.url} title="Uploaded video" /> : <img src={item.url} alt="Uploaded photo" onError={(event) => {
+      {item.type === "video" ? <VideoThumbnail src={item.url} title="Uploaded video" /> : <img src={item.url} alt="Uploaded photo" loading="lazy" decoding="async" onError={(event) => {
         const image = event.currentTarget;
         if (image.dataset.retried) return;
         image.dataset.retried = "true";
