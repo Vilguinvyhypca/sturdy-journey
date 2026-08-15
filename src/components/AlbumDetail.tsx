@@ -29,7 +29,7 @@ export function AlbumDetail({ id }: { id: string }) {
     {album && <><p className="mt-7 text-sm font-bold uppercase tracking-[.2em] text-indigo-600">Album</p><h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{album.name}</h1>{album.description && <p className="mt-2 text-slate-500">{album.description}</p>}</>}
     {message && <p className="mt-8 rounded-xl border border-slate-200 p-5 text-slate-500">{message}</p>}
     {album && media.length === 0 && <p className="mt-8 rounded-xl border border-dashed border-slate-300 p-5 text-slate-500">This album is empty. Sign in, open a photo or video, and choose Organize to add it here.</p>}
-    <section className="mt-8 grid grid-cols-3 gap-2 sm:gap-5">{media.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} />)}</section>
+    <section className="mt-8 grid grid-cols-3 gap-0">{media.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} />)}</section>
     {selected?.type === "photo" && <PhotoViewer item={selected} onClose={() => setSelected(null)} />}
     {selected?.type === "video" && <VideoPlayer item={selected} onClose={() => setSelected(null)} />}
   </main>;
