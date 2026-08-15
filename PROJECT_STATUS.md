@@ -16,12 +16,12 @@ Last updated: 2026-08-15
 - Neon database tables for media, albums, and the media-to-album links are created automatically when the database is connected.
 - New uploads create both a Blob file and a matching database media record.
 - The Albums page now reads from the database and lets the administrator create albums.
+- The administrator can assign a photo or video to one or more albums from its viewer.
 
 ## Next build phase
 
-1. Add album assignment to uploaded media.
-2. Add public album browsing and filtering.
-3. Read useful metadata from uploaded media, beginning with date taken and video duration.
+1. Add public album browsing and filtering.
+2. Read useful metadata from uploaded media, beginning with date taken and video duration.
 
 ## Backlog
 
