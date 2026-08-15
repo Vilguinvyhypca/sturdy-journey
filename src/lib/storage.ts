@@ -5,7 +5,8 @@ import { list, put } from "@vercel/blob";
 import type { MediaItem } from "./media";
 
 const uploadDirectory = join(process.cwd(), "public", "uploads");
-export const usesBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+// Vercel provides either a legacy read-write token or its newer OIDC store connection.
+export const usesBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 
 function isVideo(pathname: string) {
   return /\.(mp4|webm|mov|m4v|ogv)$/i.test(pathname);
