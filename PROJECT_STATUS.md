@@ -13,14 +13,15 @@ Last updated: 2026-08-15
 ## Ready locally, awaiting publish
 
 - Local media deletion: delete removes both the local file and its local catalog entry.
-- Neon database driver is installed and ready for album and media-detail work.
+- Neon database tables for media, albums, and the media-to-album links are created automatically when the database is connected.
+- New uploads create both a Blob file and a matching database media record.
+- The Albums page now reads from the database and lets the administrator create albums.
 
 ## Next build phase
 
-1. Create the Neon database tables for albums and media details.
-2. Add admin album creation and album assignment.
-3. Add public album browsing and filtering.
-4. Read useful metadata from uploaded media, beginning with date taken and video duration.
+1. Add album assignment to uploaded media.
+2. Add public album browsing and filtering.
+3. Read useful metadata from uploaded media, beginning with date taken and video duration.
 
 ## Backlog
 

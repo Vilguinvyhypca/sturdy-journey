@@ -8,6 +8,11 @@ const uploadDirectory = join(process.cwd(), "public", "uploads");
 // Vercel provides either a legacy read-write token or its newer OIDC store connection.
 export const usesBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 
+export type StoredMedia = {
+  id: string;
+  url: string;
+};
+
 function isVideo(pathname: string) {
   return /\.(mp4|webm|mov|m4v|ogv)$/i.test(pathname);
 }
@@ -17,17 +22,17 @@ function displayTitle(pathname: string) {
   return filename.replace(/\.[^/.]+$/, "").replace(/-[a-z0-9]{10,}$/i, "");
 }
 
-export async function uploadMedia(file: File) {
+export async function uploadMedia(file: File): Promise<StoredMedia> {
   if (usesBlobStorage) {
     const blob = await put(`media/${file.name}`, file, { access: "public", addRandomSuffix: true });
-    return blob.url;
+    return { id: blob.pathname, url: blob.url };
   }
 
   await mkdir(uploadDirectory, { recursive: true });
   const extension = extname(file.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".bin";
   const fileName = `${randomUUID()}${extension}`;
   await writeFile(join(uploadDirectory, fileName), Buffer.from(await file.arrayBuffer()));
-  return `/uploads/${fileName}`;
+  return { id: randomUUID(), url: `/uploads/${fileName}` };
 }
 
 export async function listBlobMedia(): Promise<MediaItem[]> {
