@@ -18,11 +18,12 @@ Last updated: 2026-08-15
 - The Albums page now reads from the database and lets the administrator create albums.
 - The administrator can assign a photo or video to one or more albums from its viewer.
 - Album cards open public album pages that show their assigned media.
+- The main library can be filtered by album, photos, or videos.
 
 ## Next build phase
 
-1. Add filtering from the main library by album.
-2. Read useful metadata from uploaded media, beginning with date taken and video duration.
+1. Read useful metadata from uploaded media, beginning with date taken and video duration.
+2. Add optional album cover images and editing tools.
 
 ## Backlog
 
