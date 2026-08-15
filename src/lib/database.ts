@@ -9,7 +9,8 @@ export type Album = {
   createdAt: string;
 };
 
-const databaseUrl = process.env.DATABASE_URL;
+// Marketplace integrations may namespace the connection string with their chosen prefix.
+const databaseUrl = process.env.DATABASE_URL ?? process.env.DATABASE_URL_DATABASE_URL;
 export const usesDatabase = Boolean(databaseUrl);
 
 function sql() {
