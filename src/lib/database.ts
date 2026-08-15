@@ -43,6 +43,8 @@ export function ensureDatabase() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
+      await db.query("CREATE UNIQUE INDEX IF NOT EXISTS media_content_hash_unique ON media (content_hash) WHERE content_hash IS NOT NULL");
       await db.query(`
         CREATE TABLE IF NOT EXISTS media_albums (
           media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
@@ -55,14 +57,20 @@ export function ensureDatabase() {
   return schemaPromise;
 }
 
-export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title">) {
+export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash">) {
   await ensureDatabase();
   await sql().query(
-    `INSERT INTO media (id, storage_url, media_type, caption)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type`,
-    [item.id, item.url, item.type, item.title],
+    `INSERT INTO media (id, storage_url, media_type, caption, content_hash)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash)`,
+    [item.id, item.url, item.type, item.title, item.contentHash ?? null],
   );
+}
+
+export async function findMediaByHash(contentHash: string) {
+  await ensureDatabase();
+  const rows = await sql().query("SELECT id FROM media WHERE content_hash = $1 LIMIT 1", [contentHash]);
+  return rows.length > 0;
 }
 
 export async function deleteMediaRecord(id: string) {

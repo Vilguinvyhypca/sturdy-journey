@@ -6,6 +6,7 @@ export type MediaItem = {
   createdAt: string;
   album: string;
   albumIds?: string[];
+  contentHash?: string;
 };
 
 export const demoMedia: MediaItem[] = [
