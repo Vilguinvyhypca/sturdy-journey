@@ -19,3 +19,9 @@ export async function addMedia(item: MediaItem) {
   await writeFile(dataFile, JSON.stringify([item, ...media], null, 2), "utf8");
   return item;
 }
+
+export async function removeMedia(id: string) {
+  const media = await readMedia();
+  await mkdir(dataDirectory, { recursive: true });
+  await writeFile(dataFile, JSON.stringify(media.filter((item) => item.id !== id), null, 2), "utf8");
+}

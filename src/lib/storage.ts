@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { basename, extname, join } from "node:path";
 import { list, put } from "@vercel/blob";
 import type { MediaItem } from "./media";
 
@@ -43,4 +43,9 @@ export async function listBlobMedia(): Promise<MediaItem[]> {
       createdAt: blob.uploadedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       album: "Uploads",
     }));
+}
+
+export async function deleteLocalMedia(url: string) {
+  if (!url.startsWith("/uploads/")) throw new Error("Invalid local media path.");
+  await rm(join(uploadDirectory, basename(url)), { force: true });
 }
