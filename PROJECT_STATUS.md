@@ -19,11 +19,12 @@ Last updated: 2026-08-15
 - The administrator can assign a photo or video to one or more albums from its viewer.
 - Album cards open public album pages that show their assigned media.
 - The main library can be filtered by album, photos, or videos.
+- The administrator can edit album details or delete an album without deleting its media files.
 
 ## Next build phase
 
 1. Read useful metadata from uploaded media, beginning with date taken and video duration.
-2. Add optional album cover images and editing tools.
+2. Add optional album cover images.
 
 ## Backlog
 

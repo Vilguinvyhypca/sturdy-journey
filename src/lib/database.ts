@@ -123,6 +123,24 @@ export async function createAlbum(id: string, name: string, description: string)
   return { id: String(row.id), name: String(row.name), description: String(row.description), mediaCount: 0, createdAt: new Date(String(row.created_at)).toISOString() };
 }
 
+export async function updateAlbum(id: string, name: string, description: string): Promise<Album | null> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    "UPDATE albums SET name = $2, description = $3 WHERE id = $1 RETURNING id, name, description, created_at",
+    [id, name, description],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const countRows = await sql().query("SELECT COUNT(*)::int AS media_count FROM media_albums WHERE album_id = $1", [id]);
+  return { id: String(row.id), name: String(row.name), description: String(row.description), mediaCount: Number(countRows[0].media_count), createdAt: new Date(String(row.created_at)).toISOString() };
+}
+
+export async function deleteAlbum(id: string) {
+  await ensureDatabase();
+  const result = await sql().query("DELETE FROM albums WHERE id = $1 RETURNING id", [id]);
+  return result.length > 0;
+}
+
 export async function getAlbum(id: string): Promise<{ album: Album; media: MediaItem[] } | null> {
   await ensureDatabase();
   const db = sql();
