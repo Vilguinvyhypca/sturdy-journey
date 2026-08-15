@@ -40,10 +40,12 @@ export function ensureDatabase() {
           caption TEXT NOT NULL DEFAULT '',
           captured_at TIMESTAMPTZ,
           duration_seconds INTEGER,
+          file_size_bytes BIGINT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
+      await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT");
       await db.query("DROP INDEX IF EXISTS media_content_hash_unique");
       await db.query("CREATE INDEX IF NOT EXISTS media_content_hash_index ON media (content_hash) WHERE content_hash IS NOT NULL");
       await db.query(`
@@ -58,13 +60,13 @@ export function ensureDatabase() {
   return schemaPromise;
 }
 
-export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash">) {
+export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes">) {
   await ensureDatabase();
   await sql().query(
-    `INSERT INTO media (id, storage_url, media_type, caption, content_hash)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash)`,
-    [item.id, item.url, item.type, item.title, item.contentHash ?? null],
+    `INSERT INTO media (id, storage_url, media_type, caption, content_hash, captured_at, duration_seconds, file_size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash), captured_at = COALESCE(media.captured_at, EXCLUDED.captured_at), duration_seconds = COALESCE(media.duration_seconds, EXCLUDED.duration_seconds), file_size_bytes = COALESCE(media.file_size_bytes, EXCLUDED.file_size_bytes)`,
+    [item.id, item.url, item.type, item.title, item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null],
   );
 }
 
@@ -82,7 +84,7 @@ export async function deleteMediaRecord(id: string) {
 export async function getMediaAlbumDetails() {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+    `SELECT m.id, m.captured_at, m.duration_seconds, m.file_size_bytes, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
             COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
      LEFT JOIN media_albums ma ON ma.media_id = m.id
@@ -92,6 +94,9 @@ export async function getMediaAlbumDetails() {
   return new Map(rows.map((row) => [String(row.id), {
     albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
     album: Array.isArray(row.album_names) && row.album_names.length > 0 ? String(row.album_names[0]) : "Uploads",
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
   }]));
 }
 
@@ -157,7 +162,7 @@ export async function getAlbum(id: string): Promise<{ album: Album; media: Media
   const albumRow = albumRows[0];
   if (!albumRow) return null;
   const mediaRows = await db.query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes
      FROM media m
      INNER JOIN media_albums ma ON ma.media_id = m.id
      WHERE ma.album_id = $1
@@ -172,6 +177,9 @@ export async function getAlbum(id: string): Promise<{ album: Album; media: Media
     createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     album: String(albumRow.name),
     albumIds: [id],
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
   }));
   return {
     album: { id: String(albumRow.id), name: String(albumRow.name), description: String(albumRow.description), mediaCount: media.length, createdAt: new Date(String(albumRow.created_at)).toISOString() },

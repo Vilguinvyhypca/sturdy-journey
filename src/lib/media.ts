@@ -7,6 +7,9 @@ export type MediaItem = {
   album: string;
   albumIds?: string[];
   contentHash?: string;
+  capturedAt?: string | null;
+  durationSeconds?: number | null;
+  fileSizeBytes?: number;
 };
 
 export const demoMedia: MediaItem[] = [

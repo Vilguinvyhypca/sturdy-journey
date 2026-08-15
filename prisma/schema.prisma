@@ -22,8 +22,10 @@ model Media {
   storageUrl      String       @map("storage_url")
   type            MediaType    @map("media_type")
   caption         String       @default("")
+  contentHash     String?      @map("content_hash")
   capturedAt      DateTime?    @map("captured_at")
   durationSeconds Int?         @map("duration_seconds")
+  fileSizeBytes   BigInt?      @map("file_size_bytes")
   createdAt       DateTime     @default(now()) @map("created_at")
   albumLinks      MediaAlbum[]
 

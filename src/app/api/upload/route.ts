@@ -15,6 +15,10 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return NextResponse.json({ error: "Choose a file first." }, { status: 400 });
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return NextResponse.json({ error: "Only photos and videos are supported." }, { status: 415 });
   if (file.size > 50 * 1024 * 1024) return NextResponse.json({ error: "Files must be 50 MB or smaller for this local demo." }, { status: 413 });
+  const capturedAtValue = formData.get("capturedAt");
+  const capturedAt = typeof capturedAtValue === "string" && !Number.isNaN(Date.parse(capturedAtValue)) ? new Date(capturedAtValue).toISOString() : null;
+  const durationValue = Number(formData.get("durationSeconds"));
+  const durationSeconds = Number.isFinite(durationValue) && durationValue >= 0 && durationValue <= 24 * 60 * 60 ? Math.round(durationValue) : null;
   const contentHash = createHash("sha256").update(Buffer.from(await file.arrayBuffer())).digest("hex");
   if (usesDatabase && await findMediaByHash(contentHash)) return NextResponse.json({ error: "That exact photo or video has already been uploaded." }, { status: 409 });
   if (!usesBlobStorage && (await readMedia()).some((media) => media.contentHash === contentHash)) return NextResponse.json({ error: "That exact photo or video has already been uploaded." }, { status: 409 });
@@ -28,6 +32,9 @@ export async function POST(request: Request) {
     createdAt: "Just now",
     album: "Uploads",
     contentHash,
+    capturedAt,
+    durationSeconds,
+    fileSizeBytes: file.size,
   };
   if (usesDatabase) await saveMedia(media);
   else if (!usesBlobStorage) await addMedia(media);

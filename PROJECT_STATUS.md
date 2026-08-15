@@ -22,6 +22,7 @@ Last updated: 2026-08-15
 - The administrator can edit album details or delete an album without deleting its media files.
 - The upload control supports selecting multiple photos and videos at once, with upload progress.
 - Multi-file uploads show a progress overlay with file count, elapsed time, and an estimated time remaining.
+- New uploads save file size, video duration, and a photo's original date when readable from its metadata; these details appear in the viewer.
 - New uploads are checked for exact duplicate file content before they are stored.
 - The administrator can scan existing Blob media to save fingerprints for earlier uploads without changing or deleting any files.
 

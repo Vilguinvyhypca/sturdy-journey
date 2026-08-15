@@ -10,6 +10,7 @@ import { MediaCard } from "./MediaCard";
 import { PhotoViewer } from "./PhotoViewer";
 import { UploadButton } from "./UploadButton";
 import { VideoPlayer } from "./VideoPlayer";
+import { readUploadDetails } from "@/lib/upload-details";
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -67,6 +68,9 @@ export function MediaFeed() {
         try {
           const formData = new FormData();
           formData.append("file", file);
+          const details = await readUploadDetails(file);
+          if (details.capturedAt) formData.append("capturedAt", details.capturedAt);
+          if (details.durationSeconds !== null) formData.append("durationSeconds", String(details.durationSeconds));
           const response = await fetch("/api/upload", { method: "POST", body: formData });
           const data = await response.json() as { media?: MediaItem; error?: string };
           if (!response.ok || !data.media) failed += 1;
