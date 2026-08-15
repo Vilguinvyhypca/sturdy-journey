@@ -20,6 +20,7 @@ Last updated: 2026-08-15
 - Album cards open public album pages that show their assigned media.
 - The main library can be filtered by album, photos, or videos.
 - The administrator can edit album details or delete an album without deleting its media files.
+- The upload control supports selecting multiple photos and videos at once, with upload progress.
 
 ## Next build phase
 
