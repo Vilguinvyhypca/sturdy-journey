@@ -44,7 +44,8 @@ export function ensureDatabase() {
         )
       `);
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
-      await db.query("CREATE UNIQUE INDEX IF NOT EXISTS media_content_hash_unique ON media (content_hash) WHERE content_hash IS NOT NULL");
+      await db.query("DROP INDEX IF EXISTS media_content_hash_unique");
+      await db.query("CREATE INDEX IF NOT EXISTS media_content_hash_index ON media (content_hash) WHERE content_hash IS NOT NULL");
       await db.query(`
         CREATE TABLE IF NOT EXISTS media_albums (
           media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
