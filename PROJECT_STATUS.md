@@ -24,7 +24,7 @@ Last updated: 2026-08-15
 - Multi-file uploads show a progress overlay with file count, elapsed time, and an estimated time remaining.
 - New uploads save file size, video duration, and a photo's original date when readable from its metadata; these details appear in the viewer.
 - New uploads are checked for exact duplicate file content before they are stored.
-- The administrator can scan existing Blob media to save fingerprints for earlier uploads without changing or deleting any files.
+- One administrator scan can save fingerprints, file size, and readable photo dates for earlier Blob uploads without changing or deleting any files.
 
 ## Next build phase
 

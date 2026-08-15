@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import * as exifr from "exifr";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
@@ -15,8 +16,19 @@ export async function POST() {
   for (const item of media) {
     const response = await fetch(item.url);
     if (!response.ok) continue;
-    const contentHash = createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex");
-    await saveMedia({ ...item, contentHash });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const contentHash = createHash("sha256").update(bytes).digest("hex");
+    let capturedAt: string | null = null;
+    if (item.type === "photo") {
+      try {
+        const metadata = await exifr.parse(bytes, ["DateTimeOriginal", "CreateDate", "ModifyDate"]);
+        const date = metadata?.DateTimeOriginal ?? metadata?.CreateDate ?? metadata?.ModifyDate;
+        if (date instanceof Date && !Number.isNaN(date.getTime())) capturedAt = date.toISOString();
+      } catch {
+        // Some images do not include readable EXIF metadata.
+      }
+    }
+    await saveMedia({ ...item, contentHash, capturedAt, fileSizeBytes: bytes.byteLength });
     scanned += 1;
   }
   return NextResponse.json({ scanned, total: media.length });
