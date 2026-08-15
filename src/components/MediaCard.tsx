@@ -7,6 +7,6 @@ export function MediaCard({ item, onSelect }: { item: MediaItem; onSelect: (item
       {item.type === "video" ? <VideoThumbnail src={item.url} title="Uploaded video" /> : <img src={item.url} alt="Uploaded photo" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
       {item.type === "video" && <span className="absolute left-3 top-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-bold text-white">▶ Video</span>}
     </div>
-    <div className="p-4"><p className="text-sm font-semibold capitalize text-slate-700">{item.type} · {item.createdAt}</p></div>
+    <div className="p-2 sm:p-4"><p className="text-xs font-semibold capitalize text-slate-700 sm:text-sm">{item.type} <span className="hidden sm:inline">· {item.createdAt}</span></p></div>
   </button>;
 }
