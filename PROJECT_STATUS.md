@@ -28,7 +28,7 @@ Last updated: 2026-08-15
 
 ## Next build phase
 
-1. Read useful metadata from uploaded media, beginning with date taken and video duration.
+1. Add gallery sorting by recently uploaded or date taken.
 2. Add optional album cover images.
 
 ## Backlog
