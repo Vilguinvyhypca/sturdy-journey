@@ -1,11 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function VideoThumbnail({ src, title }: { src: string; title: string }) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const target = container.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setNearViewport(true);
+      observer.disconnect();
+    }, { rootMargin: "300px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!nearViewport) return;
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.muted = true;
@@ -29,8 +44,7 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
       video.removeEventListener("seeked", captureFrame);
       video.src = "";
     };
-  }, [src]);
+  }, [nearViewport, src]);
 
-  if (thumbnail) return <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />;
-  return <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">Loading video preview</div>;
+  return <div ref={container} className="h-full w-full">{thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}</div>;
 }
