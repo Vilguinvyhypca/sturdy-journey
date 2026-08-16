@@ -27,11 +27,12 @@ Last updated: 2026-08-15
 - One administrator scan can save fingerprints, file size, and readable photo dates for earlier Blob uploads without changing or deleting any files.
 - The main gallery shows library totals and storage tracked from media metadata, and initially renders 48 files at a time with a Load more control.
 - Gallery photos use Vercel image optimization and caching to deliver smaller thumbnail-sized images.
+- Production uploads go directly from the browser to Vercel Blob while the app still verifies the administrator, blocks exact duplicates, and saves media details. Files up to 500 MB are accepted by this upload flow.
 
 ## Next build phase
 
-1. Change large video uploads to send directly from the browser to Vercel Blob rather than through the Vercel Function.
-2. Add optional album cover images.
+1. Add optional album cover images.
+2. Add a public-facing media detail page with a shareable link.
 
 ## Backlog
 

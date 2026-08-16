@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getServerSession } from "next-auth";
 import { addMedia, readMedia } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
@@ -7,7 +8,70 @@ import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
 import type { MediaItem } from "@/lib/media";
 import { uploadMedia, usesBlobStorage } from "@/lib/storage";
 
+type ClientMediaPayload = {
+  contentHash: string;
+  capturedAt: string | null;
+  durationSeconds: number | null;
+  fileSizeBytes: number;
+  title: string;
+};
+
+function readClientPayload(value: string | null): ClientMediaPayload {
+  if (!value) throw new Error("Missing upload details.");
+  const payload = JSON.parse(value) as Partial<ClientMediaPayload>;
+  if (typeof payload.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(payload.contentHash)) throw new Error("Invalid file fingerprint.");
+  if (typeof payload.title !== "string" || payload.title.length === 0 || payload.title.length > 200) throw new Error("Invalid file name.");
+  if (typeof payload.fileSizeBytes !== "number" || !Number.isFinite(payload.fileSizeBytes) || payload.fileSizeBytes <= 0) throw new Error("Invalid file size.");
+  const capturedAt = typeof payload.capturedAt === "string" && !Number.isNaN(Date.parse(payload.capturedAt)) ? new Date(payload.capturedAt).toISOString() : null;
+  const durationSeconds = typeof payload.durationSeconds === "number" && Number.isFinite(payload.durationSeconds) && payload.durationSeconds >= 0 && payload.durationSeconds <= 24 * 60 * 60 ? Math.round(payload.durationSeconds) : null;
+  return { contentHash: payload.contentHash, capturedAt, durationSeconds, fileSizeBytes: payload.fileSizeBytes, title: payload.title };
+}
+
 export async function POST(request: Request) {
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    if (!usesBlobStorage) return NextResponse.json({ error: "Cloud uploads are not configured." }, { status: 503 });
+    const body = await request.json() as HandleUploadBody;
+    try {
+      const jsonResponse = await handleUpload({
+        body,
+        request,
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          const session = await getServerSession(authOptions);
+          if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) throw new Error("Sign in as the administrator to upload.");
+          if (!pathname.startsWith("media/") || pathname.slice("media/".length).includes("/")) throw new Error("Invalid upload path.");
+          const payload = readClientPayload(clientPayload);
+          if (usesDatabase && await findMediaByHash(payload.contentHash)) throw new Error("That exact photo or video has already been uploaded.");
+          return {
+            allowedContentTypes: ["image/*", "video/*"],
+            maximumSizeInBytes: 500 * 1024 * 1024,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify(payload),
+          };
+        },
+        onUploadCompleted: async ({ blob, tokenPayload }) => {
+          const payload = readClientPayload(tokenPayload ?? null);
+          const type = blob.contentType.startsWith("video/") ? "video" : "photo";
+          const media: MediaItem = {
+            id: blob.pathname,
+            title: payload.title,
+            type,
+            url: blob.url,
+            createdAt: "Just now",
+            album: "Uploads",
+            contentHash: payload.contentHash,
+            capturedAt: type === "photo" ? payload.capturedAt : null,
+            durationSeconds: type === "video" ? payload.durationSeconds : null,
+            fileSizeBytes: payload.fileSizeBytes,
+          };
+          if (usesDatabase) await saveMedia(media);
+        },
+      });
+      return NextResponse.json(jsonResponse);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Could not prepare this upload." }, { status: 400 });
+    }
+  }
+
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
   const formData = await request.formData();

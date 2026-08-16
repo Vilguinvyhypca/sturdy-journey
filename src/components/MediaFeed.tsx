@@ -11,6 +11,7 @@ import { PhotoViewer } from "./PhotoViewer";
 import { UploadButton } from "./UploadButton";
 import { VideoPlayer } from "./VideoPlayer";
 import { readUploadDetails } from "@/lib/upload-details";
+import { upload } from "@vercel/blob/client";
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -23,6 +24,11 @@ function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+async function fingerprintFile(file: File) {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export function MediaFeed() {
@@ -90,17 +96,47 @@ export function MediaFeed() {
     setUploadState({ total: files.length, completed: 0, startedAt, estimatedRemaining: null });
     try {
       for (const [index, file] of files.entries()) {
-        setUploadProgress(`Uploading ${index + 1} of ${files.length}`);
+        setUploadProgress(`Preparing ${index + 1} of ${files.length}`);
         try {
-          const formData = new FormData();
-          formData.append("file", file);
           const details = await readUploadDetails(file);
-          if (details.capturedAt) formData.append("capturedAt", details.capturedAt);
-          if (details.durationSeconds !== null) formData.append("durationSeconds", String(details.durationSeconds));
-          const response = await fetch("/api/upload", { method: "POST", body: formData });
-          const data = await response.json() as { media?: MediaItem; error?: string };
-          if (!response.ok || !data.media) failed += 1;
-          else uploaded.push(data.media);
+          const isLocalDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+          if (isLocalDevelopment) {
+            const formData = new FormData();
+            formData.append("file", file);
+            if (details.capturedAt) formData.append("capturedAt", details.capturedAt);
+            if (details.durationSeconds !== null) formData.append("durationSeconds", String(details.durationSeconds));
+            const response = await fetch("/api/upload", { method: "POST", body: formData });
+            const data = await response.json() as { media?: MediaItem; error?: string };
+            if (!response.ok || !data.media) failed += 1;
+            else uploaded.push(data.media);
+          } else {
+            const contentHash = await fingerprintFile(file);
+            const blob = await upload(`media/${file.name}`, file, {
+              access: "public",
+              handleUploadUrl: "/api/upload",
+              clientPayload: JSON.stringify({
+                contentHash,
+                capturedAt: details.capturedAt,
+                durationSeconds: details.durationSeconds,
+                fileSizeBytes: details.fileSizeBytes,
+                title: file.name.replace(/\.[^/.]+$/, ""),
+              }),
+              multipart: true,
+              onUploadProgress: ({ percentage }) => setUploadProgress(`Uploading ${index + 1} of ${files.length} (${Math.round(percentage)}%)`),
+            });
+            uploaded.push({
+              id: blob.pathname,
+              title: file.name.replace(/\.[^/.]+$/, ""),
+              type: file.type.startsWith("video/") ? "video" : "photo",
+              url: blob.url,
+              createdAt: "Just now",
+              album: "Uploads",
+              contentHash,
+              capturedAt: details.capturedAt,
+              durationSeconds: details.durationSeconds,
+              fileSizeBytes: details.fileSizeBytes,
+            });
+          }
         } catch {
           failed += 1;
         }
