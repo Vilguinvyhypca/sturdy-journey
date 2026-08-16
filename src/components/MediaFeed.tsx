@@ -64,7 +64,12 @@ export function MediaFeed() {
   useEffect(() => {
     fetch("/api/media")
       .then((response) => response.json())
-      .then((data: { media: MediaItem[] }) => setItems(data.media))
+      .then((data: { media: MediaItem[] }) => {
+        setItems(data.media);
+        const sharedMediaId = new URLSearchParams(window.location.search).get("media");
+        const sharedItem = data.media.find((item) => item.id === sharedMediaId);
+        if (sharedItem) setSelected(sharedItem);
+      })
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
