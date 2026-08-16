@@ -38,6 +38,7 @@ Last updated: 2026-08-15
 
 - Standardize the Vercel Neon connection variable from `DATABASE_URL_DATABASE_URL` to `DATABASE_URL` after confirming the live database connection.
 - Hover/press-and-hold muted video previews.
+- Adaptive video streaming for large or high-resolution videos, with automatic quality changes on slower connections.
 - Optional location handling with privacy controls.
 - iCloud import workflow (deferred for now).
 
