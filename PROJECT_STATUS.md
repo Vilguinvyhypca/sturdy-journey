@@ -25,10 +25,12 @@ Last updated: 2026-08-15
 - New uploads save file size, video duration, and a photo's original date when readable from its metadata; these details appear in the viewer.
 - New uploads are checked for exact duplicate file content before they are stored.
 - One administrator scan can save fingerprints, file size, and readable photo dates for earlier Blob uploads without changing or deleting any files.
+- The main gallery shows library totals and storage tracked from media metadata, and initially renders 48 files at a time with a Load more control.
+- Gallery photos use Vercel image optimization and caching to deliver smaller thumbnail-sized images.
 
 ## Next build phase
 
-1. Add gallery sorting by recently uploaded or date taken.
+1. Change large video uploads to send directly from the browser to Vercel Blob rather than through the Vercel Function.
 2. Add optional album cover images.
 
 ## Backlog
