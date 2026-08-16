@@ -19,6 +19,7 @@ function formatDuration(seconds: number) {
 }
 
 const galleryPageSize = 48;
+const maximumVideoDurationSeconds = 5 * 60;
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -97,6 +98,7 @@ export function MediaFeed() {
     setUploadError("");
     const uploaded: MediaItem[] = [];
     let failed = 0;
+    let rejectedForLength = 0;
     const startedAt = Date.now();
     setUploadState({ total: files.length, completed: 0, startedAt, estimatedRemaining: null });
     try {
@@ -104,6 +106,10 @@ export function MediaFeed() {
         setUploadProgress(`Preparing ${index + 1} of ${files.length}`);
         try {
           const details = await readUploadDetails(file);
+          if (file.type.startsWith("video/") && details.durationSeconds !== null && details.durationSeconds > maximumVideoDurationSeconds) {
+            rejectedForLength += 1;
+            throw new Error("Videos must be five minutes or shorter.");
+          }
           const isLocalDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
           if (isLocalDevelopment) {
             const formData = new FormData();
@@ -156,7 +162,11 @@ export function MediaFeed() {
     setItems((current) => [...uploaded, ...current]);
     setFilter("all");
     setUploadProgress("");
-    if (failed) setUploadError(failed === 1 ? "One file could not be uploaded." : `${failed} files could not be uploaded.`);
+    if (rejectedForLength) {
+      setUploadError(rejectedForLength === 1 ? "One video was skipped because videos must be five minutes or shorter." : `${rejectedForLength} videos were skipped because videos must be five minutes or shorter.`);
+    } else if (failed) {
+      setUploadError(failed === 1 ? "One file could not be uploaded." : `${failed} files could not be uploaded.`);
+    }
   }
   async function scanExistingMedia() {
     setScanning(true);
