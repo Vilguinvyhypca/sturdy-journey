@@ -1,7 +1,9 @@
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 
-const adminLogin = "Vilguinvyhypca";
+// Each deployment can choose its own administrator without changing the code.
+// The fallback keeps the original MediaSpace app working as it does today.
+const adminLogin = process.env.ADMIN_GITHUB_LOGIN ?? "Vilguinvyhypca";
 
 export const authOptions: NextAuthOptions = {
   providers: [
