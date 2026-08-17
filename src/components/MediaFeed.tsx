@@ -99,6 +99,7 @@ export function MediaFeed() {
     const uploaded: MediaItem[] = [];
     let failed = 0;
     let rejectedForLength = 0;
+    let rejectedWithoutDuration = 0;
     const startedAt = Date.now();
     setUploadState({ total: files.length, completed: 0, startedAt, estimatedRemaining: null });
     try {
@@ -106,9 +107,15 @@ export function MediaFeed() {
         setUploadProgress(`Preparing ${index + 1} of ${files.length}`);
         try {
           const details = await readUploadDetails(file);
-          if (file.type.startsWith("video/") && details.durationSeconds !== null && details.durationSeconds > maximumVideoDurationSeconds) {
-            rejectedForLength += 1;
-            throw new Error("Videos must be five minutes or shorter.");
+          if (file.type.startsWith("video/")) {
+            if (details.durationSeconds === null) {
+              rejectedWithoutDuration += 1;
+              throw new Error("This video's duration could not be checked.");
+            }
+            if (details.durationSeconds > maximumVideoDurationSeconds) {
+              rejectedForLength += 1;
+              throw new Error("Videos must be five minutes or shorter.");
+            }
           }
           const isLocalDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
           if (isLocalDevelopment) {
@@ -131,6 +138,7 @@ export function MediaFeed() {
                 durationSeconds: details.durationSeconds,
                 fileSizeBytes: details.fileSizeBytes,
                 title: file.name.replace(/\.[^/.]+$/, ""),
+                mediaType: file.type.startsWith("video/") ? "video" : "photo",
               }),
               multipart: true,
               onUploadProgress: ({ percentage }) => setUploadProgress(`Uploading ${index + 1} of ${files.length} (${Math.round(percentage)}%)`),
@@ -164,6 +172,8 @@ export function MediaFeed() {
     setUploadProgress("");
     if (rejectedForLength) {
       setUploadError(rejectedForLength === 1 ? "One video was skipped because videos must be five minutes or shorter." : `${rejectedForLength} videos were skipped because videos must be five minutes or shorter.`);
+    } else if (rejectedWithoutDuration) {
+      setUploadError(rejectedWithoutDuration === 1 ? "One video was skipped because its length could not be checked before uploading." : `${rejectedWithoutDuration} videos were skipped because their lengths could not be checked before uploading.`);
     } else if (failed) {
       setUploadError(failed === 1 ? "One file could not be uploaded." : `${failed} files could not be uploaded.`);
     }
