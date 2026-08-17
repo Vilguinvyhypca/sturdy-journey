@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { MediaItem } from "./media";
+import { isSiteTheme, type SiteTheme } from "./theme";
 
 export type Album = {
   id: string;
@@ -8,6 +9,8 @@ export type Album = {
   mediaCount: number;
   createdAt: string;
 };
+
+export type { SiteTheme } from "./theme";
 
 // Marketplace integrations may namespace the connection string with their chosen prefix.
 const databaseUrl = process.env.DATABASE_URL ?? process.env.DATABASE_URL_DATABASE_URL;
@@ -55,9 +58,31 @@ export function ensureDatabase() {
           PRIMARY KEY (media_id, album_id)
         )
       `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS site_settings (
+          setting_key TEXT PRIMARY KEY,
+          setting_value TEXT NOT NULL
+        )
+      `);
     })();
   }
   return schemaPromise;
+}
+
+export async function getSiteTheme(): Promise<SiteTheme> {
+  if (!usesDatabase) return "indigo";
+  await ensureDatabase();
+  const rows = await sql().query("SELECT setting_value FROM site_settings WHERE setting_key = 'theme'");
+  return isSiteTheme(rows[0]?.setting_value) ? rows[0].setting_value : "indigo";
+}
+
+export async function saveSiteTheme(theme: SiteTheme) {
+  await ensureDatabase();
+  await sql().query(
+    `INSERT INTO site_settings (setting_key, setting_value) VALUES ('theme', $1)
+     ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value`,
+    [theme],
+  );
 }
 
 export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes">) {

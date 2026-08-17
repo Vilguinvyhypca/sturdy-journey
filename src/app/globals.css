@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
-:root { --ink: #152036; --muted: #64748b; --paper: #f6f8fc; --line: #e5eaf3; }
+:root { --ink: #152036; --muted: #64748b; --paper: #f6f8fc; --line: #e5eaf3; --accent: #4f46e5; --accent-dark: #4338ca; --accent-soft: #e0e7ff; }
+html[data-theme="forest"] { --ink: #152a21; --muted: #5f7369; --paper: #f4f8f2; --line: #dce9df; --accent: #15803d; --accent-dark: #166534; --accent-soft: #dcfce7; }
+html[data-theme="sunset"] { --ink: #362016; --muted: #806457; --paper: #fff7f2; --line: #f3ddd0; --accent: #e85d2a; --accent-dark: #c2410c; --accent-soft: #ffedd5; }
+html[data-theme="midnight"] { --ink: #e5edf9; --muted: #a8b5cc; --paper: #101827; --line: #27364d; --accent: #38bdf8; --accent-dark: #0ea5e9; --accent-soft: #173b5c; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
 button, input { font: inherit; }
+html[data-theme]:not([data-theme="indigo"]) .bg-indigo-600 { background-color: var(--accent) !important; }
+html[data-theme]:not([data-theme="indigo"]) .hover\:bg-indigo-700:hover { background-color: var(--accent-dark) !important; }
+html[data-theme]:not([data-theme="indigo"]) .text-indigo-600, html[data-theme]:not([data-theme="indigo"]) .text-indigo-700 { color: var(--accent) !important; }
+html[data-theme]:not([data-theme="indigo"]) .bg-indigo-50 { background-color: var(--accent-soft) !important; }
+html[data-theme="midnight"] .bg-white { background-color: #182338 !important; }
+html[data-theme="midnight"] .bg-slate-900, html[data-theme="midnight"] .bg-slate-950 { background-color: #080e1b !important; }
+html[data-theme="midnight"] .text-slate-900, html[data-theme="midnight"] .text-slate-700 { color: #e5edf9 !important; }
+html[data-theme="midnight"] .text-slate-500, html[data-theme="midnight"] .text-slate-600 { color: #a8b5cc !important; }
+html[data-theme="midnight"] .border-slate-200, html[data-theme="midnight"] .border-slate-300 { border-color: #33445f !important; }
+.theme-swatch-indigo { background: linear-gradient(135deg, #4f46e5, #c7d2fe); }
+.theme-swatch-forest { background: linear-gradient(135deg, #15803d, #bbf7d0); }
+.theme-swatch-sunset { background: linear-gradient(135deg, #e85d2a, #fed7aa); }
+.theme-swatch-midnight { background: linear-gradient(135deg, #0f172a, #38bdf8); }
