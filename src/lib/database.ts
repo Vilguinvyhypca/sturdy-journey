@@ -109,6 +109,17 @@ export async function setMediaAlbums(mediaId: string, albumIds: string[]) {
   }
 }
 
+export async function addMediaToAlbum(mediaIds: string[], albumId: string) {
+  await ensureDatabase();
+  if (mediaIds.length === 0) return;
+  await sql().query(
+    `INSERT INTO media_albums (media_id, album_id)
+     SELECT media_id, $2::uuid FROM unnest($1::text[]) AS media_id
+     ON CONFLICT DO NOTHING`,
+    [mediaIds, albumId],
+  );
+}
+
 export async function listAlbums(): Promise<Album[]> {
   await ensureDatabase();
   const rows = await sql().query(
