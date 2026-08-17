@@ -6,7 +6,7 @@ export type UploadDetails = {
   fileSizeBytes: number;
 };
 
-function readVideoDuration(file: File) {
+function readVideoDuration(file: File, abortSignal?: AbortSignal) {
   return new Promise<number | null>((resolve) => {
     const video = document.createElement("video");
     const url = URL.createObjectURL(file);
@@ -18,11 +18,12 @@ function readVideoDuration(file: File) {
     video.preload = "metadata";
     video.onloadedmetadata = () => finish(Number.isFinite(video.duration) ? Math.round(video.duration) : null);
     video.onerror = () => finish(null);
+    abortSignal?.addEventListener("abort", () => finish(null), { once: true });
     video.src = url;
   });
 }
 
-export async function readUploadDetails(file: File): Promise<UploadDetails> {
+export async function readUploadDetails(file: File, abortSignal?: AbortSignal): Promise<UploadDetails> {
   let capturedAt: string | null = null;
   let durationSeconds: number | null = null;
   if (file.type.startsWith("image/")) {
@@ -34,6 +35,6 @@ export async function readUploadDetails(file: File): Promise<UploadDetails> {
       // Some image formats do not contain readable EXIF metadata.
     }
   }
-  if (file.type.startsWith("video/")) durationSeconds = await readVideoDuration(file);
+  if (file.type.startsWith("video/")) durationSeconds = await readVideoDuration(file, abortSignal);
   return { capturedAt, durationSeconds, fileSizeBytes: file.size };
 }

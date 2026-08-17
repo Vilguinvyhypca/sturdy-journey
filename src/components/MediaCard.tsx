@@ -7,7 +7,10 @@ import { VideoThumbnail } from "./VideoThumbnail";
 
 export function MediaCard({ item, onSelect }: { item: MediaItem; onSelect: (item: MediaItem) => void }) {
   const [photoLoaded, setPhotoLoaded] = useState(item.type === "video");
-  return <button aria-label={`Open uploaded ${item.type}`} onClick={() => onSelect(item)} className="group aspect-square overflow-hidden bg-slate-200 text-left">
+  return <button aria-label={`Open uploaded ${item.type}`} onClick={(event) => {
+    if (event.defaultPrevented) return;
+    onSelect(item);
+  }} className="group aspect-square overflow-hidden bg-slate-200 text-left">
     <div className="relative h-full w-full overflow-hidden">
       {item.type === "photo" && !photoLoaded && <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-slate-200" />}
       {item.type === "video" ? <VideoThumbnail src={item.url} title="Uploaded video" /> : <Image src={item.url} alt="" fill sizes="(max-width: 640px) 33vw, 400px" quality={70} onLoad={() => setPhotoLoaded(true)} onError={(event) => {

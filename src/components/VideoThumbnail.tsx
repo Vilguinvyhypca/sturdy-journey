@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 export function VideoThumbnail({ src, title }: { src: string; title: string }) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const container = useRef<HTMLDivElement>(null);
+  const previewVideo = useRef<HTMLVideoElement>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heldToPreview = useRef(false);
 
   useEffect(() => {
     const target = container.current;
@@ -46,5 +50,47 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
     };
   }, [nearViewport, src]);
 
-  return <div ref={container} className="h-full w-full">{thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}</div>;
+  useEffect(() => {
+    const video = previewVideo.current;
+    if (!video) return;
+    if (previewing) {
+      void video.play().catch(() => setPreviewing(false));
+      return;
+    }
+    video.pause();
+    video.currentTime = 0;
+  }, [previewing]);
+
+  useEffect(() => () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+  }, []);
+
+  const stopPreview = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    setPreviewing(false);
+  };
+
+  return <div ref={container} className="h-full w-full" onPointerEnter={(event) => {
+    if (event.pointerType === "mouse") setPreviewing(true);
+  }} onPointerLeave={stopPreview} onPointerDown={(event) => {
+    if (event.pointerType !== "touch") return;
+    heldToPreview.current = false;
+    holdTimer.current = setTimeout(() => {
+      heldToPreview.current = true;
+      setPreviewing(true);
+    }, 450);
+  }} onPointerUp={(event) => {
+    const wasPreviewing = heldToPreview.current;
+    heldToPreview.current = false;
+    stopPreview();
+    if (wasPreviewing) event.preventDefault();
+  }} onPointerCancel={stopPreview}>
+    {previewing ? <video ref={previewVideo} src={src} poster={thumbnail ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" onEnded={() => {
+      const video = previewVideo.current;
+      if (video) video.currentTime = 0;
+    }} /> : thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}
+  </div>;
 }

@@ -16,6 +16,7 @@ type ClientMediaPayload = {
   durationSeconds: number | null;
   fileSizeBytes: number;
   title: string;
+  mediaType: "photo" | "video";
 };
 
 function readClientPayload(value: string | null): ClientMediaPayload {
@@ -24,9 +25,10 @@ function readClientPayload(value: string | null): ClientMediaPayload {
   if (typeof payload.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(payload.contentHash)) throw new Error("Invalid file fingerprint.");
   if (typeof payload.title !== "string" || payload.title.length === 0 || payload.title.length > 200) throw new Error("Invalid file name.");
   if (typeof payload.fileSizeBytes !== "number" || !Number.isFinite(payload.fileSizeBytes) || payload.fileSizeBytes <= 0) throw new Error("Invalid file size.");
+  if (payload.mediaType !== "photo" && payload.mediaType !== "video") throw new Error("Invalid media type.");
   const capturedAt = typeof payload.capturedAt === "string" && !Number.isNaN(Date.parse(payload.capturedAt)) ? new Date(payload.capturedAt).toISOString() : null;
   const durationSeconds = typeof payload.durationSeconds === "number" && Number.isFinite(payload.durationSeconds) && payload.durationSeconds >= 0 ? Math.round(payload.durationSeconds) : null;
-  return { contentHash: payload.contentHash, capturedAt, durationSeconds, fileSizeBytes: payload.fileSizeBytes, title: payload.title };
+  return { contentHash: payload.contentHash, capturedAt, durationSeconds, fileSizeBytes: payload.fileSizeBytes, title: payload.title, mediaType: payload.mediaType };
 }
 
 export async function POST(request: Request) {
@@ -42,7 +44,8 @@ export async function POST(request: Request) {
           if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) throw new Error("Sign in as the administrator to upload.");
           if (!pathname.startsWith("media/") || pathname.slice("media/".length).includes("/")) throw new Error("Invalid upload path.");
           const payload = readClientPayload(clientPayload);
-          if (payload.durationSeconds !== null && payload.durationSeconds > maximumVideoDurationSeconds) throw new Error("Videos must be five minutes or shorter.");
+          if (payload.mediaType === "video" && payload.durationSeconds === null) throw new Error("This video's duration could not be checked. Choose a video with a readable duration.");
+          if (payload.mediaType === "video" && payload.durationSeconds !== null && payload.durationSeconds > maximumVideoDurationSeconds) throw new Error("Videos must be five minutes or shorter.");
           if (usesDatabase && await findMediaByHash(payload.contentHash)) throw new Error("That exact photo or video has already been uploaded.");
           return {
             allowedContentTypes: ["image/*", "video/*"],
@@ -86,6 +89,7 @@ export async function POST(request: Request) {
   const capturedAt = typeof capturedAtValue === "string" && !Number.isNaN(Date.parse(capturedAtValue)) ? new Date(capturedAtValue).toISOString() : null;
   const durationValue = Number(formData.get("durationSeconds"));
   const durationSeconds = Number.isFinite(durationValue) && durationValue >= 0 ? Math.round(durationValue) : null;
+  if (file.type.startsWith("video/") && durationSeconds === null) return NextResponse.json({ error: "This video's duration could not be checked. Choose a video with a readable duration." }, { status: 413 });
   if (file.type.startsWith("video/") && durationSeconds !== null && durationSeconds > maximumVideoDurationSeconds) return NextResponse.json({ error: "Videos must be five minutes or shorter." }, { status: 413 });
   const contentHash = createHash("sha256").update(Buffer.from(await file.arrayBuffer())).digest("hex");
   if (usesDatabase && await findMediaByHash(contentHash)) return NextResponse.json({ error: "That exact photo or video has already been uploaded." }, { status: 409 });
