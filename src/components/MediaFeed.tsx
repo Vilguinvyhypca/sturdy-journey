@@ -33,6 +33,28 @@ async function fingerprintFile(file: File) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function uploadVideoToMux(file: File, details: { capturedAt: string | null; durationSeconds: number | null; fileSizeBytes: number }, signal: AbortSignal, onProgress: (message: string) => void) {
+  const contentHash = await fingerprintFile(file);
+  const uploadDetails = { contentHash, title: file.name.replace(/\.[^/.]+$/, ""), capturedAt: details.capturedAt, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes };
+  onProgress("Preparing secure video upload...");
+  const createResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", details: uploadDetails }), signal });
+  const created = await createResponse.json() as { uploadId?: string; uploadUrl?: string; error?: string };
+  if (!createResponse.ok || !created.uploadId || !created.uploadUrl) throw new Error(created.error ?? "Could not prepare the video upload.");
+  onProgress("Uploading video directly to Mux...");
+  const transfer = await fetch(created.uploadUrl, { method: "PUT", body: file, signal, headers: { "Content-Type": file.type || "video/mp4" } });
+  if (!transfer.ok) throw new Error("Mux could not receive this video.");
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (signal.aborted) throw new DOMException("Upload canceled", "AbortError");
+    onProgress("Preparing video for playback...");
+    await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    const completeResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", uploadId: created.uploadId, details: uploadDetails }), signal });
+    const completed = await completeResponse.json() as { media?: MediaItem; processing?: boolean; error?: string };
+    if (!completeResponse.ok) throw new Error(completed.error ?? "Mux could not finish this video.");
+    if (completed.media) return completed.media;
+  }
+  throw new Error("The video is still processing. Refresh the library in a minute to see it.");
+}
+
 export function MediaFeed() {
   const { data: session } = useSession();
   const [filter, setFilter] = useState<"all" | "photo" | "video">("all");
@@ -139,6 +161,9 @@ export function MediaFeed() {
             const data = await response.json() as { media?: MediaItem; error?: string };
             if (!response.ok || !data.media) failed += 1;
             else uploaded.push(data.media);
+          } else if (file.type.startsWith("video/")) {
+            const media = await uploadVideoToMux(file, details, abortController.signal, setUploadProgress);
+            uploaded.push(media);
           } else {
             const contentHash = await fingerprintFile(file);
             const blob = await upload(`media/${file.name}`, file, {

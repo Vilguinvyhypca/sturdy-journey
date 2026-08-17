@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 export function VideoThumbnail({ src, title }: { src: string; title: string }) {
+  const muxPlaybackId = src.startsWith("mux:") ? src.slice("mux:".length) : null;
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -12,6 +13,7 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
   const heldToPreview = useRef(false);
 
   useEffect(() => {
+    if (muxPlaybackId) return;
     const target = container.current;
     if (!target) return;
     const observer = new IntersectionObserver(([entry]) => {
@@ -48,7 +50,7 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
       video.removeEventListener("seeked", captureFrame);
       video.src = "";
     };
-  }, [nearViewport, src]);
+  }, [nearViewport, src, muxPlaybackId]);
 
   useEffect(() => {
     const video = previewVideo.current;
@@ -72,6 +74,8 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
     }
     setPreviewing(false);
   };
+
+  if (muxPlaybackId) return <div ref={container} className="h-full w-full"><img src={`https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=640&fit_mode=preserve`} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /></div>;
 
   return <div ref={container} className="h-full w-full" onPointerEnter={(event) => {
     if (event.pointerType === "mouse") setPreviewing(true);

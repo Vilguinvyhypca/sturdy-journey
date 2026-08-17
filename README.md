@@ -37,6 +37,19 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 This fork is deployed independently.
 
+## Mux video delivery
+
+Photos continue to use the app's existing storage. In production, new video uploads use Mux directly so they do not consume Vercel Blob transfer.
+
+Add these environment variables to the Vercel project (Production and Preview) before deploying:
+
+```text
+MUX_TOKEN_ID=
+MUX_TOKEN_SECRET=
+```
+
+Create these values in the Mux dashboard as a Video API access token with read and write access. Existing videos are not moved automatically.
+
 ## MediaSpace backlog
 
 - Add a search field for filenames, album names, and saved media details.
