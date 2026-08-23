@@ -126,6 +126,7 @@ export function MediaFeed() {
     setUploadError("");
     const uploaded: MediaItem[] = [];
     let failed = 0;
+    const failureMessages: string[] = [];
     let rejectedForLength = 0;
     let rejectedWithoutDuration = 0;
     let canceled = false;
@@ -159,7 +160,9 @@ export function MediaFeed() {
             if (details.durationSeconds !== null) formData.append("durationSeconds", String(details.durationSeconds));
             const response = await fetch("/api/upload", { method: "POST", body: formData, signal: abortController.signal });
             const data = await response.json() as { media?: MediaItem; error?: string };
-            if (!response.ok || !data.media) failed += 1;
+            if (!response.ok || !data.media) {
+              throw new Error(data.error ?? "The server could not save this file.");
+            }
             else uploaded.push(data.media);
           } else if (file.type.startsWith("video/")) {
             const media = await uploadVideoToMux(file, details, abortController.signal, setUploadProgress);
@@ -197,6 +200,10 @@ export function MediaFeed() {
         } catch (error) {
           if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) { canceled = true; break; }
           failed += 1;
+          const message = error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "The server could not upload this file.";
+          if (!failureMessages.includes(message)) failureMessages.push(message);
         }
         const completed = index + 1;
         const elapsed = (Date.now() - startedAt) / 1000;
@@ -217,7 +224,8 @@ export function MediaFeed() {
     } else if (rejectedWithoutDuration) {
       setUploadError(rejectedWithoutDuration === 1 ? "One video was skipped because its length could not be checked before uploading." : `${rejectedWithoutDuration} videos were skipped because their lengths could not be checked before uploading.`);
     } else if (failed) {
-      setUploadError(failed === 1 ? "One file could not be uploaded." : `${failed} files could not be uploaded.`);
+      const summary = failed === 1 ? "One file could not be uploaded." : `${failed} files could not be uploaded.`;
+      setUploadError(failureMessages.length ? `${summary} ${failureMessages.join(" ")}` : summary);
     }
   }
   function cancelUpload() {
