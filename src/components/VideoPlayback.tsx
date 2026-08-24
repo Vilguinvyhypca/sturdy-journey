@@ -3,17 +3,17 @@
 import { useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
 
-export function VideoPlayback({ src }: { src: string }) {
+export function VideoPlayback({ src, className = "" }: { src: string; className?: string }) {
   const [status, setStatus] = useState<"loading" | "buffering" | "ready" | "error">("loading");
   const muxPlaybackId = src.startsWith("mux:") ? src.slice("mux:".length) : null;
 
-  return <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-slate-950">
+  return <div className={`relative h-full w-full overflow-hidden bg-slate-950 ${className}`}>
     {muxPlaybackId ? <MuxPlayer
       playbackId={muxPlaybackId}
       streamType="on-demand"
       autoPlay
       accentColor="#4f46e5"
-      className="h-full w-full"
+      className="h-full w-full object-contain"
       onCanPlay={() => setStatus("ready")}
       onPlaying={() => setStatus("ready")}
       onWaiting={() => setStatus("buffering")}
@@ -24,7 +24,7 @@ export function VideoPlayback({ src }: { src: string }) {
       autoPlay
       playsInline
       preload="metadata"
-      className="h-full w-full"
+      className="h-full w-full object-contain"
       onCanPlay={() => setStatus("ready")}
       onPlaying={() => setStatus("ready")}
       onWaiting={() => setStatus("buffering")}

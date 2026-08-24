@@ -10,12 +10,12 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function MediaDetails({ item }: { item: MediaItem }) {
+export function MediaDetails({ item, className = "" }: { item: MediaItem; className?: string }) {
   const details = [
     item.capturedAt ? `Taken ${new Date(item.capturedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : null,
     item.durationSeconds !== null && item.durationSeconds !== undefined ? formatDuration(item.durationSeconds) : null,
     item.fileSizeBytes ? formatBytes(item.fileSizeBytes) : null,
   ].filter(Boolean);
   if (details.length === 0) return null;
-  return <p className="px-4 pt-4 text-sm text-slate-500">{details.join(" · ")}</p>;
+  return <p className={`px-4 pt-4 text-sm text-slate-500 ${className}`}>{details.join(" · ")}</p>;
 }
