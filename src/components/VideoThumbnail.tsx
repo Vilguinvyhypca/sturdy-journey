@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MuxPlayer from "@mux/mux-player-react";
 
 export function VideoThumbnail({ src, title }: { src: string; title: string }) {
   const muxPlaybackId = src.startsWith("mux:") ? src.slice("mux:".length) : null;
@@ -75,8 +76,6 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
     setPreviewing(false);
   };
 
-  if (muxPlaybackId) return <div ref={container} className="h-full w-full"><img src={`https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=640&fit_mode=preserve`} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /></div>;
-
   return <div ref={container} className="h-full w-full" onPointerEnter={(event) => {
     if (event.pointerType === "mouse") setPreviewing(true);
   }} onPointerLeave={stopPreview} onPointerDown={(event) => {
@@ -92,7 +91,7 @@ export function VideoThumbnail({ src, title }: { src: string; title: string }) {
     stopPreview();
     if (wasPreviewing) event.preventDefault();
   }} onPointerCancel={stopPreview}>
-    {previewing ? <video ref={previewVideo} src={src} poster={thumbnail ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" onEnded={() => {
+    {muxPlaybackId ? (previewing ? <MuxPlayer playbackId={muxPlaybackId} streamType="on-demand" autoPlay="muted" muted playsInline loop preload="metadata" nohotkeys className="pointer-events-none h-full w-full object-cover" style={{ "--controls": "none" }} /> : <img src={`https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=640&fit_mode=preserve`} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />) : previewing ? <video ref={previewVideo} src={src} poster={thumbnail ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" onEnded={() => {
       const video = previewVideo.current;
       if (video) video.currentTime = 0;
     }} /> : thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}
