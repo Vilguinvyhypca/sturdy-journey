@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 
-export function ShareMediaButton({ mediaId }: { mediaId: string }) {
+export function ShareMediaButton({ mediaId, href }: { mediaId: string; href?: string }) {
   const [message, setMessage] = useState("");
 
   async function share() {
-    const url = new URL(window.location.href);
-    url.searchParams.set("media", mediaId);
+    const url = new URL(href ?? window.location.href, window.location.origin);
 
     if (navigator.share) {
       try {

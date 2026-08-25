@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import type { MediaItem } from "@/lib/media";
 import { AlbumPicker } from "./AlbumPicker";
 import { MediaDetails } from "./MediaDetails";
@@ -22,7 +23,7 @@ export function VideoPlayer({ item, onClose, onDelete, onOrganize }: { item: Med
       </div>
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-20 text-white">
         <MediaDetails item={item} className="px-0 pt-0 text-white/80" />
-        <div className="mt-3 flex flex-wrap justify-end gap-2"><ShareMediaButton mediaId={item.id} />{onOrganize && <AlbumPicker item={item} onSaved={onOrganize} />}{onDelete && <button onClick={onDelete} className="rounded-lg bg-white/10 px-3 py-2 text-rose-200 hover:bg-white/20">Delete</button>}</div>
+        <div className="mt-3 flex flex-wrap justify-end gap-2"><Link href={`/videos/${encodeURIComponent(item.id)}`} className="rounded-lg bg-white/10 px-3 py-2 text-white hover:bg-white/20">Open page</Link><ShareMediaButton mediaId={item.id} href={`/videos/${encodeURIComponent(item.id)}`} />{onOrganize && <AlbumPicker item={item} onSaved={onOrganize} />}{onDelete && <button onClick={onDelete} className="rounded-lg bg-white/10 px-3 py-2 text-rose-200 hover:bg-white/20">Delete</button>}</div>
       </div>
     </div>
   </div>;

@@ -149,6 +149,33 @@ export async function listMuxMedia(): Promise<MediaItem[]> {
   }));
 }
 
+export async function getMuxVideo(id: string): Promise<MediaItem | null> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
+       COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+       COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
+     FROM media m
+     LEFT JOIN media_albums ma ON ma.media_id = m.id
+     LEFT JOIN albums a ON a.id = ma.album_id
+     WHERE m.id = $1 AND m.id LIKE 'mux:%' AND m.media_type = 'video'
+     GROUP BY m.id
+     LIMIT 1`,
+    [id],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: String(row.id), title: String(row.caption), type: "video", url: String(row.storage_url),
+    createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
+    albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+  };
+}
+
 export async function setMediaAlbums(mediaId: string, albumIds: string[]) {
   await ensureDatabase();
   const db = sql();
