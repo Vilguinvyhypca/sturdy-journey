@@ -158,7 +158,9 @@ export async function getMuxVideo(id: string): Promise<MediaItem | null> {
      FROM media m
      LEFT JOIN media_albums ma ON ma.media_id = m.id
      LEFT JOIN albums a ON a.id = ma.album_id
-     WHERE m.id = $1 AND m.id LIKE 'mux:%' AND m.media_type = 'video'
+     WHERE (m.id = $1 OR m.storage_url = $1)
+       AND m.id LIKE 'mux:%'
+       AND m.media_type = 'video'
      GROUP BY m.id
      LIMIT 1`,
     [id],
