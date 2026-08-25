@@ -31,7 +31,16 @@ function fallbackMuxVideo(id: string): MediaItem | null {
   };
 }
 
-const findVideo = cache(async (id: string) => {
+function normalizeVideoId(id: string) {
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
+const findVideo = cache(async (routeId: string) => {
+  const id = normalizeVideoId(routeId);
   const savedVideo = usesDatabase
     ? await getMuxVideo(id).catch(() => null)
     : null;
