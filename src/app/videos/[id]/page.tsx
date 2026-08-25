@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { MediaDetails } from "@/components/MediaDetails";
 import { VideoPlayback } from "@/components/VideoPlayback";
 import { getMuxVideo, usesDatabase } from "@/lib/database";
+import type { MediaItem } from "@/lib/media";
 import { getSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +16,32 @@ function thumbnailFor(url: string) {
   return `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0.5&width=1200&fit_mode=preserve`;
 }
 
+function fallbackMuxVideo(id: string): MediaItem | null {
+  // A Mux playback ID is sufficient to play a public video. This fallback
+  // preserves older links when an upload did not save its database record.
+  if (!/^mux:[A-Za-z0-9_-]{12,}$/.test(id)) return null;
+
+  return {
+    id,
+    title: "MediaSpace video",
+    type: "video",
+    url: id,
+    createdAt: "",
+    album: "Uploads",
+  };
+}
+
+const findVideo = cache(async (id: string) => {
+  const savedVideo = usesDatabase
+    ? await getMuxVideo(id).catch(() => null)
+    : null;
+
+  return savedVideo ?? fallbackMuxVideo(id);
+});
+
 export async function generateMetadata({ params }: PageProps<"/videos/[id]">): Promise<Metadata> {
   const { id } = await params;
-  const item = usesDatabase ? await getMuxVideo(id).catch(() => null) : null;
+  const item = await findVideo(id);
   if (!item) return { title: "Video not found | MediaSpace", robots: { index: false, follow: false } };
 
   const description = `Watch ${item.title} in MediaSpace.`;
@@ -32,7 +57,7 @@ export async function generateMetadata({ params }: PageProps<"/videos/[id]">): P
 
 export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   const { id } = await params;
-  const item = usesDatabase ? await getMuxVideo(id).catch(() => null) : null;
+  const item = await findVideo(id);
   if (!item) notFound();
 
   const thumbnailUrl = thumbnailFor(item.url);
