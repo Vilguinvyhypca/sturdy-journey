@@ -16,6 +16,6 @@ export function MediaDetails({ item, className = "" }: { item: MediaItem; classN
     item.durationSeconds !== null && item.durationSeconds !== undefined ? formatDuration(item.durationSeconds) : null,
     item.fileSizeBytes ? formatBytes(item.fileSizeBytes) : null,
   ].filter(Boolean);
-  if (details.length === 0) return null;
-  return <p className={`px-4 pt-4 text-sm text-slate-500 ${className}`}>{details.join(" · ")}</p>;
+  if (details.length === 0 && !item.description) return null;
+  return <div className={`px-4 pt-4 text-sm text-slate-500 ${className}`}>{item.description && <p className="mb-2 whitespace-pre-wrap leading-6">{item.description}</p>}{details.length > 0 && <p>{details.join(" · ")}</p>}</div>;
 }

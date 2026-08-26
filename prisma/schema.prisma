@@ -22,6 +22,7 @@ model Media {
   storageUrl      String       @map("storage_url")
   type            MediaType    @map("media_type")
   caption         String       @default("")
+  description     String       @default("")
   contentHash     String?      @map("content_hash")
   capturedAt      DateTime?    @map("captured_at")
   durationSeconds Int?         @map("duration_seconds")

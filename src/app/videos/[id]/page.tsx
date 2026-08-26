@@ -39,6 +39,10 @@ function normalizeVideoId(id: string) {
   }
 }
 
+function descriptionFor(item: MediaItem) {
+  return item.description?.trim() || `Watch ${item.title} in MediaSpace.`;
+}
+
 const findVideo = cache(async (routeId: string) => {
   const id = normalizeVideoId(routeId);
   const savedVideo = usesDatabase
@@ -53,7 +57,7 @@ export async function generateMetadata({ params }: PageProps<"/videos/[id]">): P
   const item = await findVideo(id);
   if (!item) return { title: "Video not found | MediaSpace", robots: { index: false, follow: false } };
 
-  const description = `Watch ${item.title} in MediaSpace.`;
+  const description = descriptionFor(item);
   const image = thumbnailFor(item.url);
   return {
     title: `${item.title} | MediaSpace`,
@@ -79,7 +83,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     name: item.title,
-    description: `Watch ${item.title} in MediaSpace.`,
+    description: descriptionFor(item),
     thumbnailUrl,
     uploadDate: item.capturedAt ?? undefined,
     contentUrl: `https://stream.mux.com/${playbackId}.m3u8`,
@@ -100,6 +104,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
       <div className="max-w-xl pt-2">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Video</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{item.title}</h1>
+        {item.description && <p className="mt-4 whitespace-pre-wrap leading-7 text-slate-200">{item.description}</p>}
         <MediaDetails item={item} className="px-0 pt-3 text-slate-300" />
         <p className="mt-6 text-sm leading-6 text-slate-300">This is a public MediaSpace video page. You can share this address directly.</p>
       </div>

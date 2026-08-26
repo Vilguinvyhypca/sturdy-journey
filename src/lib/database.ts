@@ -13,7 +13,10 @@ export type Album = {
 export type { SiteTheme } from "./theme";
 
 // Marketplace integrations may namespace the connection string with their chosen prefix.
-const databaseUrl = process.env.DATABASE_URL ?? process.env.DATABASE_URL_DATABASE_URL;
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  process.env.DATABASE_URL_DATABASE_URL ??
+  process.env.POSTGRES_URL;
 export const usesDatabase = Boolean(databaseUrl);
 
 function sql() {
@@ -41,6 +44,7 @@ export function ensureDatabase() {
           storage_url TEXT NOT NULL,
           media_type TEXT NOT NULL CHECK (media_type IN ('photo', 'video')),
           caption TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
           captured_at TIMESTAMPTZ,
           duration_seconds INTEGER,
           file_size_bytes BIGINT,
@@ -49,6 +53,7 @@ export function ensureDatabase() {
       `);
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT");
+      await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''");
       await db.query("DROP INDEX IF EXISTS media_content_hash_unique");
       await db.query("CREATE INDEX IF NOT EXISTS media_content_hash_index ON media (content_hash) WHERE content_hash IS NOT NULL");
       await db.query(`
@@ -95,6 +100,26 @@ export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "t
   );
 }
 
+export async function updateMediaDetails(id: string, title: string, description: string) {
+  await ensureDatabase();
+  const rows = await sql().query(
+    `UPDATE media SET caption = $2, description = $3 WHERE id = $1
+     RETURNING id, storage_url, media_type, caption, description, created_at, captured_at, duration_seconds, file_size_bytes`,
+    [id, title, description],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""),
+    type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+    createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    album: "Uploads", albumIds: [],
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+  } satisfies MediaItem;
+}
+
 export async function findMediaByHash(contentHash: string) {
   await ensureDatabase();
   const rows = await sql().query("SELECT id FROM media WHERE content_hash = $1 LIMIT 1", [contentHash]);
@@ -109,7 +134,7 @@ export async function deleteMediaRecord(id: string) {
 export async function getMediaAlbumDetails() {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.captured_at, m.duration_seconds, m.file_size_bytes, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+    `SELECT m.id, m.caption, m.description, m.captured_at, m.duration_seconds, m.file_size_bytes, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
             COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
      LEFT JOIN media_albums ma ON ma.media_id = m.id
@@ -117,6 +142,8 @@ export async function getMediaAlbumDetails() {
      GROUP BY m.id`,
   );
   return new Map(rows.map((row) => [String(row.id), {
+    title: String(row.caption),
+    description: String(row.description ?? ""),
     albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
     album: Array.isArray(row.album_names) && row.album_names.length > 0 ? String(row.album_names[0]) : "Uploads",
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
@@ -128,7 +155,7 @@ export async function getMediaAlbumDetails() {
 export async function listMuxMedia(): Promise<MediaItem[]> {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
        COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
        COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
@@ -139,7 +166,7 @@ export async function listMuxMedia(): Promise<MediaItem[]> {
      ORDER BY m.created_at DESC`,
   );
   return rows.map((row) => ({
-    id: String(row.id), title: String(row.caption), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
     createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
     albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
@@ -152,7 +179,7 @@ export async function listMuxMedia(): Promise<MediaItem[]> {
 export async function getMuxVideo(id: string): Promise<MediaItem | null> {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
        COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
        COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
@@ -168,7 +195,7 @@ export async function getMuxVideo(id: string): Promise<MediaItem | null> {
   const row = rows[0];
   if (!row) return null;
   return {
-    id: String(row.id), title: String(row.caption), type: "video", url: String(row.storage_url),
+    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: "video", url: String(row.storage_url),
     createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
     albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
@@ -251,7 +278,7 @@ export async function getAlbum(id: string): Promise<{ album: Album; media: Media
   const albumRow = albumRows[0];
   if (!albumRow) return null;
   const mediaRows = await db.query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes
      FROM media m
      INNER JOIN media_albums ma ON ma.media_id = m.id
      WHERE ma.album_id = $1
@@ -261,6 +288,7 @@ export async function getAlbum(id: string): Promise<{ album: Album; media: Media
   const media = mediaRows.map((row) => ({
     id: String(row.id),
     title: String(row.caption),
+    description: String(row.description ?? ""),
     type: String(row.media_type) as MediaItem["type"],
     url: String(row.storage_url),
     createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),

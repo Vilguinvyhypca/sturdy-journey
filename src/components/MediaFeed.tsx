@@ -56,7 +56,8 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
 }
 
 export function MediaFeed() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
   const [filter, setFilter] = useState<"all" | "photo" | "video">("all");
   const [selected, setSelected] = useState<MediaItem | null>(null);
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -85,6 +86,11 @@ export function MediaFeed() {
     return sort === "newest" ? secondDate - firstDate : firstDate - secondDate;
   });
   const displayedItems = visible.slice(0, visibleCount);
+  const firstVideoIndex = displayedItems.findIndex((item) => item.type === "video");
+  const galleryItems = !isAdministrator && firstVideoIndex > 0
+    ? [displayedItems[firstVideoIndex], ...displayedItems.slice(0, firstVideoIndex), ...displayedItems.slice(firstVideoIndex + 1)]
+    : displayedItems;
+  const galleryLoading = loading || sessionStatus === "loading";
   const photoCount = items.filter((item) => item.type === "photo").length;
   const videoCount = items.length - photoCount;
   const itemsWithKnownSize = items.filter((item) => typeof item.fileSizeBytes === "number");
@@ -257,6 +263,11 @@ export function MediaFeed() {
     setSelected(updated);
     setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
   }
+
+  function updateSelectedMedia(updated: MediaItem) {
+    setSelected(updated);
+    setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
+  }
   function toggleMediaSelection(item: MediaItem) {
     setSelectedMediaIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]);
   }
@@ -283,9 +294,9 @@ export function MediaFeed() {
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}
     {!loading && <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500"><span>{items.length} files</span><span>{photoCount} photos</span><span>{videoCount} videos</span>{itemsWithKnownSize.length > 0 && <span>{formatFileSize(knownStorageBytes)} tracked storage</span>}{itemsWithKnownSize.length < items.length && session && <span className="text-indigo-700">Scan media library to calculate all storage.</span>}</div>}
-    <section className="mt-5 grid grid-cols-3 gap-0" aria-busy={loading}>{loading ? Array.from({ length: 9 }, (_, index) => <div key={index} className="aspect-square animate-pulse border border-slate-100 bg-slate-100" aria-hidden="true" />) : <><div className="aspect-square border border-dashed border-indigo-300 bg-indigo-50 p-3 text-indigo-950 sm:p-5"><p className="text-sm font-bold sm:text-lg">Create an album</p><p className="mt-1 hidden text-sm text-indigo-800 sm:block">Group a moment, trip, or project.</p><Link href="/albums" className="mt-3 inline-block text-xs font-bold text-indigo-700 hover:underline sm:mt-4 sm:text-sm">New album →</Link></div>{displayedItems.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} selectionMode={selectionMode} isSelected={selectedMediaIds.includes(item.id)} onToggleSelection={toggleMediaSelection} />)}{visible.length === 0 && <p className="col-span-2 border border-dashed border-slate-300 p-3 text-sm text-slate-500 sm:p-5">No media matches this album yet.</p>}</>}</section>
+    <section className="mt-5 grid grid-cols-3 gap-0" aria-busy={galleryLoading}>{galleryLoading ? Array.from({ length: 9 }, (_, index) => <div key={index} className="aspect-square animate-pulse border border-slate-100 bg-slate-100" aria-hidden="true" />) : <>{isAdministrator && <div className="aspect-square border border-dashed border-indigo-300 bg-indigo-50 p-3 text-indigo-950 sm:p-5"><p className="text-sm font-bold sm:text-lg">Create an album</p><p className="mt-1 hidden text-sm text-indigo-800 sm:block">Group a moment, trip, or project.</p><Link href="/albums" className="mt-3 inline-block text-xs font-bold text-indigo-700 hover:underline sm:mt-4 sm:text-sm">New album →</Link></div>}{galleryItems.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} selectionMode={selectionMode} isSelected={selectedMediaIds.includes(item.id)} onToggleSelection={toggleMediaSelection} />)}{visible.length === 0 && <p className={`${isAdministrator ? "col-span-2" : "col-span-3"} border border-dashed border-slate-300 p-3 text-sm text-slate-500 sm:p-5`}>No media matches this album yet.</p>}</>}</section>
     {!loading && visible.length > 0 && <div className="mt-5 flex flex-col items-center gap-3 text-sm text-slate-500"><p>Showing {displayedItems.length} of {visible.length} files</p>{displayedItems.length < visible.length && <button onClick={() => setVisibleCount((count) => count + galleryPageSize)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50">Load {Math.min(galleryPageSize, visible.length - displayedItems.length)} more</button>}</div>}
-    {selected?.type === "photo" && <PhotoViewer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} />}{selected?.type === "video" && <VideoPlayer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} />}
+    {selected?.type === "photo" && <PhotoViewer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}{selected?.type === "video" && <VideoPlayer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}
     {uploadState && <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-5"><div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center gap-3"><span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" /><div><p className="font-black text-slate-900">Uploading media</p><p className="text-sm text-slate-500">File {Math.min(uploadState.completed + 1, uploadState.total)} of {uploadState.total}</p></div></div><div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${(uploadState.completed / uploadState.total) * 100}%` }} /></div><div className="mt-4 flex justify-between text-sm text-slate-600"><span>Elapsed {formatDuration(elapsedSeconds)}</span><span>{uploadState.estimatedRemaining === null ? "Estimating time..." : `${formatDuration(uploadState.estimatedRemaining)} left`}</span></div><button type="button" onClick={cancelUpload} className="mt-6 w-full rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50">Cancel upload</button></div></div>}
   </main>;
 }

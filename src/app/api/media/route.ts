@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { getServerSession } from "next-auth";
-import { readMedia, removeMedia } from "@/lib/db";
+import { readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { addMediaToAlbum, deleteMediaRecord, getMediaAlbumDetails, listMuxMedia, saveMedia, setMediaAlbums, usesDatabase } from "@/lib/database";
+import { addMediaToAlbum, deleteMediaRecord, getMediaAlbumDetails, listMuxMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { deleteMuxAsset } from "@/lib/mux";
 import { demoMedia } from "@/lib/media";
 import { deleteLocalMedia, listBlobMedia, usesBlobStorage } from "@/lib/storage";
@@ -26,9 +26,28 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to organize media." }, { status: 401 });
+  if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
+  const body = await request.json() as { id?: unknown; title?: unknown; description?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
+  const isDetailsUpdate = "title" in body || "description" in body;
+  if (isDetailsUpdate) {
+    const mediaId = typeof body.id === "string" ? body.id.trim() : "";
+    // Older local and imported media use UUID-style IDs instead of the newer
+    // `media/` and `mux:` prefixes. Parameterized queries keep arbitrary IDs safe.
+    if (!mediaId || mediaId.length > 2_048) {
+      return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
+    }
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const description = typeof body.description === "string" ? body.description.trim() : "";
+    if (!title) return NextResponse.json({ error: "A title is required." }, { status: 400 });
+    if (title.length > 120) return NextResponse.json({ error: "The title must be 120 characters or fewer." }, { status: 400 });
+    if (description.length > 500) return NextResponse.json({ error: "The description must be 500 characters or fewer." }, { status: 400 });
+    const media = usesDatabase
+      ? await updateMediaDetails(mediaId, title, description)
+      : await updateLocalMediaDetails(mediaId, title, description);
+    if (!media) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
+    return NextResponse.json({ media });
+  }
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
-  const body = await request.json() as { id?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
   if (Array.isArray(body.ids) && typeof body.addToAlbumId === "string") {
     if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("mux:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
     await addMediaToAlbum(body.ids, body.addToAlbumId);

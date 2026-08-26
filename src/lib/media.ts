@@ -1,6 +1,7 @@
 export type MediaItem = {
   id: string;
   title: string;
+  description?: string;
   type: "photo" | "video";
   url: string;
   createdAt: string;
