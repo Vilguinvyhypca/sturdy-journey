@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdminSignIn } from "@/components/AdminSignIn";
 import { AuthControls } from "@/components/AuthControls";
 
 export const metadata: Metadata = {
@@ -20,8 +21,8 @@ export default function AdminPage() {
         <p className="mt-3 text-sm leading-6 text-slate-600">
           Sign in to upload media, organize albums, and manage this library.
         </p>
-        <div className="mt-8 flex justify-center">
-          <AuthControls showSignIn />
+        <div className="mt-8">
+          {process.env.ADMIN_PASSWORD ? <AdminSignIn /> : <div className="flex justify-center"><AuthControls showSignIn /></div>}
         </div>
         <Link className="mt-7 inline-block text-sm font-bold text-slate-600 hover:text-slate-950" href="/">
           Back to MediaSpace
