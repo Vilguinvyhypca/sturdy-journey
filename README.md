@@ -26,6 +26,26 @@ Direct browser uploads keep large video files out of the Vercel application func
 
 Local JSON records are an array of media objects. Production data uses relational database tables so media can be connected to albums and extended without duplicating records.
 
+## Why this architecture is used professionally
+
+MediaSpace follows patterns used by professional creator platforms and content-management systems rather than treating an uploaded file as the complete content record:
+
+- **Creator studios:** YouTube Studio lets authorized creators edit video titles, descriptions, thumbnails, visibility, and other details after upload. MediaSpace follows the same admin-only editing model.
+- **Content-management systems:** WordPress and similar systems keep the media file separate from editable information such as its title, caption, description, and page URL.
+- **Search-friendly watch pages:** Google recommends giving each video a dedicated page with a unique title, description, stable thumbnail, and structured video information. MediaSpace's `/videos/[id]` pages provide the foundation for this approach.
+- **Digital asset management:** Professional media libraries store large files in specialized storage while keeping searchable metadata, albums, relationships, and permissions in a database.
+
+In MediaSpace, Mux or Vercel Blob stores the actual media, Neon stores its editable and searchable details, administrators manage those details, and Next.js turns each database record into the public gallery and individual media pages. This separation allows information to be updated without replacing the original file and keeps the same edits available across devices.
+
+The local JSON fallback is a development convenience. A shared production database is necessary when edits must remain consistent for every visitor and administrator.
+
+Further reading:
+
+- [Edit video settings in YouTube Studio](https://support.google.com/youtube/answer/57404)
+- [WordPress media editing](https://wordpress.org/documentation/article/edit-media/)
+- [Google video SEO guidance](https://developers.google.com/search/docs/appearance/video)
+- [Google VideoObject structured data](https://developers.google.com/search/docs/appearance/structured-data/video)
+
 ## Administrator and public access
 
 - `/` is the public gallery.
