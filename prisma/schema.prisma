@@ -23,6 +23,7 @@ model Media {
   type            MediaType    @map("media_type")
   caption         String       @default("")
   description     String       @default("")
+  visibility      String       @default("public")
   contentHash     String?      @map("content_hash")
   capturedAt      DateTime?    @map("captured_at")
   durationSeconds Int?         @map("duration_seconds")

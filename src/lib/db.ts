@@ -7,7 +7,8 @@ const dataFile = join(dataDirectory, "media.json");
 
 export async function readMedia(): Promise<MediaItem[]> {
   try {
-    return JSON.parse(await readFile(dataFile, "utf8")) as MediaItem[];
+    const media = JSON.parse(await readFile(dataFile, "utf8")) as Array<Omit<MediaItem, "visibility"> & { visibility?: MediaItem["visibility"] }>;
+    return media.map((item) => ({ ...item, visibility: item.visibility ?? "public" }));
   } catch {
     return [];
   }
@@ -20,11 +21,11 @@ export async function addMedia(item: MediaItem) {
   return item;
 }
 
-export async function updateLocalMediaDetails(id: string, title: string, description: string) {
+export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility: MediaItem["visibility"] = "public") {
   const media = await readMedia();
   const index = media.findIndex((item) => item.id === id);
   if (index === -1) return null;
-  media[index] = { ...media[index], title, description };
+  media[index] = { ...media[index], title, description, visibility };
   await mkdir(dataDirectory, { recursive: true });
   await writeFile(dataFile, JSON.stringify(media, null, 2), "utf8");
   return media[index];
