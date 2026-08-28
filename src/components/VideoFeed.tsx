@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
 import type { MediaItem } from "@/lib/media";
@@ -12,6 +12,13 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const muxPlaybackId = item.url.startsWith("mux:") ? item.url.slice("mux:".length) : null;
 
+  const startPlayback = useCallback(() => {
+    const player = muxPlayer.current ?? nativePlayer.current;
+    if (!active || !player) return;
+    player.muted = muted;
+    player.play().catch(() => undefined);
+  }, [active, muted]);
+
   useEffect(() => {
     const player = muxPlayer.current ?? nativePlayer.current;
     if (player) player.muted = muted;
@@ -21,8 +28,8 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       return;
     }
 
-    player?.play().catch(() => undefined);
-  }, [active, muted]);
+    startPlayback();
+  }, [active, muted, startPlayback]);
 
   function togglePlayback() {
     const player = muxPlayer.current ?? nativePlayer.current;
@@ -46,7 +53,7 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       style={{ "--controls": "none", "--media-object-fit": "contain" }}
       metadataVideoId={item.id}
       metadataVideoTitle={item.title}
-      onCanPlay={() => setStatus("ready")}
+      onCanPlay={() => { setStatus("ready"); startPlayback(); }}
       onPlaying={() => { setPlaying(true); setStatus("ready"); }}
       onPause={() => setPlaying(false)}
       onError={() => setStatus("error")}
@@ -60,7 +67,7 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       playsInline
       preload="auto"
       className="h-full w-full object-contain"
-      onCanPlay={() => setStatus("ready")}
+      onCanPlay={() => { setStatus("ready"); startPlayback(); }}
       onPlaying={() => { setPlaying(true); setStatus("ready"); }}
       onPause={() => setPlaying(false)}
       onError={() => setStatus("error")}
