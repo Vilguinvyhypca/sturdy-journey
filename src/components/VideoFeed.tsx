@@ -13,15 +13,16 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
   const muxPlaybackId = item.url.startsWith("mux:") ? item.url.slice("mux:".length) : null;
 
   useEffect(() => {
+    const player = muxPlayer.current ?? nativePlayer.current;
+    if (player) player.muted = muted;
+
     if (!active) {
-      muxPlayer.current?.pause();
-      nativePlayer.current?.pause();
+      player?.pause();
       return;
     }
 
-    const player = muxPlayer.current ?? nativePlayer.current;
     player?.play().catch(() => undefined);
-  }, [active]);
+  }, [active, muted]);
 
   function togglePlayback() {
     const player = muxPlayer.current ?? nativePlayer.current;
@@ -35,7 +36,7 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       ref={muxPlayer}
       playbackId={muxPlaybackId}
       streamType="on-demand"
-      autoPlay="muted"
+      autoPlay
       muted={muted}
       loop
       playsInline
