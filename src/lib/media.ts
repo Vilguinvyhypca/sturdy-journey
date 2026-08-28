@@ -11,11 +11,18 @@ export type MediaItem = {
   capturedAt?: string | null;
   durationSeconds?: number | null;
   fileSizeBytes?: number;
+  visibility?: MediaVisibility;
 };
 
+export type MediaVisibility = "public" | "unlisted" | "private";
+
+export function isMediaVisibility(value: unknown): value is MediaVisibility {
+  return value === "public" || value === "unlisted" || value === "private";
+}
+
 export const demoMedia: MediaItem[] = [
-  { id: "1", title: "Golden hour", type: "photo", url: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=85", createdAt: "Today", album: "Outdoors" },
-  { id: "2", title: "City after dark", type: "video", url: "https://images.unsplash.com/photo-1519608487953-e999c86e7454?auto=format&fit=crop&w=1200&q=85", createdAt: "Yesterday", album: "Travel" },
-  { id: "3", title: "Weekend escape", type: "photo", url: "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=85", createdAt: "Aug 10", album: "Travel" },
-  { id: "4", title: "Coffee break", type: "photo", url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=85", createdAt: "Aug 8", album: "Everyday" },
+  { id: "1", title: "Golden hour", type: "photo", url: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=85", createdAt: "Today", album: "Outdoors", visibility: "public" },
+  { id: "2", title: "City after dark", type: "video", url: "https://images.unsplash.com/photo-1519608487953-e999c86e7454?auto=format&fit=crop&w=1200&q=85", createdAt: "Yesterday", album: "Travel", visibility: "public" },
+  { id: "3", title: "Weekend escape", type: "photo", url: "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=85", createdAt: "Aug 10", album: "Travel", visibility: "public" },
+  { id: "4", title: "Coffee break", type: "photo", url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=85", createdAt: "Aug 8", album: "Everyday", visibility: "public" },
 ];

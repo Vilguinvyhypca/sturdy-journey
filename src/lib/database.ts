@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { MediaItem } from "./media";
+import type { MediaItem, MediaVisibility } from "./media";
 import { isSiteTheme, type SiteTheme } from "./theme";
 
 export type Album = {
@@ -54,6 +54,9 @@ export function ensureDatabase() {
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''");
+      await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'public'");
+      await db.query("ALTER TABLE media DROP CONSTRAINT IF EXISTS media_visibility_check");
+      await db.query("ALTER TABLE media ADD CONSTRAINT media_visibility_check CHECK (visibility IN ('public', 'unlisted', 'private'))");
       await db.query("DROP INDEX IF EXISTS media_content_hash_unique");
       await db.query("CREATE INDEX IF NOT EXISTS media_content_hash_index ON media (content_hash) WHERE content_hash IS NOT NULL");
       await db.query(`

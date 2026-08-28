@@ -47,6 +47,7 @@ export async function listBlobMedia(): Promise<MediaItem[]> {
       url: blob.url,
       createdAt: blob.uploadedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       album: "Uploads",
+      visibility: "private",
     }));
 }
 
