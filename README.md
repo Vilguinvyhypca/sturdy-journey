@@ -9,7 +9,7 @@ MediaSpace is a public photo and video gallery with a private administration are
 1. The administrator opens `/admin` and signs in with the configured GitHub account or admin password.
 2. The browser validates selected files and checks their metadata before upload.
 3. Photos upload directly to Vercel Blob. Videos upload directly to Mux, where they are processed into streaming video and thumbnails.
-4. Neon Postgres stores the media record: its URL or Mux playback ID, title, description, date, fingerprint, and album relationships.
+4. Neon Postgres stores the media record: its URL or Mux playback ID, title, description, visibility, date, fingerprint, and album relationships.
 5. The Next.js app reads those records and renders the public gallery, albums, filters, media viewer, and searchable video pages.
 6. Public visitors can view media but cannot see or use the administration controls.
 
@@ -55,6 +55,18 @@ Further reading:
 - Upload, edit, delete, organize, scanning, and theme controls require an authenticated administrator session.
 
 Hiding controls is only a user-interface improvement. The API routes also verify the administrator session before allowing changes.
+
+## Media visibility and storage security
+
+Administrators can mark each item as:
+
+- **Public:** included in the gallery, video feed, albums, public video pages, metadata, and sitemap.
+- **Unlisted:** excluded from public listings and search indexing, but an individual video remains available to someone with its direct page address.
+- **Private:** excluded from anonymous API responses and returns a not-found page to visitors who are not authenticated administrators.
+
+New uploads default to private. Existing database records remain public during the schema upgrade so a deployment does not unexpectedly hide the current gallery.
+
+These application rules protect discovery and page access, but they do not convert an already-public storage URL into a private file. Full file-level privacy additionally requires signed Mux playback and private or signed photo delivery. Until those are configured, anyone who already possesses a raw Mux or Vercel Blob URL may still be able to request that file directly.
 
 ## Configuration
 

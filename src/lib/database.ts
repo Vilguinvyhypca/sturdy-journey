@@ -93,22 +93,22 @@ export async function saveSiteTheme(theme: SiteTheme) {
   );
 }
 
-export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes">) {
+export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes" | "visibility">) {
   await ensureDatabase();
   await sql().query(
-    `INSERT INTO media (id, storage_url, media_type, caption, content_hash, captured_at, duration_seconds, file_size_bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO media (id, storage_url, media_type, caption, content_hash, captured_at, duration_seconds, file_size_bytes, visibility)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash), captured_at = COALESCE(media.captured_at, EXCLUDED.captured_at), duration_seconds = COALESCE(media.duration_seconds, EXCLUDED.duration_seconds), file_size_bytes = COALESCE(media.file_size_bytes, EXCLUDED.file_size_bytes)`,
-    [item.id, item.url, item.type, item.title, item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null],
+    [item.id, item.url, item.type, item.title, item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null, item.visibility ?? "private"],
   );
 }
 
-export async function updateMediaDetails(id: string, title: string, description: string) {
+export async function updateMediaDetails(id: string, title: string, description: string, visibility?: MediaVisibility) {
   await ensureDatabase();
   const rows = await sql().query(
-    `UPDATE media SET caption = $2, description = $3 WHERE id = $1
-     RETURNING id, storage_url, media_type, caption, description, created_at, captured_at, duration_seconds, file_size_bytes`,
-    [id, title, description],
+    `UPDATE media SET caption = $2, description = $3, visibility = COALESCE($4, visibility) WHERE id = $1
+     RETURNING id, storage_url, media_type, caption, description, created_at, captured_at, duration_seconds, file_size_bytes, visibility`,
+    [id, title, description, visibility],
   );
   const row = rows[0];
   if (!row) return null;
@@ -120,6 +120,7 @@ export async function updateMediaDetails(id: string, title: string, description:
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
   } satisfies MediaItem;
 }
 
@@ -137,7 +138,7 @@ export async function deleteMediaRecord(id: string) {
 export async function getMediaAlbumDetails() {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.caption, m.description, m.captured_at, m.duration_seconds, m.file_size_bytes, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+    `SELECT m.id, m.caption, m.description, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility, COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
             COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
      LEFT JOIN media_albums ma ON ma.media_id = m.id
@@ -152,21 +153,23 @@ export async function getMediaAlbumDetails() {
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
   }]));
 }
 
-export async function listMuxMedia(): Promise<MediaItem[]> {
+export async function listMuxMedia(includeNonPublic = false): Promise<MediaItem[]> {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
        COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
        COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
      LEFT JOIN media_albums ma ON ma.media_id = m.id
      LEFT JOIN albums a ON a.id = ma.album_id
-     WHERE m.id LIKE 'mux:%'
+     WHERE m.id LIKE 'mux:%' AND ($1::boolean OR m.visibility = 'public')
      GROUP BY m.id
      ORDER BY m.created_at DESC`,
+    [includeNonPublic],
   );
   return rows.map((row) => ({
     id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
@@ -176,13 +179,14 @@ export async function listMuxMedia(): Promise<MediaItem[]> {
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
   }));
 }
 
-export async function getMuxVideo(id: string): Promise<MediaItem | null> {
+export async function getMuxVideo(id: string, includePrivate = false): Promise<MediaItem | null> {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes,
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
        COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
        COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
      FROM media m
@@ -191,9 +195,10 @@ export async function getMuxVideo(id: string): Promise<MediaItem | null> {
      WHERE (m.id = $1 OR m.storage_url = $1)
        AND m.id LIKE 'mux:%'
        AND m.media_type = 'video'
+       AND (m.visibility <> 'private' OR $2::boolean)
      GROUP BY m.id
      LIMIT 1`,
-    [id],
+    [id, includePrivate],
   );
   const row = rows[0];
   if (!row) return null;
@@ -205,6 +210,7 @@ export async function getMuxVideo(id: string): Promise<MediaItem | null> {
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
   };
 }
 
@@ -228,14 +234,17 @@ export async function addMediaToAlbum(mediaIds: string[], albumId: string) {
   );
 }
 
-export async function listAlbums(): Promise<Album[]> {
+export async function listAlbums(includeNonPublic = false): Promise<Album[]> {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT a.id, a.name, a.description, a.created_at, COUNT(ma.media_id)::int AS media_count
+    `SELECT a.id, a.name, a.description, a.created_at,
+       COUNT(ma.media_id) FILTER (WHERE $1::boolean OR m.visibility = 'public')::int AS media_count
      FROM albums a
      LEFT JOIN media_albums ma ON ma.album_id = a.id
+     LEFT JOIN media m ON m.id = ma.media_id
      GROUP BY a.id
      ORDER BY a.created_at DESC`,
+    [includeNonPublic],
   );
   return rows.map((row) => ({
     id: String(row.id),
@@ -274,19 +283,19 @@ export async function deleteAlbum(id: string) {
   return result.length > 0;
 }
 
-export async function getAlbum(id: string): Promise<{ album: Album; media: MediaItem[] } | null> {
+export async function getAlbum(id: string, includeNonPublic = false): Promise<{ album: Album; media: MediaItem[] } | null> {
   await ensureDatabase();
   const db = sql();
   const albumRows = await db.query("SELECT id, name, description, created_at FROM albums WHERE id = $1", [id]);
   const albumRow = albumRows[0];
   if (!albumRow) return null;
   const mediaRows = await db.query(
-    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility
      FROM media m
      INNER JOIN media_albums ma ON ma.media_id = m.id
-     WHERE ma.album_id = $1
+     WHERE ma.album_id = $1 AND ($2::boolean OR m.visibility = 'public')
      ORDER BY m.created_at DESC`,
-    [id],
+    [id, includeNonPublic],
   );
   const media = mediaRows.map((row) => ({
     id: String(row.id),
@@ -300,6 +309,7 @@ export async function getAlbum(id: string): Promise<{ album: Album; media: Media
     capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
   }));
   return {
     album: { id: String(albumRow.id), name: String(albumRow.name), description: String(albumRow.description), mediaCount: media.length, createdAt: new Date(String(albumRow.created_at)).toISOString() },

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       const asset = await getMuxAsset(assetId);
       const playback = Array.isArray(asset.playback_ids) ? asset.playback_ids.find((item) => item && typeof item === "object" && (item as { policy?: string }).policy === "public") as { id?: string } | undefined : undefined;
       if (!playback?.id) return NextResponse.json({ processing: true });
-      const media: MediaItem = { id: `mux:${assetId}`, title: details.title, type: "video", url: `mux:${playback.id}`, createdAt: "Just now", album: "Uploads", contentHash: details.contentHash, capturedAt: null, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes };
+      const media: MediaItem = { id: `mux:${assetId}`, title: details.title, type: "video", url: `mux:${playback.id}`, createdAt: "Just now", album: "Uploads", contentHash: details.contentHash, capturedAt: null, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes, visibility: "private" };
       await saveMedia(media);
       return NextResponse.json({ media });
     }

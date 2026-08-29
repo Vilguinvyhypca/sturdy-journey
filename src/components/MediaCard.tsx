@@ -21,6 +21,7 @@ export function MediaCard({ item, onSelect, selectionMode = false, isSelected = 
         image.src = `${item.url}${item.url.includes("?") ? "&" : "?"}retry=${Date.now()}`;
       }} className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${photoLoaded ? "opacity-100" : "opacity-0"}`} />}
       {item.type === "video" && <span className="absolute right-2 top-2 rounded-full bg-slate-950/75 px-2 py-1 text-xs font-bold text-white">▶</span>}
+      {item.visibility && item.visibility !== "public" && <span className="absolute bottom-2 left-2 rounded-full bg-slate-950/75 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">{item.visibility}</span>}
       {selectionMode && <span aria-hidden="true" className={`absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border-2 text-sm font-black ${isSelected ? "border-indigo-600 bg-indigo-600 text-white" : "border-white bg-slate-950/50 text-transparent"}`}>✓</span>}
     </div>
   </button>;
