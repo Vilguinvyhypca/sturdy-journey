@@ -56,17 +56,54 @@ Further reading:
 
 Hiding controls is only a user-interface improvement. The API routes also verify the administrator session before allowing changes.
 
-## Media visibility and storage security
+## Media privacy and future signed delivery
 
-Administrators can mark each item as:
+MediaSpace supports three application-level visibility states:
 
-- **Public:** included in the gallery, video feed, albums, public video pages, metadata, and sitemap.
-- **Unlisted:** excluded from public listings and search indexing, but an individual video remains available to someone with its direct page address.
-- **Private:** excluded from anonymous API responses and returns a not-found page to visitors who are not authenticated administrators.
+- **Public:** shown in the library and feed, available through its individual page, and eligible for search indexing.
+- **Unlisted:** omitted from public listings and search indexing, but available to anyone who has its direct MediaSpace link.
+- **Private:** visible to the administrator; anonymous visitors cannot find it in listings and receive a `404` from its individual MediaSpace page.
 
-New uploads default to private. Existing database records remain public during the schema upgrade so a deployment does not unexpectedly hide the current gallery.
+These controls currently protect access inside MediaSpace. Existing Mux playback IDs and public Vercel Blob URLs are still direct delivery URLs, so someone who already possesses one of those raw URLs may be able to bypass the MediaSpace page.
 
-These application rules protect discovery and page access, but they do not convert an already-public storage URL into a private file. Full file-level privacy additionally requires signed Mux playback and private or signed photo delivery. Until those are configured, anyone who already possesses a raw Mux or Vercel Blob URL may still be able to request that file directly.
+```mermaid
+flowchart LR
+    U[Visitor requests media] --> A[MediaSpace]
+
+    subgraph NOW[Current protection - application level]
+        A --> V{Database visibility}
+        V -->|Public| L[Listed in library and feed]
+        V -->|Unlisted| D[Direct page only]
+        V -->|Private and anonymous| X[Return 404]
+        V -->|Private and administrator| P[Allow page]
+
+        L --> R1[Public Mux or Blob URL]
+        D --> R1
+        P --> R1
+        K[Someone already has the raw URL] -. bypasses MediaSpace .-> R1
+    end
+
+    subgraph NEXT[Future protection - signed delivery]
+        A --> S{Authorize request}
+        S -->|Public| PUB[Public playback or image]
+        S -->|Unlisted with valid link| T[Issue short-lived signed access]
+        S -->|Private and administrator| T
+        S -->|Unauthorized| DENY[Deny access]
+
+        T --> M[Mux signed playback token]
+        T --> B[Authenticated private-image delivery]
+        M --> EXP[Token expires]
+        B --> EXP
+    end
+```
+
+Recommended future implementation order:
+
+1. Enable signed playback for newly uploaded private and unlisted Mux videos.
+2. Generate short-lived playback tokens only after MediaSpace verifies access.
+3. Move protected photos away from permanently public Blob URLs to authenticated delivery.
+4. Preserve normal public delivery for public media.
+5. Migrate existing protected media carefully so current public items are not accidentally broken.
 
 ## Configuration
 
