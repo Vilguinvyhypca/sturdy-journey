@@ -68,6 +68,7 @@ export async function POST(request: Request) {
             capturedAt: type === "photo" ? payload.capturedAt : null,
             durationSeconds: type === "video" ? payload.durationSeconds : null,
             fileSizeBytes: payload.fileSizeBytes,
+            visibility: "private",
           };
           if (usesDatabase) await saveMedia(media);
         },
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
     capturedAt,
     durationSeconds,
     fileSizeBytes: file.size,
+    visibility: "private",
   };
   if (usesDatabase) await saveMedia(media);
   else if (!usesBlobStorage) await addMedia(media);

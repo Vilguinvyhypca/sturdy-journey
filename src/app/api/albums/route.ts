@@ -6,7 +6,9 @@ import { createAlbum, listAlbums, usesDatabase } from "@/lib/database";
 
 export async function GET() {
   if (!usesDatabase) return NextResponse.json({ albums: [] });
-  return NextResponse.json({ albums: await listAlbums() });
+  const session = await getServerSession(authOptions);
+  const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
+  return NextResponse.json({ albums: await listAlbums(administrator) });
 }
 
 export async function POST(request: Request) {

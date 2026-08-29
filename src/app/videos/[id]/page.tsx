@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { getServerSession } from "next-auth";
 import { MediaDetails } from "@/components/MediaDetails";
 import { VideoPlayback } from "@/components/VideoPlayback";
 import { getMuxVideo, usesDatabase } from "@/lib/database";
 import type { MediaItem } from "@/lib/media";
 import { getSiteUrl } from "@/lib/site-url";
+import { authOptions, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,7 @@ function fallbackMuxVideo(id: string): MediaItem | null {
     url: id,
     createdAt: "",
     album: "Uploads",
+    visibility: "public",
   };
 }
 
@@ -43,34 +46,41 @@ function descriptionFor(item: MediaItem) {
   return item.description?.trim() || `Watch ${item.title} in MediaSpace.`;
 }
 
-const findVideo = cache(async (routeId: string) => {
+const findVideo = cache(async (routeId: string, includePrivate: boolean) => {
   const id = normalizeVideoId(routeId);
   const savedVideo = usesDatabase
-    ? await getMuxVideo(id).catch(() => null)
+    ? await getMuxVideo(id, includePrivate).catch(() => null)
     : null;
 
-  return savedVideo ?? fallbackMuxVideo(id);
+  return savedVideo ?? (usesDatabase ? null : fallbackMuxVideo(id));
 });
+
+async function canViewPrivateMedia() {
+  const session = await getServerSession(authOptions);
+  return isAdmin(session?.user as { isAdmin?: boolean } | undefined);
+}
 
 export async function generateMetadata({ params }: PageProps<"/videos/[id]">): Promise<Metadata> {
   const { id } = await params;
-  const item = await findVideo(id);
+  const item = await findVideo(id, await canViewPrivateMedia());
   if (!item) return { title: "Video not found | MediaSpace", robots: { index: false, follow: false } };
 
   const description = descriptionFor(item);
   const image = thumbnailFor(item.url);
+  const indexable = item.visibility === "public";
   return {
     title: `${item.title} | MediaSpace`,
     description,
     alternates: { canonical: `/videos/${encodeURIComponent(item.id)}` },
     openGraph: { title: `${item.title} | MediaSpace`, description, type: "video.other", url: `/videos/${encodeURIComponent(item.id)}`, images: image ? [{ url: image, alt: item.title }] : [] },
     twitter: { card: "summary_large_image", title: `${item.title} | MediaSpace`, description, images: image ? [image] : [] },
+    robots: indexable ? undefined : { index: false, follow: false },
   };
 }
 
 export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   const { id } = await params;
-  const item = await findVideo(id);
+  const item = await findVideo(id, await canViewPrivateMedia());
   if (!item) notFound();
 
   const thumbnailUrl = thumbnailFor(item.url);
@@ -91,10 +101,10 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   };
 
   return <main className="min-h-screen bg-slate-950 text-white">
-    <script
+    {item.visibility === "public" && <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-    />
+    />}
     <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
       <Link href="/" className="font-bold tracking-tight hover:text-indigo-200">MediaSpace</Link>
       <Link href="/" className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/20">Back to library</Link>
@@ -106,7 +116,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{item.title}</h1>
         {item.description && <p className="mt-4 whitespace-pre-wrap leading-7 text-slate-200">{item.description}</p>}
         <MediaDetails item={item} className="px-0 pt-3 text-slate-300" />
-        <p className="mt-6 text-sm leading-6 text-slate-300">This is a public MediaSpace video page. You can share this address directly.</p>
+        <p className="mt-6 text-sm leading-6 text-slate-300">{item.visibility === "public" ? "This public video can appear in the library, feed, and search engines." : item.visibility === "unlisted" ? "This unlisted video is available to people who have its direct link and is excluded from search indexing." : "This private video is visible only while signed in as the administrator."}</p>
       </div>
     </section>
   </main>;

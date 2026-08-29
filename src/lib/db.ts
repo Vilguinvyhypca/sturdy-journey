@@ -21,11 +21,11 @@ export async function addMedia(item: MediaItem) {
   return item;
 }
 
-export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility: MediaItem["visibility"] = "public") {
+export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility?: MediaItem["visibility"]) {
   const media = await readMedia();
   const index = media.findIndex((item) => item.id === id);
   if (index === -1) return null;
-  media[index] = { ...media[index], title, description, visibility };
+  media[index] = { ...media[index], title, description, visibility: visibility ?? media[index].visibility ?? "public" };
   await mkdir(dataDirectory, { recursive: true });
   await writeFile(dataFile, JSON.stringify(media, null, 2), "utf8");
   return media[index];
