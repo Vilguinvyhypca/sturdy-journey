@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { createMuxUpload, getMuxAsset, getMuxUpload, usesMux } from "@/lib/mux";
+import { createMuxPlaybackTokens, createMuxUpload, getMuxAsset, getMuxUpload, getMuxUsageSummary, usesMux, usesMuxSigning } from "@/lib/mux";
 import type { MediaItem } from "@/lib/media";
 
 const maximumVideoDurationSeconds = 5 * 60;
@@ -38,6 +38,10 @@ export async function POST(request: Request) {
     if (body.action === "create") {
       const details = readDetails(body.details);
       if (await findMediaByHash(details.contentHash)) return NextResponse.json({ error: "That exact photo or video has already been uploaded." }, { status: 409 });
+      const usage = await getMuxUsageSummary();
+      if (usage.assetCount >= usage.capacity) {
+        return NextResponse.json({ error: `Mux video capacity is full (${usage.assetCount} of ${usage.capacity}). Delete an unused video before uploading another.` }, { status: 429 });
+      }
       const upload = await createMuxUpload(new URL(request.url).origin);
       return NextResponse.json({ uploadId: upload.id, uploadUrl: upload.url });
     }
@@ -47,9 +51,10 @@ export async function POST(request: Request) {
       const assetId = typeof upload.asset_id === "string" ? upload.asset_id : null;
       if (!assetId) return NextResponse.json({ processing: true });
       const asset = await getMuxAsset(assetId);
-      const playback = Array.isArray(asset.playback_ids) ? asset.playback_ids.find((item) => item && typeof item === "object" && (item as { policy?: string }).policy === "public") as { id?: string } | undefined : undefined;
+      const playbackPolicy = usesMuxSigning ? "signed" : "public";
+      const playback = Array.isArray(asset.playback_ids) ? asset.playback_ids.find((item) => item && typeof item === "object" && (item as { policy?: string }).policy === playbackPolicy) as { id?: string } | undefined : undefined;
       if (!playback?.id) return NextResponse.json({ processing: true });
-      const media: MediaItem = { id: `mux:${assetId}`, title: details.title, type: "video", url: `mux:${playback.id}`, createdAt: "Just now", album: "Uploads", contentHash: details.contentHash, capturedAt: null, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes, visibility: "private" };
+      const media: MediaItem = { id: `mux:${assetId}`, title: details.title, type: "video", url: `${usesMuxSigning ? "mux-signed:" : "mux:"}${playback.id}`, createdAt: "Just now", album: "Uploads", contentHash: details.contentHash, capturedAt: null, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes, visibility: "private", muxTokens: createMuxPlaybackTokens(playback.id) };
       await saveMedia(media);
       return NextResponse.json({ media });
     }
