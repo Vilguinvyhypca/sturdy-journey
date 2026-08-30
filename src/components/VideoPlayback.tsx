@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
+import { muxPlaybackIdFromUrl, type MuxPlaybackTokens } from "@/lib/media";
 
-export function VideoPlayback({ src, className = "" }: { src: string; className?: string }) {
+export function VideoPlayback({ src, muxTokens, className = "" }: { src: string; muxTokens?: MuxPlaybackTokens; className?: string }) {
   const [status, setStatus] = useState<"loading" | "buffering" | "ready" | "error">("loading");
-  const muxPlaybackId = src.startsWith("mux:") ? src.slice("mux:".length) : null;
+  const muxPlaybackId = muxPlaybackIdFromUrl(src);
 
   return <div className={`relative h-full w-full overflow-hidden bg-slate-950 ${className}`}>
     {muxPlaybackId ? <MuxPlayer
       playbackId={muxPlaybackId}
+      tokens={muxTokens}
       streamType="on-demand"
       autoPlay
       accentColor="#4f46e5"

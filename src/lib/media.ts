@@ -12,9 +12,26 @@ export type MediaItem = {
   durationSeconds?: number | null;
   fileSizeBytes?: number;
   visibility?: MediaVisibility;
+  muxTokens?: MuxPlaybackTokens;
+};
+
+export type MuxPlaybackTokens = {
+  playback: string;
+  thumbnail: string;
+  storyboard: string;
 };
 
 export type MediaVisibility = "public" | "unlisted" | "private";
+
+export function muxPlaybackIdFromUrl(url: string) {
+  if (url.startsWith("mux-signed:")) return url.slice("mux-signed:".length);
+  if (url.startsWith("mux:")) return url.slice("mux:".length);
+  return null;
+}
+
+export function isSignedMuxUrl(url: string) {
+  return url.startsWith("mux-signed:");
+}
 
 export function isMediaVisibility(value: unknown): value is MediaVisibility {
   return value === "public" || value === "unlisted" || value === "private";

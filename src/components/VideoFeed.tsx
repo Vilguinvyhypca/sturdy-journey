@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
-import type { MediaItem } from "@/lib/media";
+import { muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
 
 function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; active: boolean; muted: boolean; onToggleMuted: () => void }) {
   const muxPlayer = useRef<MuxPlayerRefAttributes | null>(null);
   const nativePlayer = useRef<HTMLVideoElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const muxPlaybackId = item.url.startsWith("mux:") ? item.url.slice("mux:".length) : null;
-
+  const muxPlaybackId = muxPlaybackIdFromUrl(item.url);
+  const muxThumbnail = muxPlaybackId ? item.muxTokens?.thumbnail ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?token=${encodeURIComponent(item.muxTokens.thumbnail)}` : `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=720&fit_mode=preserve` : null;
   const startPlayback = useCallback(() => {
     const player = muxPlayer.current ?? nativePlayer.current;
     if (!active || !player) return;
@@ -42,6 +42,7 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
     {active ? muxPlaybackId ? <MuxPlayer
       ref={muxPlayer}
       playbackId={muxPlaybackId}
+      tokens={item.muxTokens}
       streamType="on-demand"
       autoPlay
       muted={muted}
@@ -71,7 +72,7 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       onPlaying={() => { setPlaying(true); setStatus("ready"); }}
       onPause={() => setPlaying(false)}
       onError={() => setStatus("error")}
-    /> : muxPlaybackId ? <div role="img" aria-label={`${item.title} video preview`} className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url("https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=720&fit_mode=preserve")` }} /> : <video key="video-preview" src={item.url} muted playsInline preload="metadata" className="h-full w-full object-contain" />}
+    /> : muxPlaybackId ? <div role="img" aria-label={`${item.title} video preview`} className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url("${muxThumbnail}")` }} /> : <video key="video-preview" src={item.url} muted playsInline preload="metadata" className="h-full w-full object-contain" />}
 
     {active && status === "loading" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="h-9 w-9 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-label="Loading video" /></div>}
     {active && status === "error" && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm font-bold text-white">This video could not be played.</div>}

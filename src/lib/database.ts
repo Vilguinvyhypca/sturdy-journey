@@ -157,6 +157,31 @@ export async function getMediaAlbumDetails() {
   }]));
 }
 
+export async function listDatabaseMedia(includeNonPublic = false): Promise<MediaItem[]> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
+       COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+       COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
+     FROM media m
+     LEFT JOIN media_albums ma ON ma.media_id = m.id
+     LEFT JOIN albums a ON a.id = ma.album_id
+     WHERE ($1::boolean OR m.visibility = 'public')
+     GROUP BY m.id
+     ORDER BY m.created_at DESC`,
+    [includeNonPublic],
+  );
+  return rows.map((row) => ({
+    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+    createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
+    albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
+  }));
+}
 export async function listMuxMedia(includeNonPublic = false): Promise<MediaItem[]> {
   await ensureDatabase();
   const rows = await sql().query(

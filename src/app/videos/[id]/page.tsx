@@ -6,15 +6,17 @@ import { getServerSession } from "next-auth";
 import { MediaDetails } from "@/components/MediaDetails";
 import { VideoPlayback } from "@/components/VideoPlayback";
 import { getMuxVideo, usesDatabase } from "@/lib/database";
-import type { MediaItem } from "@/lib/media";
+import { isSignedMuxUrl, muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
 import { getSiteUrl } from "@/lib/site-url";
 import { authOptions, isAdmin } from "@/lib/auth";
+import { createMuxPlaybackTokens } from "@/lib/mux";
 
 export const dynamic = "force-dynamic";
 
-function thumbnailFor(url: string) {
-  if (!url.startsWith("mux:")) return undefined;
-  const playbackId = url.slice(4);
+function thumbnailFor(url: string, token?: string) {
+  const playbackId = muxPlaybackIdFromUrl(url);
+  if (!playbackId) return undefined;
+  if (token) return `https://image.mux.com/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`;
   return `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0.5&width=1200&fit_mode=preserve`;
 }
 
@@ -66,7 +68,9 @@ export async function generateMetadata({ params }: PageProps<"/videos/[id]">): P
   if (!item) return { title: "Video not found | MediaSpace", robots: { index: false, follow: false } };
 
   const description = descriptionFor(item);
-  const image = thumbnailFor(item.url);
+  const playbackId = muxPlaybackIdFromUrl(item.url) ?? "";
+  const muxTokens = playbackId && isSignedMuxUrl(item.url) ? createMuxPlaybackTokens(playbackId) : undefined;
+  const image = thumbnailFor(item.url, muxTokens?.thumbnail);
   const indexable = item.visibility === "public";
   return {
     title: `${item.title} | MediaSpace`,
@@ -83,8 +87,10 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   const item = await findVideo(id, await canViewPrivateMedia());
   if (!item) notFound();
 
-  const thumbnailUrl = thumbnailFor(item.url);
-  const playbackId = item.url.slice(4);
+  const playbackId = muxPlaybackIdFromUrl(item.url);
+  if (!playbackId) notFound();
+  const muxTokens = isSignedMuxUrl(item.url) ? createMuxPlaybackTokens(playbackId) : undefined;
+  const thumbnailUrl = thumbnailFor(item.url, muxTokens?.thumbnail);
   const pageUrl = new URL(
     `/videos/${encodeURIComponent(item.id)}`,
     getSiteUrl(),
@@ -101,7 +107,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   };
 
   return <main className="min-h-screen bg-slate-950 text-white">
-    {item.visibility === "public" && <script
+    {item.visibility === "public" && !isSignedMuxUrl(item.url) && <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
     />}
@@ -110,7 +116,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
       <Link href="/" className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/20">Back to library</Link>
     </header>
     <section className="mx-auto grid max-w-6xl gap-8 px-4 pb-10 sm:px-6 lg:grid-cols-[minmax(0,720px)_1fr] lg:items-start">
-      <div className="mx-auto w-full max-w-[56.25dvh] overflow-hidden rounded-2xl bg-black shadow-2xl lg:mx-0"><VideoPlayback src={item.url} /></div>
+      <div className="mx-auto w-full max-w-[56.25dvh] overflow-hidden rounded-2xl bg-black shadow-2xl lg:mx-0"><VideoPlayback src={item.url} muxTokens={muxTokens} /></div>
       <div className="max-w-xl pt-2">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Video</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{item.title}</h1>

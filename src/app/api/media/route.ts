@@ -3,10 +3,16 @@ import { del } from "@vercel/blob";
 import { getServerSession } from "next-auth";
 import { readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { addMediaToAlbum, deleteMediaRecord, getMediaAlbumDetails, listMuxMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
-import { deleteMuxAsset } from "@/lib/mux";
-import { demoMedia, isMediaVisibility } from "@/lib/media";
+import { addMediaToAlbum, deleteMediaRecord, getMediaAlbumDetails, listDatabaseMedia, listMuxMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
+import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
+import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
 import { deleteLocalMedia, listBlobMedia, usesBlobStorage } from "@/lib/storage";
+
+function withMuxTokens(item: MediaItem): MediaItem {
+  if (!isSignedMuxUrl(item.url)) return item;
+  const playbackId = muxPlaybackIdFromUrl(item.url);
+  return playbackId ? { ...item, muxTokens: createMuxPlaybackTokens(playbackId) } : item;
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -18,9 +24,13 @@ export async function GET() {
       const details = await getMediaAlbumDetails();
       const blobMedia = media.map((item) => ({ ...item, ...(details.get(item.id) ?? {}) }));
       const muxMedia = await listMuxMedia(administrator);
-      return NextResponse.json({ media: [...muxMedia, ...blobMedia.filter((item) => administrator || item.visibility === "public")] });
+      return NextResponse.json({ media: [...muxMedia.map(withMuxTokens), ...blobMedia.filter((item) => administrator || item.visibility === "public")] });
     }
     return NextResponse.json({ media: media.filter((item) => administrator || item.visibility === "public") });
+  }
+  if (usesDatabase) {
+    const media = await listDatabaseMedia(administrator);
+    return NextResponse.json({ media: media.map(withMuxTokens) });
   }
   const savedMedia = await readMedia();
   const availableMedia = savedMedia.length ? savedMedia : demoMedia;
@@ -50,7 +60,7 @@ export async function PATCH(request: Request) {
       ? await updateMediaDetails(mediaId, title, description, visibility)
       : await updateLocalMediaDetails(mediaId, title, description, visibility);
     if (!media) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
-    return NextResponse.json({ media });
+    return NextResponse.json({ media: withMuxTokens(media) });
   }
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   if (Array.isArray(body.ids) && typeof body.addToAlbumId === "string") {

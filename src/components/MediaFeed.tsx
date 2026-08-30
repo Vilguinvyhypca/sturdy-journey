@@ -11,6 +11,7 @@ import { PhotoViewer } from "./PhotoViewer";
 import { UploadButton } from "./UploadButton";
 import { VideoPlayer } from "./VideoPlayer";
 import { ThemeSettings } from "./ThemeSettings";
+import { MuxUsagePanel } from "./MuxUsagePanel";
 import { readUploadDetails } from "@/lib/upload-details";
 import { upload } from "@vercel/blob/client";
 
@@ -47,7 +48,14 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
     if (signal.aborted) throw new DOMException("Upload canceled", "AbortError");
     onProgress("Preparing video for playback...");
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
-    const completeResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", uploadId: created.uploadId, details: uploadDetails }), signal });
+    let completeResponse: Response;
+    try {
+      completeResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", uploadId: created.uploadId, details: uploadDetails }), signal });
+    } catch (error) {
+      if (signal.aborted || (error instanceof DOMException && error.name === "AbortError")) throw error;
+      if (attempt === 59) throw new Error("The video reached Mux, but MediaSpace temporarily lost contact while confirming it. Refresh the library to see whether processing completed.");
+      continue;
+    }
     const completed = await completeResponse.json() as { media?: MediaItem; processing?: boolean; error?: string };
     if (!completeResponse.ok) throw new Error(completed.error ?? "Mux could not finish this video.");
     if (completed.media) return completed.media;
@@ -163,7 +171,10 @@ export function MediaFeed() {
             }
           }
           const isLocalDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-          if (isLocalDevelopment) {
+          if (file.type.startsWith("video/")) {
+            const media = await uploadVideoToMux(file, details, abortController.signal, setUploadProgress);
+            uploaded.push(media);
+          } else if (isLocalDevelopment) {
             const formData = new FormData();
             formData.append("file", file);
             if (details.capturedAt) formData.append("capturedAt", details.capturedAt);
@@ -174,9 +185,6 @@ export function MediaFeed() {
               throw new Error(data.error ?? "The server could not save this file.");
             }
             else uploaded.push(data.media);
-          } else if (file.type.startsWith("video/")) {
-            const media = await uploadVideoToMux(file, details, abortController.signal, setUploadProgress);
-            uploaded.push(media);
           } else {
             const contentHash = await fingerprintFile(file);
             const blob = await upload(`media/${file.name}`, file, {
@@ -305,6 +313,7 @@ export function MediaFeed() {
     <section className="mt-7 flex flex-wrap items-center gap-2">{(["all", "photo", "video"] as const).map((type) => <button key={type} onClick={() => setFilter(type)} className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${filter === type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{type === "all" ? "Everything" : `${type}s`}</button>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}
+    {isAdministrator && <MuxUsagePanel refreshKey={items.length} />}
     {!loading && <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500">{normalizedSearchQuery && <span className="font-bold text-indigo-700">{visible.length} {visible.length === 1 ? "result" : "results"}</span>}<span>{items.length} files</span><span>{photoCount} photos</span><span>{videoCount} videos</span>{itemsWithKnownSize.length > 0 && <span>{formatFileSize(knownStorageBytes)} tracked storage</span>}{itemsWithKnownSize.length < items.length && session && <span className="text-indigo-700">Scan media library to calculate all storage.</span>}</div>}
     <section className="mt-5 grid grid-cols-3 gap-0" aria-busy={galleryLoading}>{galleryLoading ? Array.from({ length: 9 }, (_, index) => <div key={index} className="aspect-square animate-pulse border border-slate-100 bg-slate-100" aria-hidden="true" />) : <>{isAdministrator && <div className="aspect-square border border-dashed border-indigo-300 bg-indigo-50 p-3 text-indigo-950 sm:p-5"><p className="text-sm font-bold sm:text-lg">Create an album</p><p className="mt-1 hidden text-sm text-indigo-800 sm:block">Group a moment, trip, or project.</p><Link href="/albums" className="mt-3 inline-block text-xs font-bold text-indigo-700 hover:underline sm:mt-4 sm:text-sm">New album →</Link></div>}{galleryItems.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} selectionMode={selectionMode} isSelected={selectedMediaIds.includes(item.id)} onToggleSelection={toggleMediaSelection} />)}{visible.length === 0 && <p className={`${isAdministrator ? "col-span-2" : "col-span-3"} border border-dashed border-slate-300 p-3 text-sm text-slate-500 sm:p-5`}>{normalizedSearchQuery ? `No media matches “${searchQuery.trim()}”. Try another search.` : "No media matches the selected filters yet."}</p>}</>}</section>
     {!loading && visible.length > 0 && <div className="mt-5 flex flex-col items-center gap-3 text-sm text-slate-500"><p>Showing {displayedItems.length} of {visible.length} files</p>{displayedItems.length < visible.length && <button onClick={() => setVisibleCount((count) => count + galleryPageSize)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50">Load {Math.min(galleryPageSize, visible.length - displayedItems.length)} more</button>}</div>}
