@@ -64,11 +64,11 @@ export function isPrivateBlobUrl(url: string) {
 }
 
 export async function getPrivateBlob(url: string, ifNoneMatch?: string) {
-  if (!privateBlobToken) throw new Error("Private Blob storage is not configured.");
-  return get(url, { access: "private", token: privateBlobToken, ifNoneMatch });
+  if (!usesPrivateBlobStorage) throw new Error("Private Blob storage is not configured.");
+  return get(url, { access: "private", token: privateBlobToken, storeId: privateBlobStoreId, ifNoneMatch });
 }
 
 export async function deletePrivateBlob(url: string) {
-  if (!privateBlobToken) throw new Error("Private Blob storage is not configured.");
-  await del(url, { token: privateBlobToken });
+  if (!usesPrivateBlobStorage) throw new Error("Private Blob storage is not configured.");
+  await del(url, { token: privateBlobToken, storeId: privateBlobStoreId });
 }
