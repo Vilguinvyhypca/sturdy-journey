@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
-import { list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import type { MediaItem } from "./media";
 
 const uploadDirectory = join(process.cwd(), "public", "uploads");
 // Vercel provides either a legacy read-write token or its newer OIDC store connection.
 export const usesBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+const privateBlobToken = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;
+const privateBlobStoreId = process.env.PRIVATE_BLOB_STORE_ID;
+export const usesPrivateBlobStorage = Boolean(privateBlobToken || privateBlobStoreId);
 
 export type StoredMedia = {
   id: string;
@@ -54,4 +57,18 @@ export async function listBlobMedia(): Promise<MediaItem[]> {
 export async function deleteLocalMedia(url: string) {
   if (!url.startsWith("/uploads/")) throw new Error("Invalid local media path.");
   await rm(join(uploadDirectory, basename(url)), { force: true });
+}
+
+export function isPrivateBlobUrl(url: string) {
+  return /^https:\/\/[^/]+\.private\.blob\.vercel-storage\.com\//i.test(url);
+}
+
+export async function getPrivateBlob(url: string, ifNoneMatch?: string) {
+  if (!privateBlobToken) throw new Error("Private Blob storage is not configured.");
+  return get(url, { access: "private", token: privateBlobToken, ifNoneMatch });
+}
+
+export async function deletePrivateBlob(url: string) {
+  if (!privateBlobToken) throw new Error("Private Blob storage is not configured.");
+  await del(url, { token: privateBlobToken });
 }

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { deleteAlbum, getAlbum, updateAlbum, usesDatabase } from "@/lib/database";
+import { privatePhotoDeliveryUrl } from "@/lib/media";
+import { isPrivateBlobUrl } from "@/lib/storage";
 
 export async function GET(_request: Request, { params }: RouteContext<"/api/albums/[id]">) {
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
@@ -10,7 +12,14 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/albu
   const { id } = await params;
   const result = await getAlbum(id, administrator);
   if (!result) return NextResponse.json({ error: "Album not found." }, { status: 404 });
-  return NextResponse.json(result);
+  return NextResponse.json({
+    ...result,
+    media: result.media.map((item) =>
+      item.type === "photo" && isPrivateBlobUrl(item.url)
+        ? { ...item, url: privatePhotoDeliveryUrl(item) }
+        : item,
+    ),
+  });
 }
 
 export async function PATCH(request: Request, { params }: RouteContext<"/api/albums/[id]">) {

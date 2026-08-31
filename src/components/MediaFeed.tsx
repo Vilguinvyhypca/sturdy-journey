@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album } from "@/lib/database";
-import type { MediaItem } from "@/lib/media";
+import { privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { AuthControls } from "./AuthControls";
 import { MediaCard } from "./MediaCard";
 import { PhotoViewer } from "./PhotoViewer";
@@ -13,7 +13,7 @@ import { VideoPlayer } from "./VideoPlayer";
 import { ThemeSettings } from "./ThemeSettings";
 import { MuxUsagePanel } from "./MuxUsagePanel";
 import { readUploadDetails } from "@/lib/upload-details";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -187,25 +187,25 @@ export function MediaFeed() {
             else uploaded.push(data.media);
           } else {
             const contentHash = await fingerprintFile(file);
-            const blob = await upload(`media/${file.name}`, file, {
-              access: "public",
-              handleUploadUrl: "/api/upload",
+            const blob = await uploadPresigned(`protected-media/${file.name}`, file, {
+              access: "private",
+              handleUploadUrl: "/api/private-upload",
               clientPayload: JSON.stringify({
                 contentHash,
                 capturedAt: details.capturedAt,
                 durationSeconds: details.durationSeconds,
                 fileSizeBytes: details.fileSizeBytes,
                 title: file.name.replace(/\.[^/.]+$/, ""),
-                mediaType: file.type.startsWith("video/") ? "video" : "photo",
+                mediaType: "photo",
               }),
               multipart: true,
               abortSignal: abortController.signal,
               onUploadProgress: ({ percentage }) => setUploadProgress(`Uploading ${index + 1} of ${files.length} (${Math.round(percentage)}%)`),
             });
-            uploaded.push({
+            const uploadedPhoto: MediaItem = {
               id: blob.pathname,
               title: file.name.replace(/\.[^/.]+$/, ""),
-              type: file.type.startsWith("video/") ? "video" : "photo",
+              type: "photo",
               url: blob.url,
               createdAt: "Just now",
               album: "Uploads",
@@ -213,7 +213,9 @@ export function MediaFeed() {
               capturedAt: details.capturedAt,
               durationSeconds: details.durationSeconds,
               fileSizeBytes: details.fileSizeBytes,
-            });
+              visibility: "private",
+            };
+            uploaded.push({ ...uploadedPhoto, url: privatePhotoDeliveryUrl(uploadedPhoto) });
           }
         } catch (error) {
           if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) { canceled = true; break; }

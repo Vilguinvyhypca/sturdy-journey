@@ -130,6 +130,27 @@ export async function findMediaByHash(contentHash: string) {
   return rows.length > 0;
 }
 
+export async function getMediaById(id: string): Promise<MediaItem | null> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    `SELECT id, storage_url, media_type, caption, description, created_at, captured_at, duration_seconds, file_size_bytes, visibility
+     FROM media WHERE id = $1 LIMIT 1`,
+    [id],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""),
+    type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+    createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    album: "Uploads", albumIds: [],
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+    visibility: String(row.visibility) as MediaVisibility,
+  };
+}
+
 export async function deleteMediaRecord(id: string) {
   await ensureDatabase();
   await sql().query("DELETE FROM media WHERE id = $1", [id]);

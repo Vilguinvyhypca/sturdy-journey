@@ -33,6 +33,10 @@ export function isSignedMuxUrl(url: string) {
   return url.startsWith("mux-signed:");
 }
 
+export function privatePhotoDeliveryUrl(item: MediaItem) {
+  return `/api/private-media?id=${encodeURIComponent(item.id)}`;
+}
+
 export function isMediaVisibility(value: unknown): value is MediaVisibility {
   return value === "public" || value === "unlisted" || value === "private";
 }

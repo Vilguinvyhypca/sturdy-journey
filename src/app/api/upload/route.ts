@@ -7,29 +7,9 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
 import type { MediaItem } from "@/lib/media";
 import { uploadMedia, usesBlobStorage } from "@/lib/storage";
+import { readClientPayload } from "@/lib/upload-payload";
 
 const maximumVideoDurationSeconds = 5 * 60;
-
-type ClientMediaPayload = {
-  contentHash: string;
-  capturedAt: string | null;
-  durationSeconds: number | null;
-  fileSizeBytes: number;
-  title: string;
-  mediaType: "photo" | "video";
-};
-
-function readClientPayload(value: string | null): ClientMediaPayload {
-  if (!value) throw new Error("Missing upload details.");
-  const payload = JSON.parse(value) as Partial<ClientMediaPayload>;
-  if (typeof payload.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(payload.contentHash)) throw new Error("Invalid file fingerprint.");
-  if (typeof payload.title !== "string" || payload.title.length === 0 || payload.title.length > 200) throw new Error("Invalid file name.");
-  if (typeof payload.fileSizeBytes !== "number" || !Number.isFinite(payload.fileSizeBytes) || payload.fileSizeBytes <= 0) throw new Error("Invalid file size.");
-  if (payload.mediaType !== "photo" && payload.mediaType !== "video") throw new Error("Invalid media type.");
-  const capturedAt = typeof payload.capturedAt === "string" && !Number.isNaN(Date.parse(payload.capturedAt)) ? new Date(payload.capturedAt).toISOString() : null;
-  const durationSeconds = typeof payload.durationSeconds === "number" && Number.isFinite(payload.durationSeconds) && payload.durationSeconds >= 0 ? Math.round(payload.durationSeconds) : null;
-  return { contentHash: payload.contentHash, capturedAt, durationSeconds, fileSizeBytes: payload.fileSizeBytes, title: payload.title, mediaType: payload.mediaType };
-}
 
 export async function POST(request: Request) {
   if (request.headers.get("content-type")?.includes("application/json")) {

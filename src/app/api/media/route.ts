@@ -3,15 +3,21 @@ import { del } from "@vercel/blob";
 import { getServerSession } from "next-auth";
 import { readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { addMediaToAlbum, deleteMediaRecord, getMediaAlbumDetails, listDatabaseMedia, listMuxMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
+import { addMediaToAlbum, deleteMediaRecord, getMediaById, listDatabaseMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
-import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
-import { deleteLocalMedia, listBlobMedia, usesBlobStorage } from "@/lib/storage";
+import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
 
-function withMuxTokens(item: MediaItem): MediaItem {
-  if (!isSignedMuxUrl(item.url)) return item;
-  const playbackId = muxPlaybackIdFromUrl(item.url);
-  return playbackId ? { ...item, muxTokens: createMuxPlaybackTokens(playbackId) } : item;
+function withDelivery(item: MediaItem): MediaItem {
+  let delivered = item;
+  if (isSignedMuxUrl(delivered.url)) {
+    const playbackId = muxPlaybackIdFromUrl(delivered.url);
+    if (playbackId) delivered = { ...delivered, muxTokens: createMuxPlaybackTokens(playbackId) };
+  }
+  if (delivered.type === "photo" && isPrivateBlobUrl(delivered.url)) {
+    delivered = { ...delivered, url: privatePhotoDeliveryUrl(delivered) };
+  }
+  return delivered;
 }
 
 export async function GET() {
@@ -19,18 +25,16 @@ export async function GET() {
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
   if (usesBlobStorage) {
     const media = await listBlobMedia();
-    if (usesDatabase) await Promise.all(media.map((item) => saveMedia(item)));
     if (usesDatabase) {
-      const details = await getMediaAlbumDetails();
-      const blobMedia = media.map((item) => ({ ...item, ...(details.get(item.id) ?? {}) }));
-      const muxMedia = await listMuxMedia(administrator);
-      return NextResponse.json({ media: [...muxMedia.map(withMuxTokens), ...blobMedia.filter((item) => administrator || item.visibility === "public")] });
+      await Promise.all(media.map((item) => saveMedia(item)));
+      const databaseMedia = await listDatabaseMedia(administrator);
+      return NextResponse.json({ media: databaseMedia.map(withDelivery) });
     }
     return NextResponse.json({ media: media.filter((item) => administrator || item.visibility === "public") });
   }
   if (usesDatabase) {
     const media = await listDatabaseMedia(administrator);
-    return NextResponse.json({ media: media.map(withMuxTokens) });
+    return NextResponse.json({ media: media.map(withDelivery) });
   }
   const savedMedia = await readMedia();
   const availableMedia = savedMedia.length ? savedMedia : demoMedia;
@@ -44,11 +48,7 @@ export async function PATCH(request: Request) {
   const isDetailsUpdate = "title" in body || "description" in body || "visibility" in body;
   if (isDetailsUpdate) {
     const mediaId = typeof body.id === "string" ? body.id.trim() : "";
-    // Older local and imported media use UUID-style IDs instead of the newer
-    // `media/` and `mux:` prefixes. Parameterized queries keep arbitrary IDs safe.
-    if (!mediaId || mediaId.length > 2_048) {
-      return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
-    }
+    if (!mediaId || mediaId.length > 2_048) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const description = typeof body.description === "string" ? body.description.trim() : "";
     const visibility = isMediaVisibility(body.visibility) ? body.visibility : undefined;
@@ -60,15 +60,15 @@ export async function PATCH(request: Request) {
       ? await updateMediaDetails(mediaId, title, description, visibility)
       : await updateLocalMediaDetails(mediaId, title, description, visibility);
     if (!media) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
-    return NextResponse.json({ media: withMuxTokens(media) });
+    return NextResponse.json({ media: withDelivery(media) });
   }
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   if (Array.isArray(body.ids) && typeof body.addToAlbumId === "string") {
-    if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("mux:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
+    if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("protected-media/") || id.startsWith("mux:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
     await addMediaToAlbum(body.ids, body.addToAlbumId);
     return NextResponse.json({ updated: true });
   }
-  if (typeof body.id !== "string" || (!body.id.startsWith("media/") && !body.id.startsWith("mux:")) || !Array.isArray(body.albumIds) || !body.albumIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "Invalid media or album selection." }, { status: 400 });
+  if (typeof body.id !== "string" || (!body.id.startsWith("media/") && !body.id.startsWith("protected-media/") && !body.id.startsWith("mux:")) || !Array.isArray(body.albumIds) || !body.albumIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "Invalid media or album selection." }, { status: 400 });
   await setMediaAlbums(body.id, body.albumIds);
   return NextResponse.json({ updated: true });
 }
@@ -78,13 +78,20 @@ export async function DELETE(request: Request) {
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete media." }, { status: 401 });
   const id = new URL(request.url).searchParams.get("pathname");
   if (!id) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
+  const databaseItem = usesDatabase ? await getMediaById(id) : null;
   if (id.startsWith("mux:")) {
     await deleteMuxAsset(id.slice("mux:".length));
     if (usesDatabase) await deleteMediaRecord(id);
+  } else if (databaseItem && isPrivateBlobUrl(databaseItem.url)) {
+    await deletePrivateBlob(databaseItem.url);
+    await deleteMediaRecord(id);
   } else if (usesBlobStorage) {
     if (!id.startsWith("media/")) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
     await del(id);
     if (usesDatabase) await deleteMediaRecord(id);
+  } else if (databaseItem?.url.startsWith("/uploads/")) {
+    await deleteLocalMedia(databaseItem.url);
+    await deleteMediaRecord(id);
   } else {
     const item = (await readMedia()).find((media) => media.id === id);
     if (!item) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
