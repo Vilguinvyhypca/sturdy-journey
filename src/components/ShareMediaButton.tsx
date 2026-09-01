@@ -6,7 +6,7 @@ export function ShareMediaButton({ mediaId, href }: { mediaId: string; href?: st
   const [message, setMessage] = useState("");
 
   async function share() {
-    const url = new URL(href ?? window.location.href, window.location.origin);
+    const url = new URL(href ?? `/photos/${encodeURIComponent(mediaId)}`, window.location.origin);
 
     if (navigator.share) {
       try {

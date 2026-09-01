@@ -1,0 +1,88 @@
+import { issueSignedToken } from "@vercel/blob";
+import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/blob/client";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isAdmin } from "@/lib/auth";
+import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
+import type { MediaItem } from "@/lib/media";
+import { usesPrivateBlobStorage } from "@/lib/storage";
+import { readClientPayload } from "@/lib/upload-payload";
+
+const privateBlobToken = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;
+const privateBlobStoreId = process.env.PRIVATE_BLOB_STORE_ID;
+const privateBlobWebhookPublicKey = process.env.PRIVATE_BLOB_WEBHOOK_PUBLIC_KEY;
+const maximumPhotoSize = 100 * 1024 * 1024;
+
+export async function POST(request: Request) {
+  if (!usesPrivateBlobStorage) {
+    return NextResponse.json({ error: "Private photo storage is not configured yet." }, { status: 503 });
+  }
+  if (!usesDatabase) {
+    return NextResponse.json({ error: "The database is required for protected photo uploads." }, { status: 503 });
+  }
+
+  const body = (await request.json()) as HandleUploadPresignedBody;
+  try {
+    const jsonResponse = await handleUploadPresigned({
+      body,
+      request,
+      webhookPublicKey: privateBlobWebhookPublicKey,
+      getSignedToken: async (pathname, clientPayload) => {
+        const session = await getServerSession(authOptions);
+        if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) {
+          throw new Error("Sign in as the administrator to upload.");
+        }
+        if (!pathname.startsWith("protected-media/") || pathname.slice("protected-media/".length).includes("/")) {
+          throw new Error("Invalid protected photo path.");
+        }
+        const payload = readClientPayload(clientPayload);
+        if (payload.mediaType !== "photo") {
+          throw new Error("Only photos can use protected photo storage.");
+        }
+        if (await findMediaByHash(payload.contentHash)) {
+          throw new Error("That exact photo or video has already been uploaded.");
+        }
+        const token = await issueSignedToken({
+          token: privateBlobToken,
+          storeId: privateBlobStoreId,
+          pathname,
+          operations: ["put"],
+          allowedContentTypes: ["image/*"],
+          maximumSizeInBytes: maximumPhotoSize,
+        });
+        return {
+          token,
+          urlOptions: {
+            allowedContentTypes: ["image/*"],
+            maximumSizeInBytes: maximumPhotoSize,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify(payload),
+          },
+        };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        const payload = readClientPayload(tokenPayload ?? null);
+        const media: MediaItem = {
+          id: blob.pathname,
+          title: payload.title,
+          type: "photo",
+          url: blob.url,
+          createdAt: "Just now",
+          album: "Uploads",
+          contentHash: payload.contentHash,
+          capturedAt: payload.capturedAt,
+          durationSeconds: null,
+          fileSizeBytes: payload.fileSizeBytes,
+          visibility: "private",
+        };
+        await saveMedia(media);
+      },
+    });
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not prepare this protected photo upload." },
+      { status: 400 },
+    );
+  }
+}

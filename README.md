@@ -64,7 +64,7 @@ MediaSpace supports three application-level visibility states:
 - **Unlisted:** omitted from public listings and search indexing, but available to anyone who has its direct MediaSpace link.
 - **Private:** visible to the administrator; anonymous visitors cannot find it in listings and receive a `404` from its individual MediaSpace page.
 
-When Mux signing is configured, new video uploads receive signed playback IDs and MediaSpace issues 15-minute playback, thumbnail, and storyboard tokens only through authorized application responses. Existing public Mux playback IDs and public Vercel Blob URLs remain direct delivery URLs, so someone who already possesses one of those older raw URLs may still be able to bypass the MediaSpace page.
+When Mux signing is configured, new video uploads receive signed playback IDs and MediaSpace issues 15-minute playback, thumbnail, and storyboard tokens only through authorized application responses. When a separate private Vercel Blob store is configured, new deployed photo uploads are stored privately and streamed through an application route that checks the database visibility before delivery. Existing public Mux playback IDs and public Vercel Blob URLs remain direct delivery URLs, so someone who already possesses one of those older raw URLs may still be able to bypass the MediaSpace page.
 
 ```mermaid
 flowchart LR
@@ -97,10 +97,10 @@ flowchart LR
     end
 ```
 
-Signed Mux playback is now implemented for newly uploaded videos when the signing variables are configured. Remaining rollout work:
+Signed Mux playback and authenticated delivery for newly uploaded photos are implemented when their respective signing and private-storage variables are configured. Remaining rollout work:
 
-1. Move protected photos away from permanently public Blob URLs to authenticated delivery.
-2. Add explicit playback-policy conversion so media intentionally made public can use normal public delivery.
+1. Migrate existing protected photos from the legacy public Blob store carefully; existing URLs are intentionally left untouched until then.
+2. Add explicit delivery-policy conversion so media intentionally made public can use normal public delivery.
 3. Migrate existing protected videos carefully so current public items and links are not accidentally broken.
 
 ## Configuration
@@ -109,7 +109,8 @@ The deployed app uses these services and environment variables:
 
 - Authentication: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, plus either `ADMIN_PASSWORD` or `GITHUB_ID`, `GITHUB_SECRET`, and `ADMIN_GITHUB_LOGIN`.
 - Database: `DATABASE_URL` (the app also recognizes Vercel/Neon aliases used by existing deployments).
-- Photos: a connected Vercel Blob store using `BLOB_STORE_ID`/OIDC or the legacy `BLOB_READ_WRITE_TOKEN`.
+- Existing public photos: a connected public Vercel Blob store using `BLOB_STORE_ID`/OIDC or the legacy `BLOB_READ_WRITE_TOKEN`.
+- New protected photos: a separate private Vercel Blob store connected through OIDC using `PRIVATE_BLOB_STORE_ID` and `PRIVATE_BLOB_WEBHOOK_PUBLIC_KEY`. `PRIVATE_BLOB_READ_WRITE_TOKEN` is an optional fallback for local development outside Vercel. The database must also be configured.
 - Videos: `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`.
 - Signed video delivery: `MUX_SIGNING_KEY_ID` and `MUX_SIGNING_PRIVATE_KEY`. Store the private key exactly as the base64 value returned by Mux; never expose it through a `NEXT_PUBLIC_` variable.
 - Video capacity control: `MUX_MAX_STORED_VIDEOS` defaults to `10` for the Mux Free plan. The administrator usage panel reads the current asset count directly from Mux, and new video uploads are rejected when the configured capacity is full.
