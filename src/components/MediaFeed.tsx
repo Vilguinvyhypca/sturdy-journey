@@ -63,18 +63,17 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
   throw new Error("The video is still processing. Refresh the library in a minute to see it.");
 }
 
-export function MediaFeed() {
-  const { data: session, status: sessionStatus } = useSession();
+export function MediaFeed({ initialItems = [], mediaType }: { initialItems?: MediaItem[]; mediaType?: MediaItem["type"] }) {
+  const { data: session } = useSession();
   const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
-  const [filter, setFilter] = useState<"all" | "photo" | "video">("all");
   const [selected, setSelected] = useState<MediaItem | null>(null);
-  const [items, setItems] = useState<MediaItem[]>([]);
+  const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [albumFilter, setAlbumFilter] = useState("");
   const [sort, setSort] = useState<"uploaded" | "newest" | "oldest">("uploaded");
   const [visibleCount, setVisibleCount] = useState(galleryPageSize);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadProgress, setUploadProgress] = useState("");
   const [uploadState, setUploadState] = useState<{ total: number; completed: number; startedAt: number; estimatedRemaining: number | null } | null>(null);
@@ -88,7 +87,7 @@ export function MediaFeed() {
   const [organizing, setOrganizing] = useState(false);
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   const filteredItems = items.filter((item) => {
-    const matchesType = filter === "all" || item.type === filter;
+    const matchesType = !mediaType || item.type === mediaType;
     const matchesAlbum = !albumFilter || item.albumIds?.includes(albumFilter);
     const searchableDetails = `${item.title} ${item.description ?? ""}`.toLocaleLowerCase();
     const matchesSearch = !normalizedSearchQuery || searchableDetails.includes(normalizedSearchQuery);
@@ -106,7 +105,7 @@ export function MediaFeed() {
   const galleryItems = !isAdministrator && firstVideoIndex > 0
     ? [displayedItems[firstVideoIndex], ...displayedItems.slice(0, firstVideoIndex), ...displayedItems.slice(firstVideoIndex + 1)]
     : displayedItems;
-  const galleryLoading = loading || sessionStatus === "loading";
+  const galleryLoading = loading;
   const photoCount = items.filter((item) => item.type === "photo").length;
   const videoCount = items.length - photoCount;
   const itemsWithKnownSize = items.filter((item) => typeof item.fileSizeBytes === "number");
@@ -235,7 +234,6 @@ export function MediaFeed() {
       setUploadState(null);
     }
     setItems((current) => [...uploaded, ...current]);
-    setFilter("all");
     setUploadProgress("");
     if (canceled) {
       setUploadError("Upload canceled. Any files that finished before you canceled are still in your library.");
@@ -312,7 +310,7 @@ export function MediaFeed() {
         {searchQuery && <button type="button" onClick={() => { setSearchQuery(""); setVisibleCount(galleryPageSize); }} className="absolute inset-y-0 right-3 my-auto h-8 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900">Clear</button>}
       </div>
     </search>
-    <section className="mt-7 flex flex-wrap items-center gap-2">{(["all", "photo", "video"] as const).map((type) => <button key={type} onClick={() => setFilter(type)} className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${filter === type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{type === "all" ? "Everything" : `${type}s`}</button>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
+    <section className="mt-7 flex flex-wrap items-center gap-2">{([{ href: "/", label: "Everything", type: undefined }, { href: "/photos", label: "Photos", type: "photo" }, { href: "/videos", label: "Videos", type: "video" }] as const).map((option) => <Link key={option.href} href={option.href} aria-current={mediaType === option.type ? "page" : undefined} className={`rounded-full px-4 py-2 text-sm font-semibold ${mediaType === option.type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{option.label}</Link>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}
     {isAdministrator && <MuxUsagePanel refreshKey={items.length} />}
