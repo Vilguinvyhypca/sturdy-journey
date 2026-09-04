@@ -138,5 +138,6 @@ The production deployment is managed by Vercel from the connected GitHub reposit
 
 ## MediaSpace backlog
 
+- Automatically refresh the gallery after a private photo finishes processing so the new upload appears without a manual page refresh.
 - Add search across titles, descriptions, dates, albums, and extracted metadata.
 - Add adaptive video streaming improvements as the video library grows.
