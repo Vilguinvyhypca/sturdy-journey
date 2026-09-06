@@ -1,6 +1,6 @@
 # MediaSpace project status
 
-Last updated: 2026-09-03
+Last updated: 2026-09-05
 
 ## Live today
 
@@ -28,23 +28,24 @@ Last updated: 2026-09-03
 - The main gallery shows library totals and storage tracked from media metadata, and initially renders 48 files at a time with a Load more control.
 - Gallery photos use Vercel image optimization and caching to deliver smaller thumbnail-sized images.
 - Production uploads go directly from the browser to Vercel Blob while the app still verifies the administrator, blocks exact duplicates, and saves media details. Files up to 500 MB are accepted by this upload flow.
+- Public and administrator gallery reads now use Neon as the primary catalog instead of listing and reconciling Vercel Blob on every request.
 
 ## Recommended development order
 
 ### Phase 1: Finish public discovery and routing
 
-1. Make `/videos` show videos and `/photos` show photos instead of rendering the unfiltered general feed.
-2. Repair or remove the nonfunctional `/upload` route.
-3. Make media cards link to their individual photo or video pages while preserving the enhanced viewer experience.
-4. Server-render the initial public library results so visitors and search crawlers receive useful media content before client hydration.
+- [x] Make `/videos` show videos and `/photos` show photos instead of rendering the unfiltered general feed.
+- [x] Repair or remove the nonfunctional `/upload` route.
+- [x] Make media cards link to their individual photo or video pages while preserving the enhanced viewer experience.
+- [x] Server-render the initial public library results so visitors and search crawlers receive useful media content before client hydration.
 
 ### Phase 2: Improve catalog reliability and scale
 
-1. Make public catalog reads database-first instead of listing Blob storage and synchronizing records during every gallery request.
-2. Move Blob reconciliation to upload completion or an explicit administrator/background scan.
-3. Add database-driven cursor pagination for media and albums.
-4. Replace browser-dependent Mux finalization polling with verified Mux webhooks and authoritative processed-asset metadata.
-5. Add database-level duplicate protection and use transactions or bulk operations where appropriate.
+- [x] Make public catalog reads database-first instead of listing Blob storage and synchronizing records during every gallery request.
+- [x] Move Blob reconciliation to upload completion or an explicit administrator/background scan.
+- [ ] Add database-driven cursor pagination for media and albums.
+- [ ] Replace browser-dependent Mux finalization polling with verified Mux webhooks and authoritative processed-asset metadata.
+- [ ] Add database-level duplicate protection and use transactions or bulk operations where appropriate.
 
 ### Phase 3: Harden security and maintenance
 
@@ -72,6 +73,7 @@ Crypto billing is a planned product direction, not the next implementation miles
 
 ## Backlog
 
+- Automatically refresh the gallery after a private photo finishes processing, with a temporary processing state while it becomes available.
 - Standardize the Vercel Neon connection variable from `DATABASE_URL_DATABASE_URL` to `DATABASE_URL` after confirming the live database connection.
 - Add optional album cover images.
 - Hover/press-and-hold muted video previews.
