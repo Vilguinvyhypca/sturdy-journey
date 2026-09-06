@@ -3,7 +3,7 @@ import { del } from "@vercel/blob";
 import { getServerSession } from "next-auth";
 import { readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { addMediaToAlbum, deleteMediaRecord, getMediaById, listDatabaseMedia, saveMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
+import { addMediaToAlbum, deleteMediaRecord, getMediaById, listDatabaseMedia, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
 import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
@@ -23,18 +23,13 @@ function withDelivery(item: MediaItem): MediaItem {
 export async function GET() {
   const session = await getServerSession(authOptions);
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
-  if (usesBlobStorage) {
-    const media = await listBlobMedia();
-    if (usesDatabase) {
-      await Promise.all(media.map((item) => saveMedia(item)));
-      const databaseMedia = await listDatabaseMedia(administrator);
-      return NextResponse.json({ media: databaseMedia.map(withDelivery) });
-    }
-    return NextResponse.json({ media: media.filter((item) => administrator || item.visibility === "public") });
-  }
   if (usesDatabase) {
     const media = await listDatabaseMedia(administrator);
     return NextResponse.json({ media: media.map(withDelivery) });
+  }
+  if (usesBlobStorage) {
+    const media = await listBlobMedia();
+    return NextResponse.json({ media: media.filter((item) => administrator || item.visibility === "public") });
   }
   const savedMedia = await readMedia();
   const availableMedia = savedMedia.length ? savedMedia : demoMedia;
