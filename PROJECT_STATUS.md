@@ -47,6 +47,8 @@ Last updated: 2026-09-05
 - [ ] Replace browser-dependent Mux finalization polling with verified Mux webhooks and authoritative processed-asset metadata.
 - [ ] Add database-level duplicate protection and use transactions or bulk operations where appropriate.
 
+Database-driven cursor pagination means Neon returns the first group of media records plus a cursor identifying the last record. When a visitor selects **Load more**, MediaSpace sends that cursor to Neon and requests the next group instead of downloading the entire catalog during the initial page load. The visual behavior remains the same, but this improves page speed, network usage, and memory use as the library grows to hundreds or thousands of files.
+
 ### Phase 3: Harden security and maintenance
 
 1. Add rate limiting to sign-in, upload creation, polling, and destructive endpoints.
