@@ -1,6 +1,12 @@
 # MediaSpace project status
 
-Last updated: 2026-09-05
+Last updated: 2026-09-11
+
+## Agreed strategic direction
+
+The planned production architecture is self-hosted: the public domain reaches the MediaSpace web application on the private home server through a protected outbound tunnel or isolated reverse proxy, and MediaSpace authorizes each local media stream or download. The home network, administration interfaces, and storage paths must not be exposed directly.
+
+Local storage will hold the larger video catalog. Mux remains available for a limited set of selected or higher-traffic videos, Vercel Blob can continue serving photos, Neon can remain the authoritative catalog, and Vercel can continue providing preview deployments during the transition. This is a MediaSpace-specific service and does not depend on Jellyfin.
 
 ## Live today
 
@@ -31,6 +37,16 @@ Last updated: 2026-09-05
 - Public and administrator gallery reads now use Neon as the primary catalog instead of listing and reconciling Vercel Blob on every request.
 
 ## Recommended development order
+
+### Architecture transition: design before migration
+
+- [x] Agree on the single-domain request path: public domain -> protected gateway -> home-hosted MediaSpace -> authorized media delivery.
+- [ ] Define the home-server threat model, tunnel/reverse-proxy choice, TLS termination, firewall boundaries, and emergency shutdown procedure.
+- [ ] Design a provider-neutral video record and migration for `mux` and `home` without breaking existing playback IDs or links.
+- [ ] Specify the authenticated local-media contract, including signed expiry, visibility checks, HTTP range requests, thumbnails, and offline responses.
+- [ ] Define storage directories, least-privilege service accounts, backups, monitoring, upload-bandwidth limits, and recovery procedures.
+- [ ] Build and test the home delivery service privately before pointing the public domain at it.
+- [ ] Run a staged public rollout and retain a documented rollback path to the current Vercel deployment.
 
 ### Phase 1: Finish public discovery and routing
 
@@ -82,6 +98,7 @@ Crypto billing is a planned product direction, not the next implementation miles
 - Adaptive video streaming for large or high-resolution videos, with automatic quality changes on slower connections.
 - Optional location handling with privacy controls.
 - iCloud import workflow (deferred for now).
+- Decide which videos remain on Mux using an explicit administrator choice or a traffic-based policy instead of upload order alone.
 
 ## Release checklist
 

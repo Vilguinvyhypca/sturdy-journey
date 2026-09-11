@@ -15,12 +15,33 @@ MediaSpace is a public photo and video gallery with a private administration are
 
 Direct browser uploads keep large video files out of the Vercel application function. Vercel hosts the app and its API endpoints; Mux handles video ingestion, processing, thumbnails, and playback; Vercel Blob serves photos; Neon stores structured application data.
 
+## Planned self-hosted production architecture
+
+MediaSpace's target production path is one public domain connected to the MediaSpace application on a private home server:
+
+```text
+example.com -> protected public gateway -> MediaSpace web app -> authorized media stream or download
+```
+
+The gateway must use an outbound encrypted tunnel or similarly isolated reverse proxy so the router, server administration, storage directories, and unrelated home services are never exposed directly. MediaSpace remains responsible for authentication and public, unlisted, and private visibility decisions. A web server designed for large transfers should serve authorized local files with HTTP range-request support; large video responses should not be proxied through a serverless function.
+
+Local storage is intended to hold the larger video catalog without per-video cloud storage charges. Available upload bandwidth, electricity, disks, backups, hardware, and home-internet uptime remain operating constraints. The public site must display a clear temporary-unavailable state when the home server cannot be reached.
+
+The existing cloud services will remain supported during the transition:
+
+- Mux can host a small set of featured or higher-traffic videos within the configured capacity.
+- Vercel Blob can continue storing photos.
+- Neon can remain the authoritative catalog while the application moves between hosting environments.
+- Vercel can remain available for preview deployments even if production moves to the home server.
+
+Each video record will eventually identify its storage provider, such as `mux` or `home`, so MediaSpace can select the correct authorized delivery path without maintaining separate catalogs. Provider selection should be explicit or policy-driven rather than depending only on upload order.
+
 ## Local and production storage
 
 | Content | Local fallback | Production |
 | --- | --- | --- |
 | Photos | `public/uploads/` | Vercel Blob |
-| Videos | Local upload fallback, or Mux when configured | Mux Video |
+| Videos | Local server storage, or Mux when selected | Home server as the planned primary catalog; Mux for selected videos |
 | Media details | `data/media.json` | Neon Postgres |
 | Albums, fingerprints, and theme | Available when the database is configured | Neon Postgres |
 
@@ -134,7 +155,7 @@ Open [http://localhost:3000](http://localhost:3000). Use [http://localhost:3000/
 npm run build
 ```
 
-The production deployment is managed by Vercel from the connected GitHub repository.
+The current production deployment is managed by Vercel from the connected GitHub repository. The planned architecture moves the public production application behind a protected gateway on the home server while retaining Vercel for preview deployments if useful.
 
 ## MediaSpace backlog
 
