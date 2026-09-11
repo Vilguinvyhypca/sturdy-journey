@@ -43,7 +43,7 @@ Last updated: 2026-09-05
 
 - [x] Make public catalog reads database-first instead of listing Blob storage and synchronizing records during every gallery request.
 - [x] Move Blob reconciliation to upload completion or an explicit administrator/background scan.
-- [ ] Add database-driven cursor pagination for media and albums.
+- [x] Add database-driven cursor pagination for media and albums.
 - [ ] Replace browser-dependent Mux finalization polling with verified Mux webhooks and authoritative processed-asset metadata.
 - [ ] Add database-level duplicate protection and use transactions or bulk operations where appropriate.
 

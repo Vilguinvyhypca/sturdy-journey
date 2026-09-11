@@ -10,6 +10,18 @@ export type Album = {
   createdAt: string;
 };
 
+export type MediaPage = {
+  media: MediaItem[];
+  nextCursor: string | null;
+  totalCount: number;
+  photoCount: number;
+  videoCount: number;
+  knownSizeCount: number;
+  knownStorageBytes: number;
+};
+
+export type AlbumPage = { albums: Album[]; nextCursor: string | null; totalCount: number };
+
 export type { SiteTheme } from "./theme";
 
 // Marketplace integrations may namespace the connection string with their chosen prefix.
@@ -203,6 +215,90 @@ export async function listDatabaseMedia(includeNonPublic = false): Promise<Media
     visibility: String(row.visibility) as MediaVisibility,
   }));
 }
+
+type MediaCursor = { createdAt: string; id: string };
+
+function encodeMediaCursor(cursor: MediaCursor) {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeMediaCursor(cursor?: string | null): MediaCursor | null {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<MediaCursor>;
+    if (typeof parsed.createdAt !== "string" || Number.isNaN(Date.parse(parsed.createdAt)) || typeof parsed.id !== "string" || !parsed.id) return null;
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+export async function listDatabaseMediaPage({
+  includeNonPublic = false,
+  cursor,
+  limit = 48,
+  type,
+}: {
+  includeNonPublic?: boolean;
+  cursor?: string | null;
+  limit?: number;
+  type?: MediaItem["type"];
+} = {}): Promise<MediaPage> {
+  await ensureDatabase();
+  const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 100);
+  const decodedCursor = decodeMediaCursor(cursor);
+  const db = sql();
+  const [rows, summaryRows] = await Promise.all([
+    db.query(
+      `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
+         COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
+         COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
+       FROM media m
+       LEFT JOIN media_albums ma ON ma.media_id = m.id
+       LEFT JOIN albums a ON a.id = ma.album_id
+       WHERE ($1::boolean OR m.visibility = 'public')
+         AND ($2::text IS NULL OR m.media_type = $2)
+         AND ($3::timestamptz IS NULL OR (m.created_at, m.id) < ($3::timestamptz, $4::text))
+       GROUP BY m.id
+       ORDER BY m.created_at DESC, m.id DESC
+       LIMIT $5`,
+      [includeNonPublic, type ?? null, decodedCursor?.createdAt ?? null, decodedCursor?.id ?? "", pageSize + 1],
+    ),
+    db.query(
+      `SELECT COUNT(*)::int AS total_count,
+         COUNT(*) FILTER (WHERE media_type = 'photo')::int AS photo_count,
+         COUNT(*) FILTER (WHERE media_type = 'video')::int AS video_count,
+         COUNT(file_size_bytes)::int AS known_size_count,
+         COALESCE(SUM(file_size_bytes), 0)::bigint AS known_storage_bytes
+       FROM media
+       WHERE ($1::boolean OR visibility = 'public')
+         AND ($2::text IS NULL OR media_type = $2)`,
+      [includeNonPublic, type ?? null],
+    ),
+  ]);
+  const hasMore = rows.length > pageSize;
+  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+  const lastRow = pageRows.at(-1);
+  const summary = summaryRows[0];
+  return {
+    media: pageRows.map((row) => ({
+      id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+      createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
+      albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],
+      capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+      durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+      fileSizeBytes: row.file_size_bytes === null ? undefined : Number(row.file_size_bytes),
+      visibility: String(row.visibility) as MediaVisibility,
+    })),
+    nextCursor: hasMore && lastRow ? encodeMediaCursor({ createdAt: new Date(String(lastRow.created_at)).toISOString(), id: String(lastRow.id) }) : null,
+    totalCount: Number(summary?.total_count ?? 0),
+    photoCount: Number(summary?.photo_count ?? 0),
+    videoCount: Number(summary?.video_count ?? 0),
+    knownSizeCount: Number(summary?.known_size_count ?? 0),
+    knownStorageBytes: Number(summary?.known_storage_bytes ?? 0),
+  };
+}
 export async function listMuxMedia(includeNonPublic = false): Promise<MediaItem[]> {
   await ensureDatabase();
   const rows = await sql().query(
@@ -299,6 +395,36 @@ export async function listAlbums(includeNonPublic = false): Promise<Album[]> {
     mediaCount: Number(row.media_count),
     createdAt: new Date(String(row.created_at)).toISOString(),
   }));
+}
+
+export async function listAlbumsPage({ includeNonPublic = false, cursor, limit = 24 }: { includeNonPublic?: boolean; cursor?: string | null; limit?: number } = {}): Promise<AlbumPage> {
+  await ensureDatabase();
+  const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 100);
+  const decodedCursor = decodeMediaCursor(cursor);
+  const cursorId = decodedCursor && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decodedCursor.id) ? decodedCursor.id : null;
+  const [rows, countRows] = await Promise.all([
+    sql().query(
+      `SELECT a.id, a.name, a.description, a.created_at,
+         COUNT(ma.media_id) FILTER (WHERE $1::boolean OR m.visibility = 'public')::int AS media_count
+       FROM albums a
+       LEFT JOIN media_albums ma ON ma.album_id = a.id
+       LEFT JOIN media m ON m.id = ma.media_id
+       WHERE ($2::timestamptz IS NULL OR (a.created_at, a.id) < ($2::timestamptz, $3::uuid))
+       GROUP BY a.id
+       ORDER BY a.created_at DESC, a.id DESC
+       LIMIT $4`,
+      [includeNonPublic, cursorId ? decodedCursor?.createdAt ?? null : null, cursorId ?? "00000000-0000-0000-0000-000000000000", pageSize + 1],
+    ),
+    sql().query("SELECT COUNT(*)::int AS total_count FROM albums"),
+  ]);
+  const hasMore = rows.length > pageSize;
+  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+  const lastRow = pageRows.at(-1);
+  return {
+    albums: pageRows.map((row) => ({ id: String(row.id), name: String(row.name), description: String(row.description), mediaCount: Number(row.media_count), createdAt: new Date(String(row.created_at)).toISOString() })),
+    nextCursor: hasMore && lastRow ? encodeMediaCursor({ createdAt: new Date(String(lastRow.created_at)).toISOString(), id: String(lastRow.id) }) : null,
+    totalCount: Number(countRows[0]?.total_count ?? 0),
+  };
 }
 
 export async function createAlbum(id: string, name: string, description: string): Promise<Album> {

@@ -3,11 +3,16 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import type { Album } from "@/lib/database";
+import type { Album, AlbumPage } from "@/lib/database";
+
+const albumPageSize = 24;
 
 export function AlbumsManager() {
   const { data: session } = useSession();
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -17,12 +22,29 @@ export function AlbumsManager() {
   const [editDescription, setEditDescription] = useState("");
 
   useEffect(() => {
-    fetch("/api/albums")
+    fetch(`/api/albums?limit=${albumPageSize}`)
       .then((response) => response.json())
-      .then((data: { albums?: Album[] }) => setAlbums(data.albums ?? []))
+      .then((data: AlbumPage) => { setAlbums(data.albums ?? []); setNextCursor(data.nextCursor); setTotalCount(data.totalCount); })
       .catch(() => setMessage("Albums are not available yet."))
       .finally(() => setLoading(false));
   }, []);
+
+  async function loadMoreAlbums() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await fetch(`/api/albums?limit=${albumPageSize}&cursor=${encodeURIComponent(nextCursor)}`);
+      const data = await response.json() as AlbumPage & { error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Could not load more albums.");
+      setAlbums((current) => [...current, ...data.albums]);
+      setNextCursor(data.nextCursor);
+      setTotalCount(data.totalCount);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not load more albums.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function createAlbum(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,6 +60,7 @@ export function AlbumsManager() {
       return;
     }
     setAlbums((current) => [data.album!, ...current]);
+    setTotalCount((current) => current + 1);
     setName("");
     setDescription("");
   }
@@ -64,6 +87,7 @@ export function AlbumsManager() {
     const response = await fetch(`/api/albums/${album.id}`, { method: "DELETE" });
     if (!response.ok) { setMessage("Could not delete the album."); return; }
     setAlbums((current) => current.filter((currentAlbum) => currentAlbum.id !== album.id));
+    setTotalCount((current) => Math.max(0, current - 1));
   }
 
   return <main className="mx-auto min-h-screen max-w-4xl px-5 py-8 sm:px-8">
@@ -83,6 +107,7 @@ export function AlbumsManager() {
       {!loading && albums.length === 0 && <p className="rounded-2xl border border-dashed border-slate-300 p-5 text-slate-500">No albums yet. {session ? "Create your first one above." : "Sign in as the administrator to create one."}</p>}
       {albums.map((album) => <article key={album.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><Link href={`/albums/${album.id}`} className="block transition hover:text-indigo-700"><p className="text-lg font-black text-slate-900">{album.name}</p>{album.description && <p className="mt-1 text-sm text-slate-500">{album.description}</p>}<p className="mt-4 text-sm font-semibold text-indigo-600">Open album → · {album.mediaCount} {album.mediaCount === 1 ? "item" : "items"}</p></Link>{session && <div className="mt-4 flex gap-3 border-t border-slate-100 pt-3 text-sm font-bold"><button onClick={() => startEditing(album)} className="text-indigo-700 hover:underline">Edit</button><button onClick={() => removeAlbum(album)} className="text-rose-600 hover:underline">Delete</button></div>}</article>)}
     </section>
+    {!loading && albums.length > 0 && <div className="mt-6 flex flex-col items-center gap-3 text-sm text-slate-500"><p>Loaded {albums.length} of {totalCount} albums</p>{nextCursor && <button onClick={loadMoreAlbums} disabled={loadingMore} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{loadingMore ? "Loading..." : `Load up to ${Math.min(albumPageSize, Math.max(0, totalCount - albums.length))} more`}</button>}</div>}
     {editing && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-5"><form onSubmit={saveEdit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><h2 className="text-xl font-black">Edit album</h2><label className="mt-5 block text-sm font-bold text-slate-700">Name<input value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={80} required className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500" /></label><label className="mt-4 block text-sm font-bold text-slate-700">Description<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={500} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500" /></label><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setEditing(null)} className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100">Cancel</button><button className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">Save changes</button></div></form></div>}
   </main>;
 }

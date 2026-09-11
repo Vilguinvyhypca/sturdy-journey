@@ -2,12 +2,18 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { createAlbum, listAlbums, usesDatabase } from "@/lib/database";
+import { createAlbum, listAlbums, listAlbumsPage, usesDatabase } from "@/lib/database";
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!usesDatabase) return NextResponse.json({ albums: [] });
   const session = await getServerSession(authOptions);
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
+  const searchParams = new URL(request.url).searchParams;
+  if (searchParams.has("limit") || searchParams.has("cursor")) {
+    const requestedLimit = Number(searchParams.get("limit") ?? "24");
+    const limit = Number.isFinite(requestedLimit) ? requestedLimit : 24;
+    return NextResponse.json(await listAlbumsPage({ includeNonPublic: administrator, cursor: searchParams.get("cursor"), limit }));
+  }
   return NextResponse.json({ albums: await listAlbums(administrator) });
 }
 
