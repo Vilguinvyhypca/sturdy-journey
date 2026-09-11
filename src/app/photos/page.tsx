@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function PhotosPage() {
-  const media = await getInitialPublicMedia("photo");
-  return <MediaFeed initialItems={media} mediaType="photo" />;
+  const page = await getInitialPublicMedia("photo");
+  return <MediaFeed initialPage={page} mediaType="photo" />;
 }
