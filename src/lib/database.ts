@@ -22,6 +22,22 @@ export type MediaPage = {
 
 export type AlbumPage = { albums: Album[]; nextCursor: string | null; totalCount: number };
 
+export type MuxUploadIntent = {
+  id: string;
+  status: "pending" | "ready" | "errored";
+  assetId: string | null;
+  errorMessage: string | null;
+};
+
+type NewMuxUploadIntent = {
+  id: string;
+  title: string;
+  contentHash: string;
+  capturedAt: string | null;
+  durationSeconds: number;
+  fileSizeBytes: number;
+};
+
 export type { SiteTheme } from "./theme";
 
 // Marketplace integrations may namespace the connection string with their chosen prefix.
@@ -84,6 +100,30 @@ export function ensureDatabase() {
           setting_value TEXT NOT NULL
         )
       `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS mux_uploads (
+          id UUID PRIMARY KEY,
+          mux_upload_id TEXT UNIQUE,
+          mux_asset_id TEXT UNIQUE,
+          title TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          captured_at TIMESTAMPTZ,
+          client_duration_seconds INTEGER NOT NULL,
+          file_size_bytes BIGINT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'errored')),
+          error_message TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await db.query("CREATE UNIQUE INDEX IF NOT EXISTS mux_uploads_pending_hash_unique ON mux_uploads (content_hash) WHERE status = 'pending'");
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS mux_webhook_events (
+          event_id TEXT PRIMARY KEY,
+          event_type TEXT NOT NULL,
+          received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
     })();
   }
   return schemaPromise;
@@ -140,6 +180,97 @@ export async function findMediaByHash(contentHash: string) {
   await ensureDatabase();
   const rows = await sql().query("SELECT id FROM media WHERE content_hash = $1 LIMIT 1", [contentHash]);
   return rows.length > 0;
+}
+
+export async function createMuxUploadIntent(intent: NewMuxUploadIntent) {
+  await ensureDatabase();
+  await sql().query(
+    `INSERT INTO mux_uploads (id, title, content_hash, captured_at, client_duration_seconds, file_size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [intent.id, intent.title, intent.contentHash, intent.capturedAt, intent.durationSeconds, intent.fileSizeBytes],
+  );
+}
+
+export async function attachMuxUploadId(intentId: string, uploadId: string) {
+  await ensureDatabase();
+  await sql().query("UPDATE mux_uploads SET mux_upload_id = $2, updated_at = NOW() WHERE id = $1", [intentId, uploadId]);
+}
+
+export async function markMuxUploadErrored(intentId: string, message: string) {
+  await ensureDatabase();
+  await sql().query(
+    "UPDATE mux_uploads SET status = 'errored', error_message = $2, updated_at = NOW() WHERE id = $1",
+    [intentId, message.slice(0, 500)],
+  );
+}
+
+export async function getMuxUploadIntent(intentId: string): Promise<MuxUploadIntent | null> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    "SELECT id, status, mux_asset_id, error_message FROM mux_uploads WHERE id = $1 LIMIT 1",
+    [intentId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    status: String(row.status) as MuxUploadIntent["status"],
+    assetId: row.mux_asset_id ? String(row.mux_asset_id) : null,
+    errorMessage: row.error_message ? String(row.error_message) : null,
+  };
+}
+
+export async function finalizeMuxUpload({
+  intentId,
+  assetId,
+  playbackId,
+  signed,
+  durationSeconds,
+}: {
+  intentId: string;
+  assetId: string;
+  playbackId: string;
+  signed: boolean;
+  durationSeconds: number;
+}) {
+  await ensureDatabase();
+  const rows = await sql().query(
+    `SELECT title, content_hash, captured_at, file_size_bytes
+     FROM mux_uploads WHERE id = $1 LIMIT 1`,
+    [intentId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const media: MediaItem = {
+    id: `mux:${assetId}`,
+    title: String(row.title),
+    type: "video",
+    url: `${signed ? "mux-signed:" : "mux:"}${playbackId}`,
+    createdAt: "Just now",
+    album: "Uploads",
+    contentHash: String(row.content_hash),
+    capturedAt: row.captured_at ? new Date(String(row.captured_at)).toISOString() : null,
+    durationSeconds: Math.max(0, Math.round(durationSeconds)),
+    fileSizeBytes: Number(row.file_size_bytes),
+    visibility: "private",
+  };
+  await saveMedia(media);
+  await sql().query(
+    `UPDATE mux_uploads
+     SET status = 'ready', mux_asset_id = $2, error_message = NULL, updated_at = NOW()
+     WHERE id = $1`,
+    [intentId, assetId],
+  );
+  return media;
+}
+
+export async function recordMuxWebhookEvent(eventId: string, eventType: string) {
+  await ensureDatabase();
+  await sql().query(
+    `INSERT INTO mux_webhook_events (event_id, event_type) VALUES ($1, $2)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [eventId, eventType],
+  );
 }
 
 export async function getMediaById(id: string): Promise<MediaItem | null> {

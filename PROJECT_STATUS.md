@@ -60,7 +60,7 @@ Local storage will hold the larger video catalog. Mux remains available for a li
 - [x] Make public catalog reads database-first instead of listing Blob storage and synchronizing records during every gallery request.
 - [x] Move Blob reconciliation to upload completion or an explicit administrator/background scan.
 - [x] Add database-driven cursor pagination for media and albums.
-- [ ] Replace browser-dependent Mux finalization polling with verified Mux webhooks and authoritative processed-asset metadata.
+- [ ] Deploy and configure the locally implemented verified Mux webhook finalization flow, then confirm it with a real test upload. The code is on `codex/mux-webhook`; production still needs `MUX_WEBHOOK_SECRET` and the Mux endpoint configuration.
 - [ ] Add database-level duplicate protection and use transactions or bulk operations where appropriate.
 
 Database-driven cursor pagination means Neon returns the first group of media records plus a cursor identifying the last record. When a visitor selects **Load more**, MediaSpace sends that cursor to Neon and requests the next group instead of downloading the entire catalog during the initial page load. The visual behavior remains the same, but this improves page speed, network usage, and memory use as the library grows to hundreds or thousands of files.

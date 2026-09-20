@@ -39,8 +39,8 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
   const uploadDetails = { contentHash, title: file.name.replace(/\.[^/.]+$/, ""), capturedAt: details.capturedAt, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes };
   onProgress("Preparing secure video upload...");
   const createResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", details: uploadDetails }), signal });
-  const created = await createResponse.json() as { uploadId?: string; uploadUrl?: string; error?: string };
-  if (!createResponse.ok || !created.uploadId || !created.uploadUrl) throw new Error(created.error ?? "Could not prepare the video upload.");
+  const created = await createResponse.json() as { intentId?: string; uploadUrl?: string; error?: string };
+  if (!createResponse.ok || !created.intentId || !created.uploadUrl) throw new Error(created.error ?? "Could not prepare the video upload.");
   onProgress("Uploading video directly to Mux...");
   const transfer = await fetch(created.uploadUrl, { method: "PUT", body: file, signal, headers: { "Content-Type": file.type || "video/mp4" } });
   if (!transfer.ok) throw new Error("Mux could not receive this video.");
@@ -50,7 +50,7 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
     let completeResponse: Response;
     try {
-      completeResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", uploadId: created.uploadId, details: uploadDetails }), signal });
+      completeResponse = await fetch(`/api/mux/upload?intentId=${encodeURIComponent(created.intentId)}`, { signal });
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === "AbortError")) throw error;
       if (attempt === 59) throw new Error("The video reached Mux, but MediaSpace temporarily lost contact while confirming it. Refresh the library to see whether processing completed.");
