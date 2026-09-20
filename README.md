@@ -9,9 +9,10 @@ MediaSpace is a public photo and video gallery with a private administration are
 1. The administrator opens `/admin` and signs in with the configured GitHub account or admin password.
 2. The browser validates selected files and checks their metadata before upload.
 3. Photos upload directly to Vercel Blob. Videos upload directly to Mux, where they are processed into streaming video and thumbnails.
-4. Neon Postgres stores the media record: its URL or Mux playback ID, title, description, visibility, date, fingerprint, and album relationships.
-5. The Next.js app reads those records and renders the public gallery, albums, filters, media viewer, and searchable video pages.
-6. Public visitors can view media but cannot see or use the administration controls.
+4. Mux notifies a signature-verified MediaSpace webhook when a video is ready; the webhook finalizes the database record even if the uploading browser has closed.
+5. Neon Postgres stores the media record: its URL or Mux playback ID, title, description, visibility, date, fingerprint, and album relationships.
+6. The Next.js app reads those records and renders the public gallery, albums, filters, media viewer, and searchable video pages.
+7. Public visitors can view media but cannot see or use the administration controls.
 
 Direct browser uploads keep large video files out of the Vercel application function. Vercel hosts the app and its API endpoints; Mux handles video ingestion, processing, thumbnails, and playback; Vercel Blob serves photos; Neon stores structured application data.
 
@@ -134,6 +135,7 @@ The deployed app uses these services and environment variables:
 - New protected photos: a separate private Vercel Blob store connected through OIDC using `PRIVATE_BLOB_STORE_ID` and `PRIVATE_BLOB_WEBHOOK_PUBLIC_KEY`. `PRIVATE_BLOB_READ_WRITE_TOKEN` is an optional fallback for local development outside Vercel. The database must also be configured.
 - Videos: `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`.
 - Signed video delivery: `MUX_SIGNING_KEY_ID` and `MUX_SIGNING_PRIVATE_KEY`. Store the private key exactly as the base64 value returned by Mux; never expose it through a `NEXT_PUBLIC_` variable.
+- Video finalization: configure a Mux webhook for `https://YOUR_DOMAIN/api/webhooks/mux`, then store that endpoint's signing secret as `MUX_WEBHOOK_SECRET`. MediaSpace verifies the raw request signature and accepts ready/errored asset events only when they match a pending upload intent.
 - Video capacity control: `MUX_MAX_STORED_VIDEOS` defaults to `10` for the Mux Free plan. The administrator usage panel reads the current asset count directly from Mux, and new video uploads are rejected when the configured capacity is full.
 
 Never commit real credentials or `.env.local` to GitHub.

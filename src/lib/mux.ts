@@ -5,9 +5,12 @@ const muxTokenId = process.env.MUX_TOKEN_ID;
 const muxTokenSecret = process.env.MUX_TOKEN_SECRET;
 const muxSigningKeyId = process.env.MUX_SIGNING_KEY_ID;
 const muxSigningPrivateKey = process.env.MUX_SIGNING_PRIVATE_KEY ? Buffer.from(process.env.MUX_SIGNING_PRIVATE_KEY, "base64").toString("utf8") : undefined;
+const muxWebhookSecret = process.env.MUX_WEBHOOK_SECRET;
 
 export const usesMux = Boolean(muxTokenId && muxTokenSecret);
 export const usesMuxSigning = Boolean(muxSigningKeyId && muxSigningPrivateKey);
+export const usesMuxWebhooks = Boolean(muxWebhookSecret);
+export { muxWebhookSecret };
 
 const configuredMuxLimit = Number.parseInt(process.env.MUX_MAX_STORED_VIDEOS ?? "10", 10);
 export const muxMaxStoredVideos = Number.isFinite(configuredMuxLimit) && configuredMuxLimit > 0 ? configuredMuxLimit : 10;
@@ -82,12 +85,16 @@ export async function getMuxUsageSummary(): Promise<MuxUsageSummary> {
   };
 }
 
-export async function createMuxUpload(origin: string) {
+export async function createMuxUpload(origin: string, externalId: string) {
   return muxRequest("/uploads", {
     method: "POST",
     body: JSON.stringify({
       cors_origin: origin,
-      new_asset_settings: { playback_policies: [usesMuxSigning ? "signed" : "public"], video_quality: "basic" },
+      new_asset_settings: {
+        playback_policies: [usesMuxSigning ? "signed" : "public"],
+        video_quality: "basic",
+        meta: { external_id: externalId },
+      },
       timeout: 3600,
     }),
   });
