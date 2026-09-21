@@ -5,6 +5,7 @@ import { access, appendFile, copyFile, lstat, mkdir, readdir, readFile, realpath
 import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
+import { generateThumbnail } from "./local-thumbnail.mjs";
 
 const formats = new Map([
   [".jpg", "photo"], [".jpeg", "photo"], [".png", "photo"], [".gif", "photo"],
@@ -170,6 +171,10 @@ for (const [index, { path, bytes }] of files.entries()) {
       records = next;
       hashes.add(contentHash);
       imported++;
+      if (record.type === "video") {
+        try { await generateThumbnail(destination); }
+        catch (error) { await log({ event: "thumbnail_failed", file: name, reason: error.message }); }
+      }
     }
   } catch (error) {
     failed++;

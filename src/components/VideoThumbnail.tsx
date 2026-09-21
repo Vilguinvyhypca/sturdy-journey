@@ -7,7 +7,10 @@ import { muxPlaybackIdFromUrl, type MuxPlaybackTokens } from "@/lib/media";
 export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: string; muxTokens?: MuxPlaybackTokens }) {
   const muxPlaybackId = muxPlaybackIdFromUrl(src);
   const muxThumbnail = muxPlaybackId ? muxTokens?.thumbnail ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?token=${encodeURIComponent(muxTokens.thumbnail)}` : `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=640&fit_mode=preserve` : null;
+  const localId = src.startsWith("/api/local-media?") ? new URL(src, "http://localhost").searchParams.get("id") : null;
+  const localThumbnail = localId ? `/api/local-thumbnail?id=${encodeURIComponent(localId)}` : null;
   const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const [nearViewport, setNearViewport] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -16,7 +19,7 @@ export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: 
   const heldToPreview = useRef(false);
 
   useEffect(() => {
-    if (muxPlaybackId) return;
+    if (muxPlaybackId || (localThumbnail && !thumbnailFailed)) return;
     const target = container.current;
     if (!target) return;
     const observer = new IntersectionObserver(([entry]) => {
@@ -26,10 +29,10 @@ export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: 
     }, { rootMargin: "300px" });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [muxPlaybackId]);
+  }, [muxPlaybackId, localThumbnail, thumbnailFailed]);
 
   useEffect(() => {
-    if (!nearViewport) return;
+    if (!nearViewport || (localThumbnail && !thumbnailFailed)) return;
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.muted = true;
@@ -53,7 +56,7 @@ export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: 
       video.removeEventListener("seeked", captureFrame);
       video.src = "";
     };
-  }, [nearViewport, src, muxPlaybackId]);
+  }, [nearViewport, src, muxPlaybackId, localThumbnail, thumbnailFailed]);
 
   useEffect(() => {
     const video = previewVideo.current;
@@ -93,9 +96,9 @@ export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: 
     stopPreview();
     if (wasPreviewing) event.preventDefault();
   }} onPointerCancel={stopPreview}>
-    {muxPlaybackId ? (previewing ? <MuxPlayer playbackId={muxPlaybackId} tokens={muxTokens} streamType="on-demand" autoPlay="muted" muted playsInline loop preload="metadata" nohotkeys className="pointer-events-none h-full w-full object-cover" style={{ "--controls": "none" }} /> : <img src={muxThumbnail ?? undefined} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />) : previewing ? <video ref={previewVideo} src={src} poster={thumbnail ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" onEnded={() => {
+    {muxPlaybackId ? (previewing ? <MuxPlayer playbackId={muxPlaybackId} tokens={muxTokens} streamType="on-demand" autoPlay="muted" muted playsInline loop preload="metadata" nohotkeys className="pointer-events-none h-full w-full object-cover" style={{ "--controls": "none" }} /> : <img src={muxThumbnail ?? undefined} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />) : previewing ? <video ref={previewVideo} src={src} poster={localThumbnail ?? thumbnail ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" onEnded={() => {
       const video = previewVideo.current;
       if (video) video.currentTime = 0;
-    }} /> : thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}
+    }} /> : localThumbnail && !thumbnailFailed ? <img src={localThumbnail} alt={title} loading="lazy" onError={() => setThumbnailFailed(true)} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : thumbnail ? <img src={thumbnail} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-950 text-sm font-bold text-white">{nearViewport ? "Loading video preview" : "Video"}</div>}
   </div>;
 }

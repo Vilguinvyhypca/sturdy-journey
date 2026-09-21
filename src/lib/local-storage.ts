@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdir, open, realpath, unlink } from "node:fs/promises";
+import { mkdir, open, realpath, rename, unlink } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import { isAbsolute, join, relative } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -72,6 +73,40 @@ export async function deleteStoredLocalMedia(key: string) {
   await unlink(await objectPath(key)).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== "ENOENT") throw error;
   });
+  await unlink(`${await objectPath(key)}.jpg`).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
+}
+
+export async function generateLocalThumbnail(key: string) {
+  const source = await objectPath(key);
+  const destination = `${source}.jpg`;
+  const temporary = `${destination}.${randomUUID()}.jpg`;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-ss", "0.5", "-i", source, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", "-y", temporary], { stdio: "ignore" });
+      child.once("error", reject);
+      child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
+    });
+    await rename(temporary, destination);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function localThumbnailResponse(key: string) {
+  const file = await open(`${await objectPath(key)}.jpg`, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stat = await file.stat();
+    if (!stat.isFile()) throw new Error("Not a thumbnail.");
+    return new Response(Readable.toWeb(file.createReadStream({ autoClose: true })) as ReadableStream, {
+      headers: { "Content-Type": "image/jpeg", "Content-Length": String(stat.size), "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" },
+    });
+  } catch (error) {
+    await file.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 export function byteRange(header: string | null, size: number): { start: number; end: number } | null | "invalid" {

@@ -47,4 +47,12 @@ While it runs, the terminal shows the current filename, overall bytes and percen
 
 The importer accepts JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, and MOV by filename extension. It does not transcode video or read photo dates and video durations. Browser playback still depends on the file's codec. Imported files can exceed the browser's 500 MB file limit and five-minute video limit, but disk capacity and browser codec support still apply. Edit titles, descriptions, and visibility in MediaSpace after import. Album editing currently requires the database-backed catalog and is unavailable in the local JSON fallback.
 
+Install FFmpeg on the server to generate JPEG video thumbnails. New imports generate thumbnails as files are copied. To generate thumbnails for videos already in the library, run this as `mediaspacedev` from the repository after FFmpeg is installed:
+
+```bash
+node --env-file=.env.local scripts/backfill-local-thumbnails.mjs
+```
+
+The command skips existing thumbnails, reports progress, and leaves original videos unchanged. A failed thumbnail appears as a plain video card; the original video remains playable.
+
 The importer is for the current local JSON catalog. It refuses to run when `DATABASE_URL` is configured. A database-backed import needs a separate workflow so catalog writes remain consistent.
