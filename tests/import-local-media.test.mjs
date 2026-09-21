@@ -35,4 +35,10 @@ test("folder import keeps originals, skips duplicate content, and creates privat
   assert.equal((await stat(join(source, "Photo.JPG"))).size, 11);
   assert.match(run("--apply"), /0 imported, 3 exact duplicates skipped, 0 failed/);
   assert.equal((await readdir(storage)).length, 2);
+  const logFiles = await readdir(join(app, "data", "imports"));
+  assert.equal(logFiles.length, 2);
+  const events = (await readFile(join(app, "data", "imports", logFiles[0]), "utf8"))
+    .trim().split("\n").map((line) => JSON.parse(line));
+  assert.equal(events.filter((event) => event.event === "file_finished").length, 3);
+  assert(events.some((event) => event.event === "finished"));
 });

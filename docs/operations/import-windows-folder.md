@@ -43,6 +43,8 @@ systemctl --user start mediaspace.service
 
 If the import command fails, start the service before investigating. The script backs up an existing `data/media.json` before it writes, saves catalog updates atomically, and can be rerun: content already imported is skipped by SHA-256 hash. It does not delete the source folder. Keep the staging copy until the items appear and play correctly in MediaSpace.
 
+While it runs, the terminal shows the current filename, overall bytes and percentage, and an estimated time remaining. It prints an imported/duplicate/failed result for each file. A private JSON-lines log with a start, result, and final summary for every file is saved under `data/imports/`; the command prints its exact path. The ETA is approximate and improves as more bytes are processed.
+
 The importer accepts JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, and MOV by filename extension. It does not transcode video or read photo dates and video durations. Browser playback still depends on the file's codec. Imported files can exceed the browser's 500 MB file limit and five-minute video limit, but disk capacity and browser codec support still apply. Edit titles, descriptions, and visibility in MediaSpace after import. Album editing currently requires the database-backed catalog and is unavailable in the local JSON fallback.
 
 The importer is for the current local JSON catalog. It refuses to run when `DATABASE_URL` is configured. A database-backed import needs a separate workflow so catalog writes remain consistent.

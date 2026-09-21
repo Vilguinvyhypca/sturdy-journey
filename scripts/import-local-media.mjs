@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, copyFile, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, appendFile, copyFile, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
@@ -82,6 +82,12 @@ if (!apply) {
 }
 await mkdir(dataDirectory, { recursive: true });
 await access(storageRoot);
+const logDirectory = join(dataDirectory, "imports");
+await mkdir(logDirectory, { recursive: true, mode: 0o700 });
+const logFile = join(logDirectory, `import-${new Date().toISOString().replaceAll(":", "-")}-${randomUUID()}.jsonl`);
+const log = (event) => appendFile(logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`, { mode: 0o600 });
+await log({ event: "started", source, candidateFiles: files.length, candidateBytes: totalBytes });
+console.log(`Import log: ${logFile}`);
 try {
   await copyFile(dataFile, join(dataDirectory, `media.json.before-import-${Date.now()}`));
   console.log("Backed up the existing catalog in data/.");
@@ -93,18 +99,39 @@ const hashes = new Set(records.map((record) => record.contentHash).filter(Boolea
 let imported = 0;
 let duplicates = 0;
 let failed = 0;
-for (const { path } of files) {
+let completedBytes = 0;
+const startedAt = Date.now();
+let lastProgressAt = 0;
+const duration = (seconds) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${Math.floor(seconds % 60)}s`;
+const progress = (index, name, currentBytes, force = false) => {
+  const now = Date.now();
+  if (!force && now - lastProgressAt < (process.stdout.isTTY ? 250 : 5000)) return;
+  lastProgressAt = now;
+  const done = Math.min(totalBytes, completedBytes + currentBytes);
+  const seconds = Math.max(0.001, (now - startedAt) / 1000);
+  const remaining = done > 0 ? Math.ceil((totalBytes - done) / (done / seconds)) : null;
+  const line = `${index}/${files.length} ${name} | ${(done / 1024 / 1024).toFixed(0)}/${(totalBytes / 1024 / 1024).toFixed(0)} MiB | ${totalBytes ? Math.floor(100 * done / totalBytes) : 100}% | ETA ${remaining === null ? "calculating" : duration(remaining)}`;
+  if (process.stdout.isTTY) process.stdout.write(`\r\x1b[2K${line}`);
+  else console.log(line);
+};
+for (const [index, { path, bytes }] of files.entries()) {
+  const name = relative(source, path);
+  await log({ event: "file_started", file: name, bytes });
   const extension = extname(path).toLowerCase();
   const id = randomUUID();
   const key = `${id}${extension === ".jpeg" ? ".jpg" : extension}`;
   const destination = join(storageRoot, key);
   const hash = createHash("sha256");
   let size = 0;
+  let outcome = "imported";
+  let reason;
+  progress(index + 1, name, 0, true);
   try {
     await pipeline(createReadStream(path), new Transform({
       transform(chunk, _encoding, callback) {
         size += chunk.length;
         hash.update(chunk);
+        progress(index + 1, name, size);
         callback(null, chunk);
       },
     }), createWriteStream(destination, { flags: "wx", mode: 0o600 }));
@@ -113,41 +140,50 @@ for (const { path } of files) {
     if (hashes.has(contentHash)) {
       duplicates++;
       await rm(destination);
-      continue;
+      outcome = "duplicate";
+    } else {
+      const mediaId = `local:${id}`;
+      const title = basename(path, extname(path)).slice(0, 120) || "Untitled media";
+      const record = {
+        id: mediaId,
+        url: `/api/local-media?id=${encodeURIComponent(mediaId)}`,
+        title,
+        type: formats.get(extension),
+        createdAt: "Just now",
+        album: "Uploads",
+        contentHash,
+        fileSizeBytes: size,
+        visibility: "private",
+        capturedAt: null,
+        durationSeconds: null,
+        storage: { provider: "local", objectKey: key, playbackId: null, access: "private" },
+      };
+      const next = [record, ...records];
+      const temporary = join(dataDirectory, `media.json.${randomUUID()}.tmp`);
+      try {
+        await writeFile(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
+        await rename(temporary, dataFile);
+      } catch (error) {
+        await rm(temporary, { force: true });
+        throw error;
+      }
+      records = next;
+      hashes.add(contentHash);
+      imported++;
     }
-    const mediaId = `local:${id}`;
-    const title = basename(path, extname(path)).slice(0, 120) || "Untitled media";
-    const record = {
-      id: mediaId,
-      url: `/api/local-media?id=${encodeURIComponent(mediaId)}`,
-      title,
-      type: formats.get(extension),
-      createdAt: "Just now",
-      album: "Uploads",
-      contentHash,
-      fileSizeBytes: size,
-      visibility: "private",
-      capturedAt: null,
-      durationSeconds: null,
-      storage: { provider: "local", objectKey: key, playbackId: null, access: "private" },
-    };
-    const next = [record, ...records];
-    const temporary = join(dataDirectory, `media.json.${randomUUID()}.tmp`);
-    try {
-      await writeFile(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
-      await rename(temporary, dataFile);
-    } catch (error) {
-      await rm(temporary, { force: true });
-      throw error;
-    }
-    records = next;
-    hashes.add(contentHash);
-    imported++;
   } catch (error) {
     failed++;
     await rm(destination, { force: true });
-    console.error(`Skipped ${relative(source, path)}: ${error.message}`);
+    outcome = "failed";
+    reason = error.message;
   }
+  completedBytes += bytes;
+  if (process.stdout.isTTY) process.stdout.write("\r\x1b[2K");
+  console.log(`${index + 1}/${files.length} ${outcome.toUpperCase()} ${name}${reason ? `: ${reason}` : ""}`);
+  await log({ event: "file_finished", file: name, outcome, bytes: size, ...(reason ? { reason } : {}) });
 }
-console.log(`Done: ${imported} imported, ${duplicates} exact duplicates skipped, ${failed} failed. Originals remain in ${source}.`);
+const elapsed = duration((Date.now() - startedAt) / 1000);
+await log({ event: "finished", imported, duplicates, failed, elapsedSeconds: (Date.now() - startedAt) / 1000 });
+console.log(`Done in ${elapsed}: ${imported} imported, ${duplicates} exact duplicates skipped, ${failed} failed. Originals remain in ${source}.`);
+console.log(`Per-file log: ${logFile}`);
 if (failed) process.exitCode = 1;
