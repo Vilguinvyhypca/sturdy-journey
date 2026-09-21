@@ -1,3 +1,4 @@
+import { readMedia } from "@/lib/db";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,7 +6,7 @@ import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { MediaDetails } from "@/components/MediaDetails";
 import { VideoPlayback } from "@/components/VideoPlayback";
-import { getMuxVideo, usesDatabase } from "@/lib/database";
+import { getMediaById, getMuxVideo, usesDatabase } from "@/lib/database";
 import { isSignedMuxUrl, muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
 import { getSiteUrl } from "@/lib/site-url";
 import { authOptions, isAdmin } from "@/lib/auth";
@@ -51,10 +52,13 @@ function descriptionFor(item: MediaItem) {
 const findVideo = cache(async (routeId: string, includePrivate: boolean) => {
   const id = normalizeVideoId(routeId);
   const savedVideo = usesDatabase
-    ? await getMuxVideo(id, includePrivate).catch(() => null)
-    : null;
-
-  return savedVideo ?? (usesDatabase ? null : fallbackMuxVideo(id));
+    ? await getMediaById(id) ?? await getMuxVideo(id, includePrivate)
+    : (await readMedia()).find((item) => item.id === id);
+  if (savedVideo) {
+    if (savedVideo.type !== "video" || (savedVideo.visibility === "private" && !includePrivate)) return null;
+    return savedVideo;
+  }
+  return usesDatabase ? null : fallbackMuxVideo(id);
 });
 
 async function canViewPrivateMedia() {
@@ -88,8 +92,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   if (!item) notFound();
 
   const playbackId = muxPlaybackIdFromUrl(item.url);
-  if (!playbackId) notFound();
-  const muxTokens = isSignedMuxUrl(item.url) ? createMuxPlaybackTokens(playbackId) : undefined;
+  const muxTokens = playbackId && isSignedMuxUrl(item.url) ? createMuxPlaybackTokens(playbackId) : undefined;
   const thumbnailUrl = thumbnailFor(item.url, muxTokens?.thumbnail);
   const pageUrl = new URL(
     `/videos/${encodeURIComponent(item.id)}`,
@@ -107,7 +110,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   };
 
   return <main className="min-h-screen bg-slate-950 text-white">
-    {item.visibility === "public" && !isSignedMuxUrl(item.url) && <script
+    {playbackId && item.visibility === "public" && !isSignedMuxUrl(item.url) && <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
     />}

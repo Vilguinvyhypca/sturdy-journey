@@ -20,7 +20,7 @@ export function MediaCard({ item, onSelect, selectionMode = false, isSelected = 
     <span className="sr-only">{item.title}</span>
     <div className="relative h-full w-full overflow-hidden">
       {item.type === "photo" && !photoLoaded && <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-slate-200" />}
-      {item.type === "video" ? <VideoThumbnail src={item.url} title={item.title} muxTokens={item.muxTokens} /> : <Image src={item.url} alt={item.title} fill sizes="(max-width: 640px) 33vw, 400px" quality={70} unoptimized={item.url.startsWith("/api/private-media?")} onLoad={() => setPhotoLoaded(true)} onError={(event) => {
+      {item.type === "video" ? <VideoThumbnail src={item.url} title={item.title} muxTokens={item.muxTokens} /> : <Image src={item.url} alt={item.title} fill sizes="(max-width: 640px) 33vw, 400px" quality={70} unoptimized={item.url.startsWith("/api/private-media?") || item.url.startsWith("/api/local-media?")} onLoad={() => setPhotoLoaded(true)} onError={(event) => {
         const image = event.currentTarget;
         if (image.dataset.retried) return;
         image.dataset.retried = "true";

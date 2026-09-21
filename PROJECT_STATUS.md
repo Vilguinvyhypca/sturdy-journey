@@ -1,6 +1,6 @@
 # MediaSpace project status
 
-Last updated: 2026-09-11
+Last updated: 2026-09-21
 
 ## Agreed strategic direction
 
@@ -43,7 +43,7 @@ Local storage will hold the larger video catalog. Mux remains available for a li
 - [x] Agree on the single-domain request path: public domain -> protected gateway -> home-hosted MediaSpace -> authorized media delivery.
 - [ ] Define the home-server threat model, tunnel/reverse-proxy choice, TLS termination, firewall boundaries, and emergency shutdown procedure.
 - [ ] Design a provider-neutral video record and migration for `mux` and `home` without breaking existing playback IDs or links.
-- [ ] Specify the authenticated local-media contract, including signed expiry, visibility checks, HTTP range requests, thumbnails, and offline responses.
+- [x] Specify the authenticated local-media contract, including visibility checks, HTTP range requests, thumbnails, and offline responses. Signed expiry and a dedicated web-server handoff remain future work.
 - [ ] Define storage directories, least-privilege service accounts, backups, monitoring, upload-bandwidth limits, and recovery procedures.
 - [ ] Build and test the home delivery service privately before pointing the public domain at it.
 - [ ] Run a staged public rollout and retain a documented rollback path to the current Vercel deployment.
@@ -94,7 +94,7 @@ Crypto billing is a planned product direction, not the next implementation miles
 - Automatically refresh the gallery after a private photo finishes processing, with a temporary processing state while it becomes available.
 - Standardize the Vercel Neon connection variable from `DATABASE_URL_DATABASE_URL` to `DATABASE_URL` after confirming the live database connection.
 - Add optional album cover images.
-- Hover/press-and-hold muted video previews.
+- Hover/press-and-hold muted video previews. (Implemented in `VideoThumbnail`; needs a browser smoke test.)
 - Adaptive video streaming for large or high-resolution videos, with automatic quality changes on slower connections.
 - Optional location handling with privacy controls.
 - iCloud import workflow (deferred for now).

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import "./globals.css";
 import { Providers } from "./providers";
 import { getSiteTheme } from "@/lib/database";
@@ -13,11 +15,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const theme = await getSiteTheme().catch(() => "indigo");
+  const [theme, session] = await Promise.all([
+    getSiteTheme().catch(() => "indigo"),
+    getServerSession(authOptions),
+  ]);
 
   return (
     <html lang="en" className="h-full antialiased" data-theme={theme}>
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+      <body className="min-h-full flex flex-col"><Providers session={session}>{children}</Providers></body>
     </html>
   );
 }

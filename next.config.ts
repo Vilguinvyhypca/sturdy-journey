@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.1.129", "100.124.104.100"],
+  allowedDevOrigins: (process.env.MEDIA_DEV_ORIGINS ?? "").split(",").map((host) => host.trim()).filter(Boolean),
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/media/**" },
