@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { deleteStoredLocalMedia, LocalUploadError, maximumLocalUploadBytes, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
+import { deleteStoredLocalMedia, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
 import type { MediaItem } from "@/lib/media";
 
 export const runtime = "nodejs";
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     };
     if (usesDatabase) await saveMedia(media, stored.storage);
     else await addMedia(media, stored.storage);
+    if (media.type === "video") await generateLocalThumbnail(stored.storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
     return Response.json({ media }, { status: 201 });
   } catch (error) {
     if (stored) await deleteStoredLocalMedia(stored.storage.objectKey);

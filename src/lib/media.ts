@@ -23,6 +23,8 @@ export type MuxPlaybackTokens = {
 
 export type MediaVisibility = "public" | "unlisted" | "private";
 
+export const galleryPageSize = 12;
+
 export function muxPlaybackIdFromUrl(url: string) {
   if (url.startsWith("mux-signed:")) return url.slice("mux-signed:".length);
   if (url.startsWith("mux:")) return url.slice("mux:".length);
