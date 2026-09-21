@@ -1,9 +1,10 @@
+import { deleteStoredLocalMedia, usesLocalStorage } from "@/lib/local-storage";
 import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { getServerSession } from "next-auth";
-import { readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
+import { getLocalMediaStorage, readMedia, removeMedia, updateLocalMediaDetails } from "@/lib/db";
 import { authOptions, isAdmin } from "@/lib/auth";
-import { addMediaToAlbum, deleteMediaRecord, getMediaById, listDatabaseMediaPage, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
+import { addMediaToAlbum, deleteMediaRecord, getMediaStorage, getMediaById, listDatabaseMediaPage, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
 import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
@@ -33,13 +34,15 @@ export async function GET(request: Request) {
     const page = await listDatabaseMediaPage({ includeNonPublic: administrator, cursor, limit, type });
     return NextResponse.json({ ...page, media: page.media.map(withDelivery) });
   }
-  if (usesBlobStorage) {
+  if (usesBlobStorage && !usesLocalStorage) {
     const media = await listBlobMedia();
     const available = media.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type));
     return NextResponse.json({ media: available, nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
   }
   const savedMedia = await readMedia();
-  const availableMedia = savedMedia.length ? savedMedia : demoMedia;
+  const blobMedia = usesBlobStorage ? await listBlobMedia() : [];
+  const combined = [...savedMedia, ...blobMedia.filter((item) => !savedMedia.some((saved) => saved.id === item.id))];
+  const availableMedia = combined.length || usesLocalStorage ? combined : demoMedia;
   const available = availableMedia.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type));
   return NextResponse.json({ media: available, nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
 }
@@ -67,11 +70,11 @@ export async function PATCH(request: Request) {
   }
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   if (Array.isArray(body.ids) && typeof body.addToAlbumId === "string") {
-    if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("protected-media/") || id.startsWith("mux:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
+    if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("protected-media/") || id.startsWith("mux:") || id.startsWith("local:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
     await addMediaToAlbum(body.ids, body.addToAlbumId);
     return NextResponse.json({ updated: true });
   }
-  if (typeof body.id !== "string" || (!body.id.startsWith("media/") && !body.id.startsWith("protected-media/") && !body.id.startsWith("mux:")) || !Array.isArray(body.albumIds) || !body.albumIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "Invalid media or album selection." }, { status: 400 });
+  if (typeof body.id !== "string" || (!body.id.startsWith("media/") && !body.id.startsWith("protected-media/") && !body.id.startsWith("mux:") && !body.id.startsWith("local:")) || !Array.isArray(body.albumIds) || !body.albumIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "Invalid media or album selection." }, { status: 400 });
   await setMediaAlbums(body.id, body.albumIds);
   return NextResponse.json({ updated: true });
 }
@@ -82,7 +85,12 @@ export async function DELETE(request: Request) {
   const id = new URL(request.url).searchParams.get("pathname");
   if (!id) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
   const databaseItem = usesDatabase ? await getMediaById(id) : null;
-  if (id.startsWith("mux:")) {
+  const storage = usesDatabase ? await getMediaStorage(id) : await getLocalMediaStorage(id);
+  if (storage?.provider === "local" && storage.access === "private") {
+    await deleteStoredLocalMedia(storage.objectKey);
+    if (usesDatabase) await deleteMediaRecord(id);
+    else await removeMedia(id);
+  } else if (id.startsWith("mux:")) {
     await deleteMuxAsset(id.slice("mux:".length));
     if (usesDatabase) await deleteMediaRecord(id);
   } else if (databaseItem && isPrivateBlobUrl(databaseItem.url)) {

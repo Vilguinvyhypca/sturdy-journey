@@ -1,3 +1,4 @@
+import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import { neon } from "@neondatabase/serverless";
 import type { MediaItem, MediaVisibility } from "./media";
 import { isSiteTheme, type SiteTheme } from "./theme";
@@ -79,6 +80,27 @@ export function ensureDatabase() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS media_storage (
+          media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL CHECK (provider IN ('mux', 'vercel-blob', 'local', 'external')),
+          object_key TEXT NOT NULL,
+          playback_id TEXT,
+          access TEXT NOT NULL CHECK (access IN ('public', 'signed', 'private', 'unknown'))
+        )
+      `);
+      const legacyMedia = await db.query(`
+        SELECT m.id, m.storage_url FROM media m
+        WHERE NOT EXISTS (SELECT 1 FROM media_storage s WHERE s.media_id = m.id)
+      `);
+      for (const row of legacyMedia) {
+        const storage = inferMediaStorage({ id: String(row.id), url: String(row.storage_url) });
+        await db.query(
+          `INSERT INTO media_storage (media_id, provider, object_key, playback_id, access)
+           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (media_id) DO NOTHING`,
+          [row.id, storage.provider, storage.objectKey, storage.playbackId, storage.access],
+        );
+      }
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''");
@@ -124,7 +146,10 @@ export function ensureDatabase() {
           received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
-    })();
+    })().catch((error) => {
+      schemaPromise = undefined;
+      throw error;
+    });
   }
   return schemaPromise;
 }
@@ -145,14 +170,37 @@ export async function saveSiteTheme(theme: SiteTheme) {
   );
 }
 
-export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes" | "visibility">) {
+export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes" | "visibility">, storage: MediaStorageRecord = inferMediaStorage(item)) {
   await ensureDatabase();
-  await sql().query(
+  const db = sql();
+  await db.transaction([db.query(
     `INSERT INTO media (id, storage_url, media_type, caption, content_hash, captured_at, duration_seconds, file_size_bytes, visibility)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash), captured_at = COALESCE(media.captured_at, EXCLUDED.captured_at), duration_seconds = COALESCE(media.duration_seconds, EXCLUDED.duration_seconds), file_size_bytes = COALESCE(media.file_size_bytes, EXCLUDED.file_size_bytes)`,
     [item.id, item.url, item.type, item.title, item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null, item.visibility ?? "private"],
+  ), db.query(
+    `INSERT INTO media_storage (media_id, provider, object_key, playback_id, access)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (media_id) DO UPDATE SET provider = EXCLUDED.provider,
+       object_key = EXCLUDED.object_key, playback_id = EXCLUDED.playback_id, access = EXCLUDED.access`,
+    [item.id, storage.provider, storage.objectKey, storage.playbackId, storage.access],
+  )]);
+}
+
+/** Server-side lookup; storage keys are intentionally absent from MediaItem responses. */
+export async function getMediaStorage(id: string): Promise<MediaStorageRecord | null> {
+  await ensureDatabase();
+  const rows = await sql().query(
+    "SELECT provider, object_key, playback_id, access FROM media_storage WHERE media_id = $1",
+    [id],
   );
+  const row = rows[0];
+  return row ? {
+    provider: row.provider as MediaStorageRecord["provider"],
+    objectKey: String(row.object_key),
+    playbackId: row.playback_id === null ? null : String(row.playback_id),
+    access: row.access as MediaStorageRecord["access"],
+  } : null;
 }
 
 export async function updateMediaDetails(id: string, title: string, description: string, visibility?: MediaVisibility) {

@@ -1,3 +1,4 @@
+import { readMedia } from "@/lib/db";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -32,8 +33,8 @@ function withPhotoDelivery(item: MediaItem): MediaItem {
 }
 
 const findPhoto = cache(async (routeId: string, includePrivate: boolean) => {
-  if (!usesDatabase) return null;
-  const item = await getMediaById(normalizePhotoId(routeId)).catch(() => null);
+  const id = normalizePhotoId(routeId);
+  const item = usesDatabase ? await getMediaById(id).catch(() => null) : (await readMedia()).find((item) => item.id === id);
   if (!item || item.type !== "photo") return null;
   if (item.visibility === "private" && !includePrivate) return null;
   return withPhotoDelivery(item);
@@ -96,7 +97,7 @@ export default async function PhotoPage({ params }: PageProps<"/photos/[id]">) {
           fill
           priority
           sizes="(max-width: 1024px) 100vw, 720px"
-          unoptimized={item.url.startsWith("/api/private-media?")}
+          unoptimized={item.url.startsWith("/api/private-media?") || item.url.startsWith("/api/local-media?")}
           className="object-contain"
         />
       </div>

@@ -30,6 +30,7 @@ model Media {
   fileSizeBytes   BigInt?      @map("file_size_bytes")
   createdAt       DateTime     @default(now()) @map("created_at")
   albumLinks      MediaAlbum[]
+  storage         MediaStorage?
 
   @@map("media")
 }
@@ -47,4 +48,16 @@ model MediaAlbum {
 enum MediaType {
   PHOTO
   VIDEO
+}
+
+// Runtime schema and backfill are managed by ensureDatabase in src/lib/database.ts.
+model MediaStorage {
+  mediaId    String  @id @map("media_id")
+  provider   String
+  objectKey  String  @map("object_key")
+  playbackId String? @map("playback_id")
+  access     String
+  media      Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@map("media_storage")
 }

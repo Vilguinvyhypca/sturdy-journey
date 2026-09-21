@@ -1,8 +1,23 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
+function SessionLoading() {
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 10_000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return <div>
+    <p role={timedOut ? "alert" : "status"} className="text-sm font-medium text-slate-600">
+      {timedOut ? "We couldn’t finish checking your sign-in. Reload the page to try again." : "Checking administrator session…"}
+    </p>
+    {timedOut && <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-xl border border-slate-300 px-4 py-2 font-bold text-slate-700">Try again</button>}
+  </div>;
+}
 
 export function AdminSignIn() {
   const router = useRouter();
@@ -16,24 +31,29 @@ export function AdminSignIn() {
     setError("");
     setSubmitting(true);
 
-    const result = await signIn("credentials", {
-      password,
-      redirect: false,
-      callbackUrl: "/",
-    });
-
-    setSubmitting(false);
-    if (!result?.ok) {
-      setError("That administrator password is incorrect.");
-      return;
+    try {
+      const result = await signIn("credentials", {
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      });
+      if (!result?.ok) {
+        setError(result?.error === "CredentialsSignin"
+          ? "That administrator password is incorrect."
+          : "We couldn’t sign you in. Please try again.");
+        return;
+      }
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
-
-    router.push("/");
-    router.refresh();
   }
 
   if (status === "loading") {
-    return <p className="text-sm font-medium text-slate-500">Checking administrator session…</p>;
+    return <SessionLoading />;
   }
 
   if (session) {
@@ -47,6 +67,7 @@ export function AdminSignIn() {
   }
 
   return <form onSubmit={submit} className="text-left">
+    <noscript><p className="mb-4 text-sm text-rose-700">Enable JavaScript to sign in to MediaSpace.</p></noscript>
     <input type="text" name="username" value="Administrator" readOnly autoComplete="username" className="sr-only" tabIndex={-1} aria-hidden="true" />
     <label htmlFor="admin-password" className="block text-sm font-bold text-slate-800">Administrator password</label>
     <input id="admin-password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required autoFocus className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100" />

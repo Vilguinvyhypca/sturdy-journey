@@ -20,6 +20,8 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+type UploadConfig = { local: boolean; mux: boolean; photo: "private-blob" | "server"; maximumBytes: number };
+
 const galleryPageSize = 48;
 const maximumVideoDurationSeconds = 5 * 60;
 
@@ -68,6 +70,17 @@ const emptyPage: MediaPage = { media: [], nextCursor: null, totalCount: 0, photo
 export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?: MediaPage; mediaType?: MediaItem["type"] }) {
   const { data: session } = useSession();
   const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
+  const [uploadConfig, setUploadConfig] = useState<UploadConfig | null>(null);
+  useEffect(() => {
+    if (!isAdministrator) return;
+    let active = true;
+    fetch("/api/upload-config").then(async (response) => {
+      if (!response.ok) return;
+      const config: UploadConfig = await response.json();
+      if (active) setUploadConfig(config);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [isAdministrator]);
   const [selected, setSelected] = useState<MediaItem | null>(null);
   const [items, setItems] = useState<MediaItem[]>(initialPage.media);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
@@ -181,6 +194,10 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
         if (abortController.signal.aborted) { canceled = true; break; }
         setUploadProgress(`Preparing ${index + 1} of ${files.length}`);
         try {
+          const configResponse = uploadConfig ? null : await fetch("/api/upload-config", { signal: abortController.signal });
+          if (configResponse && !configResponse.ok) throw new Error("Could not load upload settings. Sign in again and retry.");
+          const config: UploadConfig = uploadConfig ?? await configResponse!.json();
+          if (config.local && file.size > config.maximumBytes) throw new Error("Files must be 500 MB or smaller.");
           if (file.type.startsWith("video/")) setUploadProgress(`Checking video length for ${index + 1} of ${files.length} — no upload has started yet`);
           const details = await readUploadDetails(file, abortController.signal);
           if (abortController.signal.aborted) { canceled = true; break; }
@@ -194,11 +211,19 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
               throw new Error("Videos must be five minutes or shorter.");
             }
           }
-          const isLocalDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-          if (file.type.startsWith("video/")) {
+          if (config.local) {
+            setUploadProgress(`Uploading ${index + 1} of ${files.length} to your server…`);
+            const headers: Record<string, string> = { "Content-Type": file.type, "X-Media-Name": encodeURIComponent(file.name) };
+            if (details.durationSeconds !== null) headers["X-Media-Duration"] = String(details.durationSeconds);
+            if (details.capturedAt) headers["X-Media-Captured-At"] = details.capturedAt;
+            const response = await fetch("/api/local-upload", { method: "POST", headers, body: file, signal: abortController.signal });
+            const data = await response.json() as { media?: MediaItem; error?: string };
+            if (!response.ok || !data.media) throw new Error(data.error ?? "The server could not save this file.");
+            uploaded.push(data.media);
+          } else if (file.type.startsWith("video/")) {
             const media = await uploadVideoToMux(file, details, abortController.signal, setUploadProgress);
             uploaded.push(media);
-          } else if (isLocalDevelopment) {
+          } else if (config.photo === "server") {
             const formData = new FormData();
             formData.append("file", file);
             if (details.capturedAt) formData.append("capturedAt", details.capturedAt);
@@ -341,7 +366,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
     <section className="mt-7 flex flex-wrap items-center gap-2">{([{ href: "/", label: "Everything", type: undefined }, { href: "/photos", label: "Photos", type: "photo" }, { href: "/videos", label: "Videos", type: "video" }] as const).map((option) => <Link key={option.href} href={option.href} aria-current={mediaType === option.type ? "page" : undefined} className={`rounded-full px-4 py-2 text-sm font-semibold ${mediaType === option.type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{option.label}</Link>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}
-    {isAdministrator && <MuxUsagePanel refreshKey={items.length} />}
+    {isAdministrator && uploadConfig?.mux && <MuxUsagePanel refreshKey={items.length} />}
     {!loading && <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500">{normalizedSearchQuery && <span className="font-bold text-indigo-700">{visible.length} loaded {visible.length === 1 ? "result" : "results"}</span>}<span>{summary.totalCount} files</span><span>{summary.photoCount} photos</span><span>{summary.videoCount} videos</span>{summary.knownSizeCount > 0 && <span>{formatFileSize(summary.knownStorageBytes)} tracked storage</span>}{summary.knownSizeCount < summary.totalCount && session && <span className="text-indigo-700">Scan media library to calculate all storage.</span>}</div>}
     <section className="mt-5 grid grid-cols-3 gap-0" aria-busy={galleryLoading}>{galleryLoading ? Array.from({ length: 9 }, (_, index) => <div key={index} className="aspect-square animate-pulse border border-slate-100 bg-slate-100" aria-hidden="true" />) : <>{isAdministrator && <div className="aspect-square border border-dashed border-indigo-300 bg-indigo-50 p-3 text-indigo-950 sm:p-5"><p className="text-sm font-bold sm:text-lg">Create an album</p><p className="mt-1 hidden text-sm text-indigo-800 sm:block">Group a moment, trip, or project.</p><Link href="/albums" className="mt-3 inline-block text-xs font-bold text-indigo-700 hover:underline sm:mt-4 sm:text-sm">New album →</Link></div>}{galleryItems.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} selectionMode={selectionMode} isSelected={selectedMediaIds.includes(item.id)} onToggleSelection={toggleMediaSelection} />)}{visible.length === 0 && <p className={`${isAdministrator ? "col-span-2" : "col-span-3"} border border-dashed border-slate-300 p-3 text-sm text-slate-500 sm:p-5`}>{normalizedSearchQuery ? `No media matches “${searchQuery.trim()}”. Try another search.` : "No media matches the selected filters yet."}</p>}</>}</section>
     {!loading && items.length > 0 && <div className="mt-5 flex flex-col items-center gap-3 text-sm text-slate-500"><p>Loaded {items.length} of {summary.totalCount} files</p>{nextCursor && <button onClick={loadMoreMedia} disabled={loadingMore} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{loadingMore ? "Loading..." : `Load up to ${Math.min(galleryPageSize, Math.max(0, summary.totalCount - items.length))} more`}</button>}</div>}

@@ -35,7 +35,7 @@ The existing cloud services will remain supported during the transition:
 - Neon can remain the authoritative catalog while the application moves between hosting environments.
 - Vercel can remain available for preview deployments even if production moves to the home server.
 
-Each video record will eventually identify its storage provider, such as `mux` or `home`, so MediaSpace can select the correct authorized delivery path without maintaining separate catalogs. Provider selection should be explicit or policy-driven rather than depending only on upload order.
+Media now has a separate provider-neutral storage record, providing the foundation for selecting an authorized delivery path without maintaining separate catalogs. Provider selection should be explicit or policy-driven rather than depending only on upload order.
 
 ## Local and production storage
 
@@ -164,3 +164,73 @@ The current production deployment is managed by Vercel from the connected GitHub
 - Automatically refresh the gallery after a private photo finishes processing so the new upload appears without a manual page refresh.
 - Add search across titles, descriptions, dates, albums, and extracted metadata.
 - Add adaptive video streaming improvements as the video library grows.
+
+## Provider-neutral storage foundation
+
+`media_storage` holds one storage record per catalog item: provider (`mux`,
+`vercel-blob`, `local`, or `external`), object key, optional Mux playback ID,
+and storage access mode (`public`, `signed`, `private`, or `unknown`). Access
+mode describes the underlying storage; application visibility remains on `media`.
+For Mux the object key is the asset ID; for Blob it is the full URL to preserve
+store identity; for existing local demo uploads it is the filename.
+
+The existing runtime schema initializer creates this additive table and fills
+missing records on the first database request after deployment. Re-running it
+preserves existing storage records. New media and storage records are saved in
+one database transaction, and deleting catalog rows cascades to storage records.
+No media files, existing IDs, delivery URLs, albums, or visibility values are moved
+or rewritten. The Prisma file documents the schema; runtime SQL manages it.
+
+Local JSON records carry the same metadata internally. Older records are inferred
+on read and persisted on the next catalog write. Storage metadata is omitted from
+public media responses. Server code can use `getMediaStorage` or
+`getLocalMediaStorage`; save functions also accept explicit storage records for
+future providers instead of requiring URL inference.
+
+## Ubuntu local uploads and playback
+
+To send new photos and videos to the Ubuntu server, set these server-only values
+in the ignored `.env.local` file and restart the app:
+
+```dotenv
+MEDIA_UPLOAD_PROVIDER=local
+MEDIA_STORAGE_ROOT=/home/mediaspacedev/media-storage
+```
+
+The storage root must be absolute and outside the repository (including its public
+folder). The server creates the folder with mode `0700` and uploaded files with
+mode `0600`. Random object names replace user filenames. New uploads stream to disk
+with a server-computed SHA-256 fingerprint and a 500 MB size limit, including when
+the client does not send Content-Length. Failed or canceled transfers are removed.
+Supported types: JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, and MOV. The existing five-minute
+video limit remains; duration metadata is supplied by the browser, not probed with
+FFmpeg. Originals are stored without transcoding, so playback depends on browser
+codec support (MP4/H.264 and WebM are typical choices).
+
+The administrator's browser requests `/api/upload-config`; local mode routes both
+photos and videos to `/api/local-upload`, including when accessed through the LAN.
+Mux/Blob remain available for existing records. The local mode starts with an empty
+library rather than demo items. New records are private by default. Metadata lives
+in the existing database, or `data/media.json` when no database is configured. The
+JSON fallback serializes writes and uses atomic replacement; use one application
+process with it. Back up both the catalog and the external storage directory.
+
+`/api/local-media?id=...` checks catalog visibility before opening a file. Private
+media requires an administrator session; public and unlisted items allow direct
+delivery, with only public items appearing in anonymous listings. Delivery supports
+GET, HEAD, and single byte ranges (206/416), uses no-store caching, rejects traversal
+and symlinks, and does not expose filesystem paths. Photo and video detail pages
+work with local records. Deletion removes the local file and its catalog record.
+Existing legacy `public/uploads/` files remain public and are not migrated.
+
+This is direct original-file streaming through the Ubuntu Node server, not adaptive
+streaming or a resumable upload protocol. A dedicated authorized web-server handoff,
+FFmpeg processing, and production gateway deployment remain future work.
+
+Run storage regression checks with `npm run test:storage`, then `npm run lint`
+and `npx tsc --noEmit`. The storage suite runs the application SQL against an isolated in-memory
+PostgreSQL database using PGlite. It checks legacy backfill, repeat initialization,
+album preservation, explicit storage records, transaction rollback, and cascading
+deletion. The test adapter replaces Neon HTTP transport only; no database URL or
+credentials are needed. A development Neon smoke test is still needed to verify
+the deployed transport and permissions before production rollout.

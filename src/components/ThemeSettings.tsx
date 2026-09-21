@@ -28,7 +28,7 @@ export function ThemeSettings() {
   async function chooseTheme(nextTheme: SiteTheme) {
     const previousTheme = theme;
     setTheme(nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.setAttribute("data-theme", nextTheme);
     setSaving(true);
     setMessage("");
     const response = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme: nextTheme }) });
@@ -36,7 +36,7 @@ export function ThemeSettings() {
     setSaving(false);
     if (!response.ok) {
       setTheme(previousTheme);
-      document.documentElement.dataset.theme = previousTheme;
+      document.documentElement.setAttribute("data-theme", previousTheme);
       setMessage(data.error ?? "Could not save the theme.");
     }
     else setMessage("Theme saved.");

@@ -1,3 +1,4 @@
+import { usesLocalStorage } from "@/lib/local-storage";
 import "server-only";
 
 import { readMedia } from "@/lib/db";
@@ -28,8 +29,9 @@ export async function getInitialPublicMedia(type?: MediaItem["type"]): Promise<M
     const page = await listDatabaseMediaPage({ type });
     return { ...page, media: page.media.map(withPublicDelivery) };
   }
-  const media = (await readMedia()).filter((item) => (item.visibility ?? "public") === "public");
-  const availableMedia = media.length || usesDatabase ? media : demoMedia;
+  const saved = await readMedia();
+  const media = saved.filter((item) => (item.visibility ?? "public") === "public");
+  const availableMedia = saved.length || usesLocalStorage ? media : demoMedia;
   const filtered = availableMedia
     .filter((item) => !type || item.type === type)
     .map(withPublicDelivery);
