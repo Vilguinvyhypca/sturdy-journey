@@ -86,6 +86,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
   const [summary, setSummary] = useState(() => ({ totalCount: initialPage.totalCount, photoCount: initialPage.photoCount, videoCount: initialPage.videoCount, knownSizeCount: initialPage.knownSizeCount, knownStorageBytes: initialPage.knownStorageBytes }));
   const [albums, setAlbums] = useState<Album[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [visibilityFilter, setVisibilityFilter] = useState("");
   const [albumFilter, setAlbumFilter] = useState("");
   const [sort, setSort] = useState<"uploaded" | "newest" | "oldest">("uploaded");
   const [loading, setLoading] = useState(false);
@@ -105,9 +106,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
   const filteredItems = items.filter((item) => {
     const matchesType = !mediaType || item.type === mediaType;
     const matchesAlbum = !albumFilter || item.albumIds?.includes(albumFilter);
-    const searchableDetails = `${item.title} ${item.description ?? ""}`.toLocaleLowerCase();
-    const matchesSearch = !normalizedSearchQuery || searchableDetails.includes(normalizedSearchQuery);
-    return matchesType && matchesAlbum && matchesSearch;
+    return matchesType && matchesAlbum;
   });
   const visible = sort === "uploaded" ? filteredItems : [...filteredItems].sort((first, second) => {
     const firstDate = first.capturedAt ? Date.parse(first.capturedAt) : Number.NaN;
@@ -123,10 +122,14 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
     : displayedItems;
   const galleryLoading = loading;
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
     const query = new URLSearchParams({ limit: String(galleryPageSize) });
     if (mediaType) query.set("type", mediaType);
-    fetch(`/api/media?${query}`)
-      .then((response) => response.json())
+    if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
+    if (normalizedSearchQuery) query.set("search", searchQuery.trim());
+    const timer = window.setTimeout(() => fetch(`/api/media?${query}`, { signal: controller.signal })
+      .then((response) => { if (!response.ok) throw new Error("Could not search media."); return response.json(); })
       .then((data: MediaPage) => {
         setItems(data.media);
         setNextCursor(data.nextCursor);
@@ -136,14 +139,17 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
         if (sharedItem) setSelected(sharedItem);
       })
       .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, [mediaType]);
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); }), 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [mediaType, isAdministrator, visibilityFilter, normalizedSearchQuery, searchQuery]);
 
   async function loadMoreMedia() {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     const query = new URLSearchParams({ limit: String(galleryPageSize), cursor: nextCursor });
     if (mediaType) query.set("type", mediaType);
+    if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
+    if (normalizedSearchQuery) query.set("search", searchQuery.trim());
     try {
       const response = await fetch(`/api/media?${query}`);
       const data = await response.json() as MediaPage & { error?: string };
@@ -362,6 +368,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
         {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="absolute inset-y-0 right-3 my-auto h-8 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900">Clear</button>}
       </div>
     </search>
+    {isAdministrator && <div className="mt-4 flex items-center gap-3"><label htmlFor="visibility-filter" className="text-sm font-semibold text-slate-700">Visibility</label><select id="visibility-filter" value={visibilityFilter} onChange={(event) => setVisibilityFilter(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"><option value="">All visibility</option><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>}
     <section className="mt-7 flex flex-wrap items-center gap-2">{([{ href: "/", label: "Everything", type: undefined }, { href: "/photos", label: "Photos", type: "photo" }, { href: "/videos", label: "Videos", type: "video" }] as const).map((option) => <Link key={option.href} href={option.href} aria-current={mediaType === option.type ? "page" : undefined} className={`rounded-full px-4 py-2 text-sm font-semibold ${mediaType === option.type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{option.label}</Link>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}

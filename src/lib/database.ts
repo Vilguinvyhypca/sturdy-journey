@@ -417,11 +417,15 @@ export async function listDatabaseMediaPage({
   cursor,
   limit = 48,
   type,
+  visibility,
+  search,
 }: {
   includeNonPublic?: boolean;
   cursor?: string | null;
   limit?: number;
   type?: MediaItem["type"];
+  visibility?: MediaVisibility;
+  search?: string;
 } = {}): Promise<MediaPage> {
   await ensureDatabase();
   const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 100);
@@ -437,11 +441,13 @@ export async function listDatabaseMediaPage({
        LEFT JOIN albums a ON a.id = ma.album_id
        WHERE ($1::boolean OR m.visibility = 'public')
          AND ($2::text IS NULL OR m.media_type = $2)
-         AND ($3::timestamptz IS NULL OR (m.created_at, m.id) < ($3::timestamptz, $4::text))
+         AND ($3::text IS NULL OR m.visibility = $3)
+         AND ($4::text IS NULL OR m.caption ILIKE '%' || $4 || '%' OR m.description ILIKE '%' || $4 || '%')
+         AND ($5::timestamptz IS NULL OR (m.created_at, m.id) < ($5::timestamptz, $6::text))
        GROUP BY m.id
        ORDER BY m.created_at DESC, m.id DESC
-       LIMIT $5`,
-      [includeNonPublic, type ?? null, decodedCursor?.createdAt ?? null, decodedCursor?.id ?? "", pageSize + 1],
+       LIMIT $7`,
+      [includeNonPublic, type ?? null, visibility ?? null, search ?? null, decodedCursor?.createdAt ?? null, decodedCursor?.id ?? "", pageSize + 1],
     ),
     db.query(
       `SELECT COUNT(*)::int AS total_count,
@@ -451,8 +457,10 @@ export async function listDatabaseMediaPage({
          COALESCE(SUM(file_size_bytes), 0)::bigint AS known_storage_bytes
        FROM media
        WHERE ($1::boolean OR visibility = 'public')
-         AND ($2::text IS NULL OR media_type = $2)`,
-      [includeNonPublic, type ?? null],
+         AND ($2::text IS NULL OR media_type = $2)
+         AND ($3::text IS NULL OR visibility = $3)
+         AND ($4::text IS NULL OR caption ILIKE '%' || $4 || '%' OR description ILIKE '%' || $4 || '%')`,
+      [includeNonPublic, type ?? null, visibility ?? null, search ?? null],
     ),
   ]);
   const hasMore = rows.length > pageSize;

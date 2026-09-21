@@ -31,20 +31,23 @@ export async function GET(request: Request) {
   const cursor = searchParams.get("cursor");
   const requestedType = searchParams.get("type");
   const type = requestedType === "photo" || requestedType === "video" ? requestedType : undefined;
+  const requestedVisibility = searchParams.get("visibility");
+  const visibility = administrator && isMediaVisibility(requestedVisibility) ? requestedVisibility : undefined;
+  const search = searchParams.get("search")?.trim().slice(0, 200) || undefined;
   if (usesDatabase) {
-    const page = await listDatabaseMediaPage({ includeNonPublic: administrator, cursor, limit, type });
+    const page = await listDatabaseMediaPage({ includeNonPublic: administrator, cursor, limit, type, visibility, search });
     return NextResponse.json({ ...page, media: page.media.map(withDelivery) });
   }
   if (usesBlobStorage && !usesLocalStorage) {
     const media = await listBlobMedia();
-    const available = media.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type));
+    const available = media.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
     return NextResponse.json({ media: available, nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
   }
   const savedMedia = await readMedia();
   const blobMedia = usesBlobStorage ? await listBlobMedia() : [];
   const combined = [...savedMedia, ...blobMedia.filter((item) => !savedMedia.some((saved) => saved.id === item.id))];
   const availableMedia = combined.length || usesLocalStorage ? combined : demoMedia;
-  const available = availableMedia.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type));
+  const available = availableMedia.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
   try { return NextResponse.json(paginateMedia(available, limit, cursor)); }
   catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
 }
