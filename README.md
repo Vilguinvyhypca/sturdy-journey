@@ -227,6 +227,9 @@ This is direct original-file streaming through the Ubuntu Node server, not adapt
 streaming or a resumable upload protocol. A dedicated authorized web-server handoff,
 FFmpeg processing, and production gateway deployment remain future work.
 
+To import an existing Windows folder through SSH without browser upload limits, follow
+[the Windows folder import guide](docs/operations/import-windows-folder.md).
+
 Run storage regression checks with `npm run test:storage`, then `npm run lint`
 and `npx tsc --noEmit`. The storage suite runs the application SQL against an isolated in-memory
 PostgreSQL database using PGlite. It checks legacy backfill, repeat initialization,
