@@ -6,7 +6,8 @@ import { getLocalMediaStorage, readMedia, removeMedia, updateLocalMediaDetails }
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMediaToAlbum, deleteMediaRecord, getMediaStorage, getMediaById, listDatabaseMediaPage, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
-import { demoMedia, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { demoMedia, galleryPageSize, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { paginateMedia } from "@/lib/media-page";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
 
 function withDelivery(item: MediaItem): MediaItem {
@@ -25,8 +26,8 @@ export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
   const searchParams = new URL(request.url).searchParams;
-  const requestedLimit = Number(searchParams.get("limit") ?? "48");
-  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 100) : 48;
+  const requestedLimit = Number(searchParams.get("limit") ?? String(galleryPageSize));
+  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 100) : galleryPageSize;
   const cursor = searchParams.get("cursor");
   const requestedType = searchParams.get("type");
   const type = requestedType === "photo" || requestedType === "video" ? requestedType : undefined;
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
   const combined = [...savedMedia, ...blobMedia.filter((item) => !savedMedia.some((saved) => saved.id === item.id))];
   const availableMedia = combined.length || usesLocalStorage ? combined : demoMedia;
   const available = availableMedia.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type));
-  return NextResponse.json({ media: available, nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
+  try { return NextResponse.json(paginateMedia(available, limit, cursor)); }
+  catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
 }
 
 export async function PATCH(request: Request) {

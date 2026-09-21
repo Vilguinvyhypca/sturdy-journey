@@ -3,9 +3,11 @@ import "server-only";
 
 import { readMedia } from "@/lib/db";
 import { listDatabaseMediaPage, usesDatabase, type MediaPage } from "@/lib/database";
+import { paginateMedia } from "@/lib/media-page";
 import { createMuxPlaybackTokens } from "@/lib/mux";
 import {
   demoMedia,
+  galleryPageSize,
   isSignedMuxUrl,
   muxPlaybackIdFromUrl,
   privatePhotoDeliveryUrl,
@@ -26,7 +28,7 @@ function withPublicDelivery(item: MediaItem): MediaItem {
 
 export async function getInitialPublicMedia(type?: MediaItem["type"]): Promise<MediaPage> {
   if (usesDatabase) {
-    const page = await listDatabaseMediaPage({ type });
+    const page = await listDatabaseMediaPage({ type, limit: galleryPageSize });
     return { ...page, media: page.media.map(withPublicDelivery) };
   }
   const saved = await readMedia();
@@ -35,6 +37,7 @@ export async function getInitialPublicMedia(type?: MediaItem["type"]): Promise<M
   const filtered = availableMedia
     .filter((item) => !type || item.type === type)
     .map(withPublicDelivery);
+  if (usesLocalStorage) return paginateMedia(filtered);
   const known = filtered.filter((item) => typeof item.fileSizeBytes === "number");
   return { media: filtered, nextCursor: null, totalCount: filtered.length, photoCount: filtered.filter((item) => item.type === "photo").length, videoCount: filtered.filter((item) => item.type === "video").length, knownSizeCount: known.length, knownStorageBytes: known.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) };
 }

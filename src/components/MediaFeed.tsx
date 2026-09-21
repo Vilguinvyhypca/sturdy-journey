@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album, MediaPage } from "@/lib/database";
-import { privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { galleryPageSize, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { AuthControls } from "./AuthControls";
 import { MediaCard } from "./MediaCard";
 import { PhotoViewer } from "./PhotoViewer";
@@ -22,7 +22,6 @@ function formatDuration(seconds: number) {
 
 type UploadConfig = { local: boolean; mux: boolean; photo: "private-blob" | "server"; maximumBytes: number };
 
-const galleryPageSize = 48;
 const maximumVideoDurationSeconds = 5 * 60;
 
 function formatFileSize(bytes: number) {
