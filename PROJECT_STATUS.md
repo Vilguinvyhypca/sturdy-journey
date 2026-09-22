@@ -91,6 +91,7 @@ Crypto billing is a planned product direction, not the next implementation miles
 
 ## Backlog
 
+- Set up encrypted scheduled backups to a separate remote computer over Tailscale or SSH, including media storage, the catalog, service and tunnel configuration, restore instructions, integrity checks, and completion-time email notifications.
 - Automatically refresh the gallery after a private photo finishes processing, with a temporary processing state while it becomes available.
 - Standardize the Vercel Neon connection variable from `DATABASE_URL_DATABASE_URL` to `DATABASE_URL` after confirming the live database connection.
 - Add optional album cover images.
