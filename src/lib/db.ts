@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import type { MediaItem } from "./media";
 
-const dataDirectory = join(process.cwd(), "data");
+const dataDirectory = process.env.MEDIA_DATA_DIR && join(process.env.MEDIA_DATA_DIR) || join(process.cwd(), "data");
 const dataFile = join(dataDirectory, "media.json");
 
 type LocalMediaRecord = MediaItem & { storage?: MediaStorageRecord };
