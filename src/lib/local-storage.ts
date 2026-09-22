@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, realpath, rename, unlink } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { isAbsolute, join, relative } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -14,7 +15,7 @@ const formats: Record<string, string> = {
   "image/webp": "webp", "image/avif": "avif",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
 };
-const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|mp4|webm|mov)$/;
+const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|mp4|webm|mov)(\.web\.mp4)?$/;
 
 export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -60,7 +61,7 @@ export async function storeLocalUpload(body: ReadableStream<Uint8Array>, content
     return {
       id: `local:${id}`, url: `/api/local-media?id=${encodeURIComponent(`local:${id}`)}`,
       size, contentHash: hash.digest("hex"),
-      storage: { provider: "local", objectKey: key, playbackId: null, access: "private" } satisfies MediaStorageRecord,
+      storage: { provider: "local", objectKey: key, playbackId: null, access: "private" } as MediaStorageRecord,
     };
   } catch (error) {
     await file.close().catch(() => undefined);
@@ -76,6 +77,9 @@ export async function deleteStoredLocalMedia(key: string) {
   await unlink(`${await objectPath(key)}.jpg`).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== "ENOENT") throw error;
   });
+  await unlink(`${await objectPath(key)}.web.mp4`).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
 }
 
 export async function generateLocalThumbnail(key: string) {
@@ -89,6 +93,27 @@ export async function generateLocalThumbnail(key: string) {
       child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
     });
     await rename(temporary, destination);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function generateLocalPlayback(key: string) {
+  const source = await objectPath(key);
+  const destination = `${source}.web.mp4`;
+  const temporary = `${destination}.${randomUUID()}.tmp.mp4`;
+  try {
+    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=nw=1:nk=1", source]);
+    const videoCodec = stdout.trim();
+    const codecArgs = videoCodec === "h264" ? ["-c:v", "copy", "-c:a", "copy"] : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k"];
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore" });
+      child.once("error", reject);
+      child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
+    });
+    await rename(temporary, destination);
+    return `${key}.web.mp4`;
   } catch (error) {
     await unlink(temporary).catch(() => undefined);
     throw error;

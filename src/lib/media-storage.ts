@@ -2,6 +2,7 @@
 export type MediaStorageRecord = {
   provider: "mux" | "vercel-blob" | "local" | "external";
   objectKey: string;
+  playbackObjectKey?: string;
   playbackId: string | null;
   access: "public" | "signed" | "private" | "unknown";
 };
