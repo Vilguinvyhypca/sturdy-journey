@@ -15,7 +15,7 @@ const formats: Record<string, string> = {
   "image/webp": "webp", "image/avif": "avif",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
 };
-const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|mp4|webm|mov)$/;
+const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|mp4|webm|mov)(\.web\.mp4)?$/;
 
 export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
