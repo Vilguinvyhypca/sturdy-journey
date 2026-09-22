@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { deleteStoredLocalMedia, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
+import { deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
 import type { MediaItem } from "@/lib/media";
 
 export const runtime = "nodejs";
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const name = decodeURIComponent(request.headers.get("x-media-name") ?? "Untitled media");
     const captured = request.headers.get("x-media-captured-at");
     stored = await storeLocalUpload(request.body, contentType, request.signal);
+    const storage = stored.storage;
     request.signal.throwIfAborted();
     const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash);
     if (duplicate) throw new LocalUploadError("That exact photo or video has already been uploaded.", 409);
@@ -50,9 +51,12 @@ export async function POST(request: Request) {
       capturedAt: captured && Number.isFinite(Date.parse(captured)) ? new Date(captured).toISOString() : null,
       durationSeconds: contentType.startsWith("video/") ? Math.round(duration) : null,
     };
-    if (usesDatabase) await saveMedia(media, stored.storage);
-    else await addMedia(media, stored.storage);
-    if (media.type === "video") await generateLocalThumbnail(stored.storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
+    if (media.type === "video") {
+      await generateLocalThumbnail(storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
+      await generateLocalPlayback(storage.objectKey).then((key) => { storage.playbackObjectKey = key; }).catch((error) => console.error("Could not generate browser playback copy", error));
+    }
+    if (usesDatabase) await saveMedia(media, storage);
+    else await addMedia(media, storage);
     return Response.json({ media }, { status: 201 });
   } catch (error) {
     if (stored) await deleteStoredLocalMedia(stored.storage.objectKey);

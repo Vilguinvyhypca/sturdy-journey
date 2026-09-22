@@ -7,7 +7,7 @@ import { muxPlaybackIdFromUrl, type MuxPlaybackTokens } from "@/lib/media";
 export function VideoThumbnail({ src, title, muxTokens }: { src: string; title: string; muxTokens?: MuxPlaybackTokens }) {
   const muxPlaybackId = muxPlaybackIdFromUrl(src);
   const muxThumbnail = muxPlaybackId ? muxTokens?.thumbnail ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?token=${encodeURIComponent(muxTokens.thumbnail)}` : `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=640&fit_mode=preserve` : null;
-  const localId = src.startsWith("/api/local-media?") ? new URL(src, "http://localhost").searchParams.get("id") : null;
+  const localId = src.startsWith("/api/local-media?") || src.startsWith("/api/local-playback?") ? new URL(src, "http://localhost").searchParams.get("id") : null;
   const localThumbnail = localId ? `/api/local-thumbnail?id=${encodeURIComponent(localId)}` : null;
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [thumbnailFailed, setThumbnailFailed] = useState(false);

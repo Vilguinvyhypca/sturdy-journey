@@ -5,7 +5,7 @@ import { access, appendFile, copyFile, lstat, mkdir, readdir, readFile, realpath
 import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { generateThumbnail } from "./local-thumbnail.mjs";
+import { generatePlayback, generateThumbnail } from "./local-thumbnail.mjs";
 
 const formats = new Map([
   [".jpg", "photo"], [".jpeg", "photo"], [".png", "photo"], [".gif", "photo"],
@@ -174,6 +174,13 @@ for (const [index, { path, bytes }] of files.entries()) {
       if (record.type === "video") {
         try { await generateThumbnail(destination); }
         catch (error) { await log({ event: "thumbnail_failed", file: name, reason: error.message }); }
+        try {
+          await generatePlayback(destination);
+          record.storage.playbackObjectKey = `${key}.web.mp4`;
+          const temporaryPlayback = join(dataDirectory, `media.json.${randomUUID()}.tmp`);
+          await writeFile(temporaryPlayback, JSON.stringify(records, null, 2), { mode: 0o600 });
+          await rename(temporaryPlayback, dataFile);
+        } catch (error) { await log({ event: "playback_failed", file: name, reason: error.message }); }
       }
     }
   } catch (error) {

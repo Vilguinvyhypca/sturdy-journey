@@ -55,4 +55,12 @@ node --env-file=.env.local scripts/backfill-local-thumbnails.mjs
 
 The command skips existing thumbnails, reports progress, and leaves original videos unchanged. A failed thumbnail appears as a plain video card; the original video remains playable.
 
+For browser playback compatibility, generate H.264/AAC copies with MP4 `faststart` metadata:
+
+```bash
+node --env-file=.env.local scripts/backfill-local-playback.mjs
+```
+
+H.264 sources are remuxed quickly; VP9, HEVC, and other codecs are transcoded. The original files remain unchanged, and the catalog uses a playback copy when conversion succeeds.
+
 The importer is for the current local JSON catalog. It refuses to run when `DATABASE_URL` is configured. A database-backed import needs a separate workflow so catalog writes remain consistent.

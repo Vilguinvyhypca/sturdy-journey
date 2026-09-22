@@ -65,7 +65,9 @@ export async function removeMedia(id: string) {
 // Keep internal locators out of public API responses and client component props.
 function publicMedia(record: LocalMediaRecord): MediaItem {
   const { storage, ...item } = record;
-  void storage;
+  if (storage?.playbackObjectKey && item.type === "video" && item.id.startsWith("local:")) {
+    return { ...item, url: `/api/local-playback?id=${encodeURIComponent(item.id)}` };
+  }
   return item;
 }
 
