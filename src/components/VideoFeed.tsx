@@ -78,12 +78,12 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
     {active && status === "error" && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm font-bold text-white">This video could not be played.</div>}
     {active && !playing && status === "ready" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid h-16 w-16 place-items-center rounded-full bg-black/45 pl-1 text-3xl text-white backdrop-blur" aria-hidden="true">▶</span></div>}
 
-    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-black/75 to-transparent px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-black/75 to-transparent px-4 pb-16 pt-4 text-white" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
       <Link href="/" onClick={(event) => event.stopPropagation()} className="pointer-events-auto rounded-full bg-black/35 px-4 py-2 text-sm font-bold backdrop-blur hover:bg-black/60">← Gallery</Link>
       <span className="rounded-full bg-black/35 px-3 py-2 text-xs font-bold uppercase tracking-[.16em] backdrop-blur">Video feed</span>
     </div>
 
-    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-28 text-white">
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-5 pt-28 text-white" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
       <div className="flex items-end gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-black leading-tight sm:text-2xl">{item.title}</h1>
