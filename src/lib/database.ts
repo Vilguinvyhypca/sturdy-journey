@@ -1,5 +1,7 @@
 import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import { neon } from "@neondatabase/serverless";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import path from "path";
 import type { MediaItem, MediaVisibility } from "./media";
 import { isSiteTheme, type SiteTheme } from "./theme";
 
@@ -47,6 +49,27 @@ const databaseUrl =
   process.env.DATABASE_URL_DATABASE_URL ??
   process.env.POSTGRES_URL;
 export const usesDatabase = Boolean(databaseUrl);
+const localSettingsPath = path.join(process.env.MEDIA_DATA_DIR ?? path.join(process.cwd(), "data"), "site-settings.json");
+
+async function readLocalSettings(): Promise<Record<string, string>> {
+  try {
+    const contents = await readFile(localSettingsPath, "utf8");
+    const value = JSON.parse(contents) as unknown;
+    return value && typeof value === "object" ? Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string")) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveLocalSetting(key: string, value: string) {
+  const settings = await readLocalSettings();
+  settings[key] = value;
+  const directory = path.dirname(localSettingsPath);
+  await mkdir(directory, { recursive: true });
+  const temporaryPath = `${localSettingsPath}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  await rename(temporaryPath, localSettingsPath);
+}
 
 function sql() {
   if (!databaseUrl) throw new Error("DATABASE_URL is not configured.");
@@ -155,13 +178,20 @@ export function ensureDatabase() {
 }
 
 export async function getSiteTheme(): Promise<SiteTheme> {
-  if (!usesDatabase) return "indigo";
+  if (!usesDatabase) {
+    const settings = await readLocalSettings();
+    return isSiteTheme(settings.theme) ? settings.theme : "indigo";
+  }
   await ensureDatabase();
   const rows = await sql().query("SELECT setting_value FROM site_settings WHERE setting_key = 'theme'");
   return isSiteTheme(rows[0]?.setting_value) ? rows[0].setting_value : "indigo";
 }
 
 export async function saveSiteTheme(theme: SiteTheme) {
+  if (!usesDatabase) {
+    await saveLocalSetting("theme", theme);
+    return;
+  }
   await ensureDatabase();
   await sql().query(
     `INSERT INTO site_settings (setting_key, setting_value) VALUES ('theme', $1)
