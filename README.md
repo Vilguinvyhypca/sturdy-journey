@@ -157,9 +157,11 @@ Open [http://localhost:3000](http://localhost:3000). Use [http://localhost:3000/
 npm run build
 ```
 
-The current production deployment is managed by Vercel from the connected GitHub repository. The planned architecture moves the public production application behind a protected gateway on the home server while retaining Vercel for preview deployments if useful.
+Production is self-hosted behind Cloudflare and runs from an isolated release directory. This checkout is used for development. Use `npm run deploy:prod` to build, validate, and activate a production release, or `npm run rollback:prod` to restore the previous release. See [deployment isolation and operations](docs/deployments.md) for environment, data, service, and rollback details. Running `npm run build` here does not update production.
 
 ## MediaSpace backlog
+
+Operational incident notes: [September 23 Wi-Fi outage and prevention plan](docs/operations/2026-09-23-wifi-outage.md).
 
 - Automatically refresh the gallery after a private photo finishes processing so the new upload appears without a manual page refresh.
 - Add search across titles, descriptions, dates, albums, and extracted metadata.
