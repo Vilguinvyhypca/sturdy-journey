@@ -6,6 +6,16 @@ html[data-theme="sunset"] { --ink: #362016; --muted: #806457; --paper: #fff7f2; 
 html[data-theme="midnight"] { --ink: #e5edf9; --muted: #a8b5cc; --paper: #101827; --line: #27364d; --accent: #38bdf8; --accent-dark: #0ea5e9; --accent-soft: #173b5c; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+.brand-wordmark {
+  font-family: "Monofett", monospace;
+  font-weight: 400;
+  letter-spacing: .02em;
+  background: linear-gradient(90deg, #ff3b30 0%, #ff9500 16%, #ffcc00 31%, #34c759 47%, #00c7be 62%, #007aff 77%, #af52de 90%, #ff2d55 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
 button, input { font: inherit; }
 html[data-theme]:not([data-theme="indigo"]) .bg-indigo-600 { background-color: var(--accent) !important; }
 html[data-theme]:not([data-theme="indigo"]) .hover\:bg-indigo-700:hover { background-color: var(--accent-dark) !important; }
