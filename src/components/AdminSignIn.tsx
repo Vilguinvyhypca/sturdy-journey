@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 function SessionLoading() {
   const [timedOut, setTimedOut] = useState(false);
@@ -20,7 +19,6 @@ function SessionLoading() {
 }
 
 export function AdminSignIn() {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -43,8 +41,7 @@ export function AdminSignIn() {
           : "We couldn’t sign you in. Please try again.");
         return;
       }
-      router.push("/");
-      router.refresh();
+      window.location.assign("/");
     } catch {
       setError("Could not reach the server. Check your connection and try again.");
     } finally {
@@ -60,7 +57,7 @@ export function AdminSignIn() {
     return <div>
       <p className="text-sm font-semibold text-emerald-700">You are signed in as the administrator.</p>
       <div className="mt-5 flex flex-wrap justify-center gap-3">
-        <button type="button" onClick={() => router.push("/")} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700">Open MediaSpace</button>
+        <button type="button" onClick={() => window.location.assign("/")} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700">Open MediaSpace</button>
         <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Sign out</button>
       </div>
     </div>;
