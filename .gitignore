@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /.next-dev/
+/.next-recovery/
+__pycache__/
 /out/
 
 # production

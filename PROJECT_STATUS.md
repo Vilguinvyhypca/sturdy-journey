@@ -1,6 +1,19 @@
 # MediaSpace project status
 
-Last updated: 2026-09-21
+Last updated: 2026-09-23
+
+## Deployment update — 2026-09-23
+
+Production now runs on the home server behind Cloudflare, from versioned releases
+outside the development checkout. Development remains on Tailscale port 3001;
+production listens on loopback port 3000. Source/builds, dependencies, environment
+files, catalogs, and upload directories are separated. Production uses the local
+catalog and local media storage. Older Vercel-era status details below describe
+available integrations rather than the current production configuration.
+
+`npm run deploy:prod` builds and validates a new release before switching the
+production service, with automatic rollback on failed activation. Completed
+releases reject in-place builds. See [deployment operations](docs/deployments.md).
 
 ## Agreed strategic direction
 

@@ -1,0 +1,23 @@
+[Unit]
+Description=MediaSpace production release
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mediaspacedev/deployments/mediaspace/current
+EnvironmentFile=/home/mediaspacedev/deployments/mediaspace/current/.env.local
+Environment=NODE_ENV=production
+Environment=NEXT_DIST_DIR=.next
+Environment=PATH=/home/mediaspacedev/.nvm/versions/node/v22.23.2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=/usr/bin/test -r .next/BUILD_ID
+ExecStart=/home/mediaspacedev/.nvm/versions/node/v22.23.2/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

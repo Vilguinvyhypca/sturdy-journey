@@ -1,0 +1,23 @@
+[Unit]
+Description=MediaSpace isolated development application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mediaspacedev/projects/sturdy-journey
+EnvironmentFile=/home/mediaspacedev/projects/sturdy-journey/.env.local
+Environment=NODE_ENV=development
+Environment=NEXT_DIST_DIR=.next-dev
+Environment=PATH=/home/mediaspacedev/.nvm/versions/node/v22.23.2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=/home/mediaspacedev/.nvm/versions/node/v22.23.2/bin/node scripts/check-development-env.mjs
+ExecStart=/home/mediaspacedev/.nvm/versions/node/v22.23.2/bin/node node_modules/next/dist/bin/next dev --hostname 100.75.180.84 --port 3001
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
