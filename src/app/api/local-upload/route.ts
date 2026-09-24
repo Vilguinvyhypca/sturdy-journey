@@ -1,3 +1,5 @@
+import { defaultProfileId, mediaProfileId } from "@/lib/profile-types";
+import { getProfile } from "@/lib/profiles";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, readMedia } from "@/lib/db";
@@ -11,6 +13,9 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return Response.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
   if (!usesLocalStorage) return Response.json({ error: "Local uploads are not enabled." }, { status: 503 });
+  const profileId = request.headers.get("x-media-profile") ?? defaultProfileId;
+  if (request.headers.has("x-media-profile") && usesDatabase) return Response.json({ error: "Profiles require the local catalog." }, { status: 503 });
+  if (!usesDatabase && !await getProfile(profileId)) return Response.json({ error: "Profile not found." }, { status: 404 });
   const origin = request.headers.get("origin");
   if (origin) {
     let validOrigin = false;
@@ -42,10 +47,10 @@ export async function POST(request: Request) {
     stored = await storeLocalUpload(request.body, contentType, request.signal);
     const storage = stored.storage;
     request.signal.throwIfAborted();
-    const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash);
+    const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash && mediaProfileId(item) === profileId);
     if (duplicate) throw new LocalUploadError("That exact photo or video has already been uploaded.", 409);
     const media: MediaItem = {
-      id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media",
+      profileId, id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media",
       type: contentType.startsWith("video/") ? "video" : "photo", createdAt: "Just now", album: "Uploads",
       contentHash: stored.contentHash, fileSizeBytes: stored.size, visibility: "private",
       capturedAt: captured && Number.isFinite(Date.parse(captured)) ? new Date(captured).toISOString() : null,

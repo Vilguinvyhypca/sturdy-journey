@@ -191,6 +191,11 @@ future providers instead of requiring URL inference.
 
 ## Ubuntu local uploads and playback
 
+Profile galleries are documented in [profile galleries and administration](docs/operations/profile-galleries.md). Each profile uses `/p/<profile-slug>` and keeps its media in the Ubuntu local catalog and storage.
+
+Development parity and the safe production-data refresh workflow are documented
+in [development parity](docs/operations/development-parity.md).
+
 To send new photos and videos to the Ubuntu server, set these server-only values
 in the ignored `.env.local` file and restart the app:
 

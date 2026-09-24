@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "deploy:prod": "python3 scripts/deploy-production.py",
     "rollback:prod": "python3 scripts/deploy-production.py --rollback",
     "test:deployment": "python3 -m unittest discover -s tests -p 'test_deployment.py'",
+    "profiles:assign-minami": "node scripts/assign-media-profile.mjs",
+    "dev:sync-production-data": "python3 scripts/sync-development-data.py",
     "lint": "eslint",
     "test:storage": "node --test tests/*.test.mjs"
   },

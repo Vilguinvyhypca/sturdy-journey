@@ -56,7 +56,16 @@ def environment(release):
         "process.stdout.write(JSON.stringify(parseEnv(fs.readFileSync(process.argv[1],'utf8'))))",
         str(release / ".env.local"),
     ]))
-    env = {key: os.environ[key] for key in ("PATH", "HOME", "USER", "LANG", "TMPDIR") if key in os.environ}
+    # Keep the build isolated from the caller's credentials, while retaining
+    # the normal npm/TypeScript process context needed by child processes.
+    safe_keys = (
+        "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE",
+        "SHELL", "TERM", "TMPDIR", "SHLVL", "INIT_CWD", "npm_config_user_agent",
+        "npm_execpath",
+    )
+    env = {key: os.environ[key] for key in safe_keys if key in os.environ}
+    env["PWD"] = str(release)
+    env["CI"] = "1"
     env.update(values)
     env.update(NODE_ENV="production", NEXT_DIST_DIR=".next", NEXT_TELEMETRY_DISABLED="1")
     return env
@@ -158,7 +167,7 @@ def prepare(working_tree):
     print(f"Building isolated release {release}", flush=True)
     # Dependencies are installed in each release; never symlink the dev node_modules.
     run(["npm", "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=release, env=env)
-    run(["npm", "run", "build", "--", "--webpack"], cwd=release, env=env)
+    run(["npm", "run", "build"], cwd=release, env=env)
     if not (release / ".next/BUILD_ID").is_file():
         raise RuntimeError("Build did not produce BUILD_ID")
     # Preserve hashed assets used by browsers that still have the previous page open.

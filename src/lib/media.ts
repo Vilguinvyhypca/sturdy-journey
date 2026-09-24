@@ -1,5 +1,6 @@
 export type MediaItem = {
   id: string;
+  profileId?: string;
   title: string;
   description?: string;
   type: "photo" | "video";

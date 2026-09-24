@@ -46,11 +46,11 @@ export async function addMedia(item: MediaItem, storage: MediaStorageRecord = in
   });
 }
 
-export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility?: MediaItem["visibility"]) {
+export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility?: MediaItem["visibility"], profileId?: string) {
   return mutateRecords((media) => {
     const index = media.findIndex((item) => item.id === id);
     if (index === -1) return null;
-    media[index] = { ...media[index], title, description, visibility: visibility ?? media[index].visibility ?? "public" };
+    media[index] = { ...media[index], title, description, visibility: visibility ?? media[index].visibility ?? "public", ...(profileId ? { profileId } : {}) };
     return publicMedia(media[index]);
   });
 }

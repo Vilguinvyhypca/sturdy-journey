@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album, MediaPage } from "@/lib/database";
 import { galleryPageSize, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import type { Profile } from "@/lib/profile-types";
 import { AuthControls } from "./AuthControls";
 import { MediaCard } from "./MediaCard";
 import { PhotoViewer } from "./PhotoViewer";
@@ -66,9 +67,9 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
 
 const emptyPage: MediaPage = { media: [], nextCursor: null, totalCount: 0, photoCount: 0, videoCount: 0, knownSizeCount: 0, knownStorageBytes: 0 };
 
-export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?: MediaPage; mediaType?: MediaItem["type"] }) {
+export function MediaFeed({ initialPage = emptyPage, mediaType, profile, management = false }: { initialPage?: MediaPage; mediaType?: MediaItem["type"]; profile?: Profile; management?: boolean }) {
   const { data: session } = useSession();
-  const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
+  const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true && (!profile || management);
   const [uploadConfig, setUploadConfig] = useState<UploadConfig | null>(null);
   useEffect(() => {
     if (!isAdministrator) return;
@@ -123,8 +124,9 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
   const galleryLoading = loading;
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0);
     const query = new URLSearchParams({ limit: String(galleryPageSize) });
+    if (profile?.id) query.set("profile", profile.id);
     if (mediaType) query.set("type", mediaType);
     if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
     if (normalizedSearchQuery) query.set("search", searchQuery.trim());
@@ -140,13 +142,14 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
       })
       .catch(() => undefined)
       .finally(() => { if (!controller.signal.aborted) setLoading(false); }), 250);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [mediaType, isAdministrator, visibilityFilter, normalizedSearchQuery, searchQuery]);
+    return () => { window.clearTimeout(loadingTimer); window.clearTimeout(timer); controller.abort(); };
+  }, [mediaType, isAdministrator, visibilityFilter, normalizedSearchQuery, searchQuery, profile]);
 
   async function loadMoreMedia() {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     const query = new URLSearchParams({ limit: String(galleryPageSize), cursor: nextCursor });
+    if (profile) query.set("profile", profile.id);
     if (mediaType) query.set("type", mediaType);
     if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
     if (normalizedSearchQuery) query.set("search", searchQuery.trim());
@@ -219,6 +222,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
           if (config.local) {
             setUploadProgress(`Uploading ${index + 1} of ${files.length} to your server…`);
             const headers: Record<string, string> = { "Content-Type": file.type, "X-Media-Name": encodeURIComponent(file.name) };
+            if (profile) headers["X-Media-Profile"] = profile.id;
             if (details.durationSeconds !== null) headers["X-Media-Duration"] = String(details.durationSeconds);
             if (details.capturedAt) headers["X-Media-Captured-At"] = details.capturedAt;
             const response = await fetch("/api/local-upload", { method: "POST", headers, body: file, signal: abortController.signal });
@@ -359,7 +363,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType }: { initialPage?
   }
 
   return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8">
-    <header className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">Hymecymeyseh</h1><p className="mt-2 text-slate-500">We are here to just have 🤩 fun.</p></div><div className="flex flex-wrap items-center gap-3"><Link href="/feed" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link><AuthControls />{session && <><ThemeSettings /><button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button><button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button><UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} /></>}</div></header>
+    <header className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">{profile?.name ?? "Hymecymeyseh"}</h1><p className="mt-2 text-slate-500">{profile?.bio ?? "We are here to just have 🤩 fun."}</p></div><div className="flex flex-wrap items-center gap-3">{profile && <Link href="/" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">All profiles</Link>}<Link href={profile ? `/p/${profile.slug}?type=video` : "/feed"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link><AuthControls />{session && <><ThemeSettings /><button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button><button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button>{management && <UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} />}</>}</div></header>
     <search className="mt-7 block" aria-label="Search media library">
       <label htmlFor="media-search" className="sr-only">Search titles and descriptions</label>
       <div className="relative">

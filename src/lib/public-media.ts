@@ -1,3 +1,4 @@
+import { defaultProfileId, mediaProfileId } from "./profile-types";
 import { usesLocalStorage } from "@/lib/local-storage";
 import "server-only";
 
@@ -26,13 +27,13 @@ function withPublicDelivery(item: MediaItem): MediaItem {
   return item;
 }
 
-export async function getInitialPublicMedia(type?: MediaItem["type"]): Promise<MediaPage> {
+export async function getInitialPublicMedia(type?: MediaItem["type"], profileId = defaultProfileId): Promise<MediaPage> {
   if (usesDatabase) {
     const page = await listDatabaseMediaPage({ type, limit: galleryPageSize });
     return { ...page, media: page.media.map(withPublicDelivery) };
   }
   const saved = await readMedia();
-  const media = saved.filter((item) => (item.visibility ?? "public") === "public");
+  const media = saved.filter((item) => (!usesLocalStorage || mediaProfileId(item) === profileId) && (item.visibility ?? "public") === "public");
   const availableMedia = saved.length || usesLocalStorage ? media : demoMedia;
   const filtered = availableMedia
     .filter((item) => !type || item.type === type)

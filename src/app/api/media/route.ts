@@ -1,3 +1,5 @@
+import { defaultProfileId, mediaProfileId } from "@/lib/profile-types";
+import { getProfile } from "@/lib/profiles";
 import { deleteStoredLocalMedia, usesLocalStorage } from "@/lib/local-storage";
 import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
@@ -26,6 +28,9 @@ export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
   const searchParams = new URL(request.url).searchParams;
+  const profileId = searchParams.get("profile") ?? defaultProfileId;
+  if (searchParams.has("profile") && (usesDatabase || !usesLocalStorage)) return NextResponse.json({ error: "Profiles require local storage." }, { status: 503 });
+  if (usesLocalStorage && !usesDatabase && !await getProfile(profileId)) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   const requestedLimit = Number(searchParams.get("limit") ?? String(galleryPageSize));
   const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 100) : galleryPageSize;
   const cursor = searchParams.get("cursor");
@@ -47,15 +52,15 @@ export async function GET(request: Request) {
   const blobMedia = usesBlobStorage ? await listBlobMedia() : [];
   const combined = [...savedMedia, ...blobMedia.filter((item) => !savedMedia.some((saved) => saved.id === item.id))];
   const availableMedia = combined.length || usesLocalStorage ? combined : demoMedia;
-  const available = availableMedia.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
-  try { return NextResponse.json(paginateMedia(available, limit, cursor)); }
+  const available = availableMedia.filter((item) => (!usesLocalStorage || mediaProfileId(item) === profileId) && (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
+  try { return NextResponse.json(paginateMedia(available, limit, cursor), { headers: { "Cache-Control": "private, no-store" } }); }
   catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
 }
 
 export async function PATCH(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
-  const body = await request.json() as { id?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
+  const body = await request.json() as { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
   const isDetailsUpdate = "title" in body || "description" in body || "visibility" in body;
   if (isDetailsUpdate) {
     const mediaId = typeof body.id === "string" ? body.id.trim() : "";
@@ -67,9 +72,11 @@ export async function PATCH(request: Request) {
     if (!title) return NextResponse.json({ error: "A title is required." }, { status: 400 });
     if (title.length > 120) return NextResponse.json({ error: "The title must be 120 characters or fewer." }, { status: 400 });
     if (description.length > 500) return NextResponse.json({ error: "The description must be 500 characters or fewer." }, { status: 400 });
+    const profileId = typeof body.profileId === "string" ? body.profileId : undefined;
+    if ("profileId" in body && (!profileId || usesDatabase || !usesLocalStorage || !await getProfile(profileId))) return NextResponse.json({ error: "Choose an existing local profile." }, { status: 400 });
     const media = usesDatabase
       ? await updateMediaDetails(mediaId, title, description, visibility)
-      : await updateLocalMediaDetails(mediaId, title, description, visibility);
+      : await updateLocalMediaDetails(mediaId, title, description, visibility, profileId);
     if (!media) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
     return NextResponse.json({ media: withDelivery(media) });
   }
