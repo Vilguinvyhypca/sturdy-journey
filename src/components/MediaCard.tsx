@@ -9,7 +9,7 @@ import { VideoThumbnail } from "./VideoThumbnail";
 export function MediaCard({ item, onSelect, selectionMode = false, isSelected = false, onToggleSelection }: { item: MediaItem; onSelect: (item: MediaItem) => void; selectionMode?: boolean; isSelected?: boolean; onToggleSelection?: (item: MediaItem) => void }) {
   const [photoLoaded, setPhotoLoaded] = useState(item.type === "video");
   const href = `/${item.type === "photo" ? "photos" : "videos"}/${encodeURIComponent(item.id)}`;
-  return <Link href={href} aria-label={selectionMode ? `${isSelected ? "Deselect" : "Select"} uploaded ${item.type}` : `Open ${item.title}`} aria-pressed={selectionMode ? isSelected : undefined} onClick={(event) => {
+  return <Link href={href} data-media-overlay aria-label={selectionMode ? `${isSelected ? "Deselect" : "Select"} uploaded ${item.type}` : `Open ${item.title}`} aria-pressed={selectionMode ? isSelected : undefined} onClick={(event) => {
     if (event.defaultPrevented) return;
     if (selectionMode) { event.preventDefault(); onToggleSelection?.(item); return; }
     if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
