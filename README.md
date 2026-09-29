@@ -2,6 +2,10 @@
 
 MediaSpace is a public photo and video gallery with a private administration area. Visitors can browse the gallery, albums, and individual video pages. An administrator can upload, organize, edit, scan, theme, and delete media.
 
+## SEO and visitor analytics work
+
+The [SEO and visitor analytics plan](docs/seo-analytics/README.md) records the proposed changes, verification steps, and remaining decisions. It is versioned with the application and should remain in `main` after the implementation PR merges. Planned features are not yet implemented unless marked complete in that document.
+
 ## How everything works
 
 ![MediaSpace architecture and media flow](docs/mediaspace-architecture.svg)
