@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
+import { deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
 import type { MediaItem } from "@/lib/media";
 
 export const runtime = "nodejs";
@@ -35,11 +35,6 @@ export async function POST(request: Request) {
   if (!request.body) return Response.json({ error: "Choose a file first." }, { status: 400 });
   if (Number(request.headers.get("content-length")) > maximumLocalUploadBytes) return Response.json({ error: "Files must be 500 MB or smaller." }, { status: 413 });
   const contentType = request.headers.get("content-type")?.split(";")[0] ?? "";
-  const durationHeader = request.headers.get("x-media-duration");
-  const duration = durationHeader ? Number(durationHeader) : NaN;
-  if (contentType.startsWith("video/") && (!Number.isFinite(duration) || duration <= 0 || duration > 300)) {
-    return Response.json({ error: "Choose a video with a readable duration of five minutes or less." }, { status: 400 });
-  }
   let stored: Awaited<ReturnType<typeof storeLocalUpload>> | undefined;
   try {
     const name = decodeURIComponent(request.headers.get("x-media-name") ?? "Untitled media");
@@ -49,12 +44,13 @@ export async function POST(request: Request) {
     request.signal.throwIfAborted();
     const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash && mediaProfileId(item) === profileId);
     if (duplicate) throw new LocalUploadError("That exact photo or video has already been uploaded.", 409);
+    const duration = contentType.startsWith("video/") ? await probeLocalVideoDuration(storage.objectKey) : null;
     const media: MediaItem = {
       profileId, id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media",
       type: contentType.startsWith("video/") ? "video" : "photo", createdAt: "Just now", album: "Uploads",
       contentHash: stored.contentHash, fileSizeBytes: stored.size, visibility: "private",
       capturedAt: captured && Number.isFinite(Date.parse(captured)) ? new Date(captured).toISOString() : null,
-      durationSeconds: contentType.startsWith("video/") ? Math.round(duration) : null,
+      durationSeconds: duration,
     };
     if (media.type === "video") {
       await generateLocalThumbnail(storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
@@ -62,7 +58,7 @@ export async function POST(request: Request) {
     }
     if (usesDatabase) await saveMedia(media, storage);
     else await addMedia(media, storage);
-    return Response.json({ media }, { status: 201 });
+    return Response.json({ media: storage.playbackObjectKey ? { ...media, url: `/api/local-playback?id=${encodeURIComponent(media.id)}` } : media }, { status: 201 });
   } catch (error) {
     if (stored) await deleteStoredLocalMedia(stored.storage.objectKey);
     if (error instanceof LocalUploadError) return Response.json({ error: error.message }, { status: error.status });

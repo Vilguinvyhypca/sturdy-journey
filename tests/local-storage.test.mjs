@@ -20,9 +20,15 @@ test("private local file storage and range delivery", async (t) => {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText);
   const api = createRequire(import.meta.url)(join(directory, "local-storage.cjs"));
+  assert.equal(api.validateLocalVideoDuration(300), 300);
+  assert.throws(() => api.validateLocalVideoDuration(300.01), /five minutes or shorter/);
+  assert.equal(api.validateLocalVideoDuration(NaN), null);
+  assert.equal(api.validateLocalVideoDuration(Infinity), null);
+  assert.equal(api.validateLocalVideoDuration(0), null);
   const bytes = Buffer.from("0123456789abcdefghij");
   const stored = await api.storeLocalUpload(new Blob([bytes]).stream(), "video/mp4");
   const key = stored.storage.objectKey;
+  assert.equal(await api.probeLocalVideoDuration(key), null, "Unreadable metadata must not block saving the original");
   assert.equal(stored.storage.access, "private");
   assert.equal(stored.size, bytes.length);
   assert.equal((await stat(join(process.env.MEDIA_STORAGE_ROOT, key))).mode & 0o777, 0o600);

@@ -210,11 +210,11 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
           const details = await readUploadDetails(file, abortController.signal);
           if (abortController.signal.aborted) { canceled = true; break; }
           if (file.type.startsWith("video/")) {
-            if (details.durationSeconds === null) {
+            if (details.durationSeconds === null && !config.local) {
               rejectedWithoutDuration += 1;
               throw new Error("This video's duration could not be checked.");
             }
-            if (details.durationSeconds > maximumVideoDurationSeconds) {
+            if (details.durationSeconds !== null && details.durationSeconds > maximumVideoDurationSeconds) {
               rejectedForLength += 1;
               throw new Error("Videos must be five minutes or shorter.");
             }

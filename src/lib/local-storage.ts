@@ -21,6 +21,18 @@ export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
 
+export const maximumLocalVideoDurationSeconds = 5 * 60;
+
+export function validateLocalVideoDuration(duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return null;
+  }
+  if (duration > maximumLocalVideoDurationSeconds) {
+    throw new LocalUploadError("Videos must be five minutes or shorter.", 422);
+  }
+  return Math.round(duration);
+}
+
 async function storageRoot() {
   const configured = process.env.MEDIA_STORAGE_ROOT;
   if (!configured || !isAbsolute(configured)) throw new Error("MEDIA_STORAGE_ROOT must be an absolute path outside the repository.");
@@ -70,6 +82,20 @@ export async function storeLocalUpload(body: ReadableStream<Uint8Array>, content
   }
 }
 
+export async function probeLocalVideoDuration(objectKey: string) {
+  const source = await objectPath(objectKey);
+  try {
+    const { stdout } = await promisify(execFile)("ffprobe", [
+      "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source,
+    ], { timeout: 30_000, maxBuffer: 4_096 });
+    return validateLocalVideoDuration(Number(stdout.trim()));
+  } catch (error) {
+    if (error instanceof LocalUploadError) throw error;
+    // Metadata is optional; retain the original even when ffprobe cannot read it.
+    return null;
+  }
+}
+
 export async function deleteStoredLocalMedia(key: string) {
   await unlink(await objectPath(key)).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== "ENOENT") throw error;
@@ -104,11 +130,15 @@ export async function generateLocalPlayback(key: string) {
   const destination = `${source}.web.mp4`;
   const temporary = `${destination}.${randomUUID()}.tmp.mp4`;
   try {
-    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=nw=1:nk=1", source]);
-    const videoCodec = stdout.trim();
-    const codecArgs = videoCodec === "h264" ? ["-c:v", "copy", "-c:a", "copy"] : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k"];
+    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "json", source]);
+    const video = JSON.parse(stdout).streams?.[0];
+    // H.264 alone is not enough: 10-bit/4:4:4 video and copied audio can fail in browsers.
+    const codecArgs = video?.codec_name === "h264" && video?.pix_fmt === "yuv420p"
+      ? ["-c:v", "copy"]
+      : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-vf", "scale=ceil(iw/2)*2:ceil(ih/2)*2", "-pix_fmt", "yuv420p"];
+    codecArgs.push("-c:a", "aac", "-profile:a", "aac_low", "-ac", "2", "-b:a", "128k");
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore" });
+      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a:0?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore" });
       child.once("error", reject);
       child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
     });
