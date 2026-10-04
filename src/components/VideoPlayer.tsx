@@ -18,7 +18,7 @@ export function VideoPlayer({ item, onClose, onDelete, onOrganize, onUpdate }: {
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black" role="dialog" aria-modal="true" aria-label={`Video viewer: ${item.title}`} onClick={onClose}>
     <div className="relative h-[100dvh] w-full max-w-[56.25dvh] overflow-hidden bg-slate-950 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-      <VideoPlayback src={item.url} muxTokens={item.muxTokens} />
+      <VideoPlayback src={item.url} mediaId={item.id} muxTokens={item.muxTokens} />
       <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/75 to-transparent px-4 pb-14 pt-4 text-white" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
         <div className="flex items-center justify-between gap-3"><p className="min-w-0 truncate font-bold">{item.title}</p><button type="button" onClick={onClose} className="pointer-events-auto shrink-0 rounded-full bg-black/45 px-3 py-1.5 text-sm font-bold text-white backdrop-blur hover:bg-black/65" aria-label="Close video viewer">Close</button></div>
       </div>

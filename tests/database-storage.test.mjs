@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import ts from "typescript";
+import path from "node:path";
 
 // Run the actual application SQL against ephemeral PostgreSQL. Only Neon's HTTP
 // transport is replaced; query parameters and transaction boundaries are preserved.
@@ -21,7 +22,12 @@ async function loadDatabase(pg) {
       });
     },
   };
-  const modules = new Map([["@neondatabase/serverless", { neon: () => adapter }]]);
+  const unexpectedLocalAccess = () => { throw new Error("Database mode must not access local settings."); };
+  const modules = new Map([
+    ["@neondatabase/serverless", { neon: () => adapter }],
+    ["path", { default: path }],
+    ["fs/promises", Object.fromEntries(["mkdir", "readFile", "rename", "writeFile"].map((name) => [name, unexpectedLocalAccess]))],
+  ]);
   for (const name of ["media-storage", "theme", "database"]) {
     const source = await readFile(new URL(`../src/lib/${name}.ts`, import.meta.url), "utf8");
     const compiled = ts.transpileModule(source, {
@@ -35,6 +41,7 @@ async function loadDatabase(pg) {
     // Inject a fake configuration without reading or modifying real credentials.
     new Function("require", "exports", "process", compiled)(require, exports, {
       env: { DATABASE_URL: "postgresql://test:test@unused.test/test" },
+      cwd: () => "/unused-test-directory",
     });
     modules.set(`./${name}`, exports);
   }
@@ -64,12 +71,14 @@ test("database storage migration and persistence", async (t) => {
   for (const row of legacy) {
     await pg.query("INSERT INTO media (id, storage_url, media_type, visibility, caption) VALUES ($1, $2, $3, $4, 'Keep this caption')", row);
   }
-  const original = (await pg.query("SELECT * FROM media ORDER BY id")).rows;
+  const original = (await pg.query(`SELECT id, storage_url, media_type, caption, description, visibility,
+    content_hash, captured_at, duration_seconds, file_size_bytes, created_at FROM media ORDER BY id`)).rows;
   let db = await loadDatabase(pg);
 
   await t.test("backfills every legacy provider without altering catalog rows", async () => {
     await db.ensureDatabase();
-    assert.deepEqual((await pg.query("SELECT * FROM media ORDER BY id")).rows, original);
+    assert.deepEqual((await pg.query(`SELECT id, storage_url, media_type, caption, description, visibility,
+      content_hash, captured_at, duration_seconds, file_size_bytes, created_at FROM media ORDER BY id`)).rows, original);
     assert.equal((await pg.query("SELECT * FROM media_storage")).rows.length, legacy.length);
     assert.deepEqual(await db.getMediaStorage("mux:asset-signed"), {
       provider: "mux", objectKey: "asset-signed", playbackId: "play-signed", access: "signed",
@@ -88,11 +97,12 @@ test("database storage migration and persistence", async (t) => {
     await db.ensureDatabase();
     assert.equal((await db.getMediaStorage("local")).objectKey, "preserved-key");
     assert.equal((await pg.query("SELECT * FROM media_albums")).rows.length, 1);
-    assert.deepEqual((await pg.query("SELECT * FROM media ORDER BY id")).rows, original);
+    assert.deepEqual((await pg.query(`SELECT id, storage_url, media_type, caption, description, visibility,
+      content_hash, captured_at, duration_seconds, file_size_bytes, created_at FROM media ORDER BY id`)).rows, original);
     assert.equal((await pg.query("SELECT * FROM media_storage")).rows.length, legacy.length);
   });
 
-  const item = { id: "new-local", url: "/api/future/new-local", type: "video", title: "New video", visibility: "private" };
+  const item = { id: "new-local", url: "/api/future/new-local", type: "video", title: "New video", originalFileName: "[date_2026-07-16] clip.mp4", visibility: "private" };
   const storage = { provider: "local", objectKey: "videos/new.mp4", playbackId: null, access: "private" };
   await t.test("saves explicit storage atomically and keeps it out of media responses", async () => {
     await db.saveMedia(item, storage);
@@ -106,6 +116,10 @@ test("database storage migration and persistence", async (t) => {
     const replayed = await db.getMediaById(item.id);
     assert.equal(replayed.title, "Edited");
     assert.equal(replayed.visibility, "unlisted");
+    const filenameSearch = await db.listDatabaseMediaPage({ includeNonPublic: true, search: "2026" });
+    assert.equal(filenameSearch.totalCount, 1);
+    assert.equal(filenameSearch.media[0].title, "Edited");
+    assert.equal(filenameSearch.media[0].originalFileName, item.originalFileName);
     assert.deepEqual(await db.getMediaStorage(item.id), storage);
   });
 

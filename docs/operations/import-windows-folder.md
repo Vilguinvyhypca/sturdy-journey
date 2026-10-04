@@ -1,66 +1,71 @@
-# Import a Windows media folder into the Ubuntu MediaSpace catalog
+# Import a Windows folder over SSH
 
-Use this for an existing Windows collection, especially files too large for browser upload. The transfer uses SSH rather than the public website. The importer copies the files into MediaSpace storage and registers them as private items; the Windows originals stay in place. Folder names do not automatically become albums.
+For a smaller batch that should be uploaded through the browser, sign in and open the profile's management page (for example `/admin/profiles/sabaideesana`) and choose **Upload photo folder**. Select the folder containing the photos; supported JPEG, PNG, GIF, WebP, and AVIF files in its subfolders are queued one by one, assigned to the open profile, and imported as private. The existing upload progress and cancel control apply to the whole batch. Browser uploads use the normal per-file upload size limit, so use the SSH workflow below for large collections or files that exceed it.
 
-## 1. Copy from Windows
+Run `scripts/Import-Media.ps1` in **Windows PowerShell 5.1 or PowerShell 7**, not inside an Ubuntu SSH terminal. Windows OpenSSH Client (`ssh` and `scp`) must be installed. Connect to Tailscale when using the example address. SSH uses your normal password or key; the script does not need an app API key.
 
-In PowerShell, substitute the actual Windows folder path:
+The Ubuntu helper and importer must exist in `/home/mediaspacedev/projects/sturdy-journey/scripts`. The account must have its user services installed, Node supporting `--env-file`, Python 3, FFmpeg, and ffprobe. The selected app must already support profile galleries. Production uses the current release's environment and shared catalog; development uses its own environment and catalog. No existing release source is edited.
+
+## Copy the script to Windows
+
+In Windows PowerShell:
 
 ```powershell
-scp -r "C:\Users\YOUR_NAME\Pictures\YOUR_MEDIA_FOLDER" SERVER_USER@SERVER_LAN_IP:~/MediaSpace-import
+scp mediaspacedev@100.75.180.84:/home/mediaspacedev/projects/sturdy-journey/scripts/Import-Media.ps1 "$HOME\Downloads\Import-Media.ps1"
 ```
 
-Wait for the command to finish. Do not start the importer while the transfer is still running. For later batches, use a new staging folder name rather than copying into an old one.
+Preview the inputs without connecting or changing anything:
 
-## 2. Make the staging folder readable by the MediaSpace account
-
-On Ubuntu, first check that the intended folder exists and contains the expected files:
-
-```bash
-ls -lah /home/SERVER_USER/MediaSpace-import
+```powershell
+& "$HOME\Downloads\Import-Media.ps1" `
+  -Source 'C:\Users\Josh Lau\Pictures\Instagram Backup\sabaideesana' `
+  -Destination '/home/mediaspacedev/media-imports' `
+  -Server 'mediaspacedev@100.75.180.84' `
+  -DryRun
 ```
 
-For the first batch, move it into the MediaSpace account and give that account ownership:
+Remove `-DryRun` to transfer and import into **production**. Use `-Target Development` to import into the separate development app instead. If Windows blocks a trusted downloaded script, use `Unblock-File` on that file; organizational execution policies may require administrator assistance.
 
-```bash
-sudo mv /home/SERVER_USER/MediaSpace-import /home/mediaspacedev/media-import
-sudo chown -R mediaspacedev:mediaspacedev /home/mediaspacedev/media-import
+Optional parameters:
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `-Source` | Required | Windows folder; subfolders are included |
+| `-Destination` | `/home/mediaspacedev/media-imports` | Ubuntu staging root |
+| `-Server` | `mediaspacedev@100.75.180.84` | SSH user and hostname/IPv4 address |
+| `-Profile` | Lowercase source folder name | Existing profile URL name, or a new profile to create |
+| `-Target` | `Production` | `Production` or `Development` |
+| `-Port` | `22` | SSH port |
+| `-IdentityFile` | SSH's normal key selection | Local SSH private-key path; never sent to Ubuntu |
+| `-DryRun` | Off | Print planned settings only; no SSH or writes |
+
+Profile names must use lowercase letters, numbers, and single hyphens, up to 60 characters. If the source folder has spaces or other characters in its name, supply `-Profile`. Existing profile names, biographies, and other settings are preserved; new profiles initially use the URL name as their display name. Edit the display name in Manage profiles afterward.
+
+## What happens
+
+1. Validate the local folder and Ubuntu app configuration. Links/junctions are rejected so a transfer cannot accidentally follow another directory.
+2. Copy the folder to `<destination>/<profile>/<unique-batch>/source` using SCP. A failed transfer never starts an import. Repeated transfers use separate batch directories.
+3. Start an independent Ubuntu user-systemd job. It survives closing PowerShell or losing SSH after the job has started. The script prints the log and unit name; this means **started**, not completed.
+4. Lock against another import (and production deployment), pause the selected app service, and import into its explicit catalog/storage paths. The app is unavailable throughout import and conversion. Avoid starting a separate manual importer, backfill, or service restart at this time.
+5. Back up the catalog, create or reuse the selected profile, copy supported media into managed storage, and register items as **private**. Generate JPEG thumbnails and MP4 playback copies with H.264 video and AAC audio. H.264 video is remuxed; other codecs are transcoded.
+6. Restart the app even if the import command fails, then print `Import completed.` only for a successful import and restart.
+
+The Windows originals and staging folder remain intact. No source deletion is performed. Supported extensions: JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, MOV. Other files may be transferred but are not imported. Keep enough free disk space for the staging copy, managed originals, and playback copies. SCP retries recopy the source folder; catalog import skips matching SHA-256 hashes **within the selected profile**. The same file in a different profile is imported independently and never moved out of that profile. A retry also retries missing video playback conversions for duplicate records.
+
+## Progress and review
+
+The script prints a command like:
+
+```powershell
+ssh mediaspacedev@100.75.180.84 'tail -f /home/mediaspacedev/media-imports/sabaideesana/BATCH/import.log'
 ```
 
-If `/home/mediaspacedev/media-import` already exists, stop before running `mv`; use a new destination name so one batch does not get nested inside another.
+Use the actual batch path printed by your run. Ctrl+C exits the log viewer without stopping the import. Per-file JSON logs and catalog backups are also stored in the selected catalog directory's `imports` folder and catalog root respectively. A failed conversion produces an explicit failure and a nonzero job result; its original remains imported. Fix the reported cause and rerun the same Windows command to retry.
 
-## 3. Dry run, then import
+After `Import completed.`, sign in and open `/admin/profiles/sabaideesana`. Review playback and change visibility when ready. Private items do not appear on the public profile page.
 
-Run these as `mediaspacedev` from the repository directory. The dry run counts candidate files without changing the catalog or storage. Stop the MediaSpace user service before applying the import: the current JSON catalog only supports one writer at a time.
+If the server reboots, the job is killed, or the restart itself fails, inspect the log and `systemctl --user status mediaspace.service` (or `mediaspace-dev.service`). Once no import is running, restart that service and rerun the batch. This is not a transactional rollback of all imported media: successfully registered items remain, and retries skip them.
 
-```bash
-cd /home/mediaspacedev/projects/sturdy-journey
-node --env-file=.env.local scripts/import-local-media.mjs --source /home/mediaspacedev/media-import
-systemctl --user stop mediaspace.service
-node --env-file=.env.local scripts/import-local-media.mjs --source /home/mediaspacedev/media-import --apply
-systemctl --user start mediaspace.service
-```
+## Manual importer
 
-If the import command fails, start the service before investigating. The script backs up an existing `data/media.json` before it writes, saves catalog updates atomically, and can be rerun: content already imported is skipped by SHA-256 hash. It does not delete the source folder. Keep the staging copy until the items appear and play correctly in MediaSpace.
-
-While it runs, the terminal shows the current filename, overall bytes and percentage, and an estimated time remaining. It prints an imported/duplicate/failed result for each file. A private JSON-lines log with a start, result, and final summary for every file is saved under `data/imports/`; the command prints its exact path. The ETA is approximate and improves as more bytes are processed.
-
-The importer accepts JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, and MOV by filename extension. It does not transcode video or read photo dates and video durations. Browser playback still depends on the file's codec. Imported files can exceed the browser's 500 MB file limit and five-minute video limit, but disk capacity and browser codec support still apply. Edit titles, descriptions, and visibility in MediaSpace after import. Album editing currently requires the database-backed catalog and is unavailable in the local JSON fallback.
-
-Install FFmpeg on the server to generate JPEG video thumbnails. New imports generate thumbnails as files are copied. To generate thumbnails for videos already in the library, run this as `mediaspacedev` from the repository after FFmpeg is installed:
-
-```bash
-node --env-file=.env.local scripts/backfill-local-thumbnails.mjs
-```
-
-The command skips existing thumbnails, reports progress, and leaves original videos unchanged. A failed thumbnail appears as a plain video card; the original video remains playable.
-
-For browser playback compatibility, generate H.264/AAC copies with MP4 `faststart` metadata:
-
-```bash
-node --env-file=.env.local scripts/backfill-local-playback.mjs
-```
-
-H.264 sources are remuxed quickly; VP9, HEVC, and other codecs are transcoded. The original files remain unchanged, and the catalog uses a playback copy when conversion succeeds.
-
-The importer is for the current local JSON catalog. It refuses to run when `DATABASE_URL` is configured. A database-backed import needs a separate workflow so catalog writes remain consistent.
+The low-level importer supports `--source`, `--profile`, and `--apply`. Without `--apply` it only lists candidate counts. It respects `MEDIA_DATA_DIR` and `MEDIA_STORAGE_ROOT`, refuses database-backed configurations, and requires a separate source, repository, and managed storage location. When running it manually, the operator is responsible for preventing concurrent catalog writers and restarting the service. Prefer the Windows script and Ubuntu helper for normal imports.

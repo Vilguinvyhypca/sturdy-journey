@@ -74,6 +74,7 @@ Further reading:
 - `/videos/[id]` gives a video its own shareable and search-engine-friendly page.
 - `/albums` displays albums.
 - `/admin` is the private entry point for administration.
+- `/admin/experience` shows visitor journeys, link sources, gallery and playback actions, timing, and errors. It does not use session replay.
 - Upload, edit, delete, organize, scanning, and theme controls require an authenticated administrator session.
 
 Hiding controls is only a user-interface improvement. The API routes also verify the administrator session before allowing changes.
@@ -163,9 +164,16 @@ Production is self-hosted behind Cloudflare and runs from an isolated release di
 
 Operational incident notes: [September 23 Wi-Fi outage and prevention plan](docs/operations/2026-09-23-wifi-outage.md).
 
-- Automatically refresh the gallery after a private photo finishes processing so the new upload appears without a manual page refresh.
+- [x] Automatically refresh the gallery after a private photo finishes processing so the new upload appears without a manual page refresh.
 - Add search across titles, descriptions, dates, albums, and extracted metadata.
 - Add adaptive video streaming improvements as the video library grows.
+
+MediaSpace is managed by one administrator. There are no subscriber accounts,
+paid plans, or subscription billing in the current product direction. Future
+product work should improve the administrator dashboard and support importing
+new photos and videos from tracked social accounts: detect a new-post notice,
+match it to a MediaSpace profile, retrieve the media through a supported source,
+then let the administrator review and publish it to that profile.
 
 ## Provider-neutral storage foundation
 

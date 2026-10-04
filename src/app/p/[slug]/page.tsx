@@ -34,7 +34,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
     <section aria-label="About this profile" className="mx-auto max-w-6xl px-5 pt-8 sm:px-8">
-      {avatar && <Image src={avatar.url} alt={`${profile.name} profile photo`} width={96} height={96} unoptimized className="h-24 w-24 rounded-full object-cover" />}
+      {avatar ? <Image src={avatar.url} alt={`${profile.name} profile photo`} width={96} height={96} unoptimized className="h-24 w-24 rounded-full object-cover" /> : <div aria-hidden="true" className="grid h-24 w-24 place-items-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-800">{profile.name.split(/\s+/).slice(0, 2).map((part) => Array.from(part)[0]).join("")}</div>}
       {profile.handle && <p className="mt-3 font-semibold">{profile.handle}</p>}
       <div className="mt-3 flex flex-wrap gap-4">{profile.socialLinks.map((url) => <a key={url} href={url} rel="me noopener noreferrer" className="text-indigo-700 underline">{new URL(url).hostname}</a>)}</div>
     </section>

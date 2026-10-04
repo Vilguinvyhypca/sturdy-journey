@@ -35,6 +35,7 @@ export type MuxUploadIntent = {
 type NewMuxUploadIntent = {
   id: string;
   title: string;
+  originalFileName: string;
   contentHash: string;
   capturedAt: string | null;
   durationSeconds: number;
@@ -125,6 +126,7 @@ export function ensureDatabase() {
         );
       }
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS content_hash TEXT");
+      await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS original_file_name TEXT NOT NULL DEFAULT ''");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''");
       await db.query("ALTER TABLE media ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'public'");
@@ -151,6 +153,7 @@ export function ensureDatabase() {
           mux_upload_id TEXT UNIQUE,
           mux_asset_id TEXT UNIQUE,
           title TEXT NOT NULL,
+          original_file_name TEXT NOT NULL DEFAULT '',
           content_hash TEXT NOT NULL,
           captured_at TIMESTAMPTZ,
           client_duration_seconds INTEGER NOT NULL,
@@ -161,6 +164,7 @@ export function ensureDatabase() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await db.query("ALTER TABLE mux_uploads ADD COLUMN IF NOT EXISTS original_file_name TEXT NOT NULL DEFAULT ''");
       await db.query("CREATE UNIQUE INDEX IF NOT EXISTS mux_uploads_pending_hash_unique ON mux_uploads (content_hash) WHERE status = 'pending'");
       await db.query(`
         CREATE TABLE IF NOT EXISTS mux_webhook_events (
@@ -200,14 +204,14 @@ export async function saveSiteTheme(theme: SiteTheme) {
   );
 }
 
-export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes" | "visibility">, storage: MediaStorageRecord = inferMediaStorage(item)) {
+export async function saveMedia(item: Pick<MediaItem, "id" | "url" | "type" | "title" | "originalFileName" | "contentHash" | "capturedAt" | "durationSeconds" | "fileSizeBytes" | "visibility">, storage: MediaStorageRecord = inferMediaStorage(item)) {
   await ensureDatabase();
   const db = sql();
   await db.transaction([db.query(
-    `INSERT INTO media (id, storage_url, media_type, caption, content_hash, captured_at, duration_seconds, file_size_bytes, visibility)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash), captured_at = COALESCE(media.captured_at, EXCLUDED.captured_at), duration_seconds = COALESCE(media.duration_seconds, EXCLUDED.duration_seconds), file_size_bytes = COALESCE(media.file_size_bytes, EXCLUDED.file_size_bytes)`,
-    [item.id, item.url, item.type, item.title, item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null, item.visibility ?? "private"],
+    `INSERT INTO media (id, storage_url, media_type, caption, original_file_name, content_hash, captured_at, duration_seconds, file_size_bytes, visibility)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (id) DO UPDATE SET storage_url = EXCLUDED.storage_url, media_type = EXCLUDED.media_type, original_file_name = COALESCE(NULLIF(media.original_file_name, ''), EXCLUDED.original_file_name), content_hash = COALESCE(media.content_hash, EXCLUDED.content_hash), captured_at = COALESCE(media.captured_at, EXCLUDED.captured_at), duration_seconds = COALESCE(media.duration_seconds, EXCLUDED.duration_seconds), file_size_bytes = COALESCE(media.file_size_bytes, EXCLUDED.file_size_bytes)`,
+    [item.id, item.url, item.type, item.title, item.originalFileName ?? "", item.contentHash ?? null, item.capturedAt ?? null, item.durationSeconds ?? null, item.fileSizeBytes ?? null, item.visibility ?? "private"],
   ), db.query(
     `INSERT INTO media_storage (media_id, provider, object_key, playback_id, access)
      VALUES ($1, $2, $3, $4, $5)
@@ -237,13 +241,13 @@ export async function updateMediaDetails(id: string, title: string, description:
   await ensureDatabase();
   const rows = await sql().query(
     `UPDATE media SET caption = $2, description = $3, visibility = COALESCE($4, visibility) WHERE id = $1
-     RETURNING id, storage_url, media_type, caption, description, created_at, captured_at, duration_seconds, file_size_bytes, visibility`,
+     RETURNING id, storage_url, media_type, caption, original_file_name, description, created_at, captured_at, duration_seconds, file_size_bytes, visibility`,
     [id, title, description, visibility],
   );
   const row = rows[0];
   if (!row) return null;
   return {
-    id: String(row.id), title: String(row.caption), description: String(row.description ?? ""),
+    id: String(row.id), title: String(row.caption), originalFileName: String(row.original_file_name ?? "") || undefined, description: String(row.description ?? ""),
     type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
     createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     album: "Uploads", albumIds: [],
@@ -263,9 +267,9 @@ export async function findMediaByHash(contentHash: string) {
 export async function createMuxUploadIntent(intent: NewMuxUploadIntent) {
   await ensureDatabase();
   await sql().query(
-    `INSERT INTO mux_uploads (id, title, content_hash, captured_at, client_duration_seconds, file_size_bytes)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [intent.id, intent.title, intent.contentHash, intent.capturedAt, intent.durationSeconds, intent.fileSizeBytes],
+    `INSERT INTO mux_uploads (id, title, original_file_name, content_hash, captured_at, client_duration_seconds, file_size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [intent.id, intent.title, intent.originalFileName, intent.contentHash, intent.capturedAt, intent.durationSeconds, intent.fileSizeBytes],
   );
 }
 
@@ -313,7 +317,7 @@ export async function finalizeMuxUpload({
 }) {
   await ensureDatabase();
   const rows = await sql().query(
-    `SELECT title, content_hash, captured_at, file_size_bytes
+    `SELECT title, original_file_name, content_hash, captured_at, file_size_bytes
      FROM mux_uploads WHERE id = $1 LIMIT 1`,
     [intentId],
   );
@@ -322,6 +326,7 @@ export async function finalizeMuxUpload({
   const media: MediaItem = {
     id: `mux:${assetId}`,
     title: String(row.title),
+    originalFileName: String(row.original_file_name ?? "") || undefined,
     type: "video",
     url: `${signed ? "mux-signed:" : "mux:"}${playbackId}`,
     createdAt: "Just now",
@@ -463,7 +468,7 @@ export async function listDatabaseMediaPage({
   const db = sql();
   const [rows, summaryRows] = await Promise.all([
     db.query(
-      `SELECT m.id, m.storage_url, m.media_type, m.caption, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
+      `SELECT m.id, m.storage_url, m.media_type, m.caption, m.original_file_name, m.description, m.created_at, m.captured_at, m.duration_seconds, m.file_size_bytes, m.visibility,
          COALESCE(array_agg(a.id) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::uuid[]) AS album_ids,
          COALESCE(array_agg(a.name) FILTER (WHERE a.id IS NOT NULL), ARRAY[]::text[]) AS album_names
        FROM media m
@@ -472,7 +477,7 @@ export async function listDatabaseMediaPage({
        WHERE ($1::boolean OR m.visibility = 'public')
          AND ($2::text IS NULL OR m.media_type = $2)
          AND ($3::text IS NULL OR m.visibility = $3)
-         AND ($4::text IS NULL OR m.caption ILIKE '%' || $4 || '%' OR m.description ILIKE '%' || $4 || '%')
+         AND ($4::text IS NULL OR m.caption ILIKE '%' || $4 || '%' OR m.original_file_name ILIKE '%' || $4 || '%' OR m.description ILIKE '%' || $4 || '%')
          AND ($5::timestamptz IS NULL OR (m.created_at, m.id) < ($5::timestamptz, $6::text))
        GROUP BY m.id
        ORDER BY m.created_at DESC, m.id DESC
@@ -489,7 +494,7 @@ export async function listDatabaseMediaPage({
        WHERE ($1::boolean OR visibility = 'public')
          AND ($2::text IS NULL OR media_type = $2)
          AND ($3::text IS NULL OR visibility = $3)
-         AND ($4::text IS NULL OR caption ILIKE '%' || $4 || '%' OR description ILIKE '%' || $4 || '%')`,
+         AND ($4::text IS NULL OR caption ILIKE '%' || $4 || '%' OR original_file_name ILIKE '%' || $4 || '%' OR description ILIKE '%' || $4 || '%')`,
       [includeNonPublic, type ?? null, visibility ?? null, search ?? null],
     ),
   ]);
@@ -499,7 +504,7 @@ export async function listDatabaseMediaPage({
   const summary = summaryRows[0];
   return {
     media: pageRows.map((row) => ({
-      id: String(row.id), title: String(row.caption), description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
+      id: String(row.id), title: String(row.caption), originalFileName: String(row.original_file_name ?? "") || undefined, description: String(row.description ?? ""), type: String(row.media_type) as MediaItem["type"], url: String(row.storage_url),
       createdAt: new Date(String(row.created_at)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       album: Array.isArray(row.album_names) && row.album_names.length ? String(row.album_names[0]) : "Uploads",
       albumIds: Array.isArray(row.album_ids) ? row.album_ids.map(String) : [],

@@ -40,6 +40,7 @@ export async function POST(request: Request) {
           const media: MediaItem = {
             id: blob.pathname,
             title: payload.title,
+            originalFileName: payload.originalFileName,
             type,
             url: blob.url,
             createdAt: "Just now",
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
   const media: MediaItem = {
     id: storedMedia.id,
     title: file.name.replace(/\.[^/.]+$/, ""),
+    originalFileName: file.name,
     type: file.type.startsWith("video/") ? "video" : "photo",
     url: storedMedia.url,
     createdAt: "Just now",

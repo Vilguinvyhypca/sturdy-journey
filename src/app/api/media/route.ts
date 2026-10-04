@@ -8,11 +8,11 @@ import { getLocalMediaStorage, readMedia, removeMedia, updateLocalMediaDetails }
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMediaToAlbum, deleteMediaRecord, getMediaStorage, getMediaById, listDatabaseMediaPage, setMediaAlbums, updateMediaDetails, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
-import { demoMedia, galleryPageSize, isMediaVisibility, isSignedMuxUrl, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { demoMedia, galleryPageSize, isMediaVisibility, isSignedMuxUrl, matchesMediaSearch, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { paginateMedia } from "@/lib/media-page";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
 
-function withDelivery(item: MediaItem): MediaItem {
+function withDelivery(item: MediaItem, includeOriginalFileName = false): MediaItem {
   let delivered = item;
   if (isSignedMuxUrl(delivered.url)) {
     const playbackId = muxPlaybackIdFromUrl(delivered.url);
@@ -21,7 +21,10 @@ function withDelivery(item: MediaItem): MediaItem {
   if (delivered.type === "photo" && isPrivateBlobUrl(delivered.url)) {
     delivered = { ...delivered, url: privatePhotoDeliveryUrl(delivered) };
   }
-  return delivered;
+  if (includeOriginalFileName) return delivered;
+  const publicItem = { ...delivered };
+  delete publicItem.originalFileName;
+  return publicItem;
 }
 
 export async function GET(request: Request) {
@@ -37,23 +40,26 @@ export async function GET(request: Request) {
   const requestedType = searchParams.get("type");
   const type = requestedType === "photo" || requestedType === "video" ? requestedType : undefined;
   const requestedVisibility = searchParams.get("visibility");
-  const visibility = administrator && isMediaVisibility(requestedVisibility) ? requestedVisibility : undefined;
+  const visibility = requestedVisibility === "public" || (administrator && isMediaVisibility(requestedVisibility)) ? requestedVisibility : undefined;
   const search = searchParams.get("search")?.trim().slice(0, 200) || undefined;
   if (usesDatabase) {
     const page = await listDatabaseMediaPage({ includeNonPublic: administrator, cursor, limit, type, visibility, search });
-    return NextResponse.json({ ...page, media: page.media.map(withDelivery) });
+    return NextResponse.json({ ...page, media: page.media.map((item) => withDelivery(item, administrator)) });
   }
   if (usesBlobStorage && !usesLocalStorage) {
     const media = await listBlobMedia();
-    const available = media.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
-    return NextResponse.json({ media: available, nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
+    const available = media.filter((item) => (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || matchesMediaSearch(item, search)));
+    return NextResponse.json({ media: available.map((item) => withDelivery(item, administrator)), nextCursor: null, totalCount: available.length, photoCount: available.filter((item) => item.type === "photo").length, videoCount: available.filter((item) => item.type === "video").length, knownSizeCount: available.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: available.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) });
   }
   const savedMedia = await readMedia();
   const blobMedia = usesBlobStorage ? await listBlobMedia() : [];
   const combined = [...savedMedia, ...blobMedia.filter((item) => !savedMedia.some((saved) => saved.id === item.id))];
   const availableMedia = combined.length || usesLocalStorage ? combined : demoMedia;
-  const available = availableMedia.filter((item) => (!usesLocalStorage || mediaProfileId(item) === profileId) && (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || `${item.title} ${item.description ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
-  try { return NextResponse.json(paginateMedia(available, limit, cursor), { headers: { "Cache-Control": "private, no-store" } }); }
+  const available = availableMedia.filter((item) => (!usesLocalStorage || mediaProfileId(item) === profileId) && (administrator || item.visibility === "public") && (!type || item.type === type) && (!visibility || item.visibility === visibility) && (!search || matchesMediaSearch(item, search)));
+  try {
+    const page = paginateMedia(available, limit, cursor);
+    return NextResponse.json({ ...page, media: page.media.map((item) => withDelivery(item, administrator)) }, { headers: { "Cache-Control": "private, no-store" } });
+  }
   catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
 }
 

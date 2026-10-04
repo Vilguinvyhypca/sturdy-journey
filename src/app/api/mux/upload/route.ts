@@ -4,13 +4,14 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { attachMuxUploadId, createMuxUploadIntent, findMediaByHash, getMediaById, getMuxUploadIntent, markMuxUploadErrored, usesDatabase } from "@/lib/database";
 import { createMuxPlaybackTokens, createMuxUpload, getMuxUsageSummary, usesMux, usesMuxWebhooks } from "@/lib/mux";
-import { isSignedMuxUrl, muxPlaybackIdFromUrl } from "@/lib/media";
+import { isSignedMuxUrl, muxPlaybackIdFromUrl, normalizeOriginalFileName } from "@/lib/media";
 
 const maximumVideoDurationSeconds = 5 * 60;
 
 type UploadDetails = {
   contentHash: string;
   title: string;
+  originalFileName: string;
   capturedAt: string | null;
   durationSeconds: number;
   fileSizeBytes: number;
@@ -21,11 +22,13 @@ function readDetails(value: unknown): UploadDetails {
   const details = value as Partial<UploadDetails>;
   if (typeof details.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(details.contentHash)) throw new Error("Invalid video fingerprint.");
   if (typeof details.title !== "string" || details.title.length === 0 || details.title.length > 200) throw new Error("Invalid video name.");
+  const originalFileName = normalizeOriginalFileName(typeof details.originalFileName === "string" ? details.originalFileName : details.title);
+  if (!originalFileName) throw new Error("Invalid original file name.");
   if (typeof details.fileSizeBytes !== "number" || !Number.isFinite(details.fileSizeBytes) || details.fileSizeBytes <= 0) throw new Error("Invalid video size.");
   if (typeof details.durationSeconds !== "number" || !Number.isFinite(details.durationSeconds) || details.durationSeconds < 0) throw new Error("This video's duration could not be checked.");
   if (details.durationSeconds > maximumVideoDurationSeconds) throw new Error("Videos must be five minutes or shorter.");
   const capturedAt = typeof details.capturedAt === "string" && !Number.isNaN(Date.parse(details.capturedAt)) ? new Date(details.capturedAt).toISOString() : null;
-  return { contentHash: details.contentHash, title: details.title, capturedAt, durationSeconds: Math.round(details.durationSeconds), fileSizeBytes: details.fileSizeBytes };
+  return { contentHash: details.contentHash, title: details.title, originalFileName, capturedAt, durationSeconds: Math.round(details.durationSeconds), fileSizeBytes: details.fileSizeBytes };
 }
 
 export async function POST(request: Request) {

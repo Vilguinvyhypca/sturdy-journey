@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
 import { muxPlaybackIdFromUrl, type MediaItem } from "@/lib/media";
+import { trackExperience } from "./ExperienceTracker";
 
 function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; active: boolean; muted: boolean; onToggleMuted: () => void }) {
   const muxPlayer = useRef<MuxPlayerRefAttributes | null>(null);
@@ -55,9 +56,9 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       metadataVideoId={item.id}
       metadataVideoTitle={item.title}
       onCanPlay={() => { setStatus("ready"); startPlayback(); }}
-      onPlaying={() => { setPlaying(true); setStatus("ready"); }}
+      onPlaying={() => { setPlaying(true); setStatus("ready"); trackExperience("video_start", { mediaType: "video", mediaId: item.id }); }}
       onPause={() => setPlaying(false)}
-      onError={() => setStatus("error")}
+      onError={() => { setStatus("error"); trackExperience("video_error", { mediaType: "video", mediaId: item.id, errorType: "feed_playback_error" }); }}
     /> : <video
       key="active-video"
       ref={nativePlayer}
@@ -69,9 +70,9 @@ function FeedVideo({ item, active, muted, onToggleMuted }: { item: MediaItem; ac
       preload="auto"
       className="h-full w-full object-contain"
       onCanPlay={() => { setStatus("ready"); startPlayback(); }}
-      onPlaying={() => { setPlaying(true); setStatus("ready"); }}
+      onPlaying={() => { setPlaying(true); setStatus("ready"); trackExperience("video_start", { mediaType: "video", mediaId: item.id }); }}
       onPause={() => setPlaying(false)}
-      onError={() => setStatus("error")}
+      onError={() => { setStatus("error"); trackExperience("video_error", { mediaType: "video", mediaId: item.id, errorType: "feed_playback_error" }); }}
     /> : muxPlaybackId ? <div role="img" aria-label={`${item.title} video preview`} className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url("${muxThumbnail}")` }} /> : <video key="video-preview" src={item.url} muted playsInline preload="metadata" className="h-full w-full object-contain" />}
 
     {active && status === "loading" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="h-9 w-9 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-label="Loading video" /></div>}

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import type { MediaItem } from "./media";
@@ -9,10 +9,36 @@ const dataFile = join(dataDirectory, "media.json");
 
 type LocalMediaRecord = MediaItem & { storage?: MediaStorageRecord };
 
+let cachedRecords: LocalMediaRecord[] | undefined;
+let cachedSignature: string | undefined;
+
+async function mediaFileSignature() {
+  try {
+    const file = await stat(dataFile, { bigint: true });
+    return `${file.dev}:${file.ino}:${file.size}:${file.mtimeNs}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 async function readRecords(): Promise<LocalMediaRecord[]> {
+  const signature = await mediaFileSignature();
+  if (signature === null) {
+    cachedRecords = undefined;
+    cachedSignature = undefined;
+    return [];
+  }
+  if (cachedRecords && signature === cachedSignature) return cachedRecords;
   try {
     const media = JSON.parse(await readFile(dataFile, "utf8")) as LocalMediaRecord[];
-    return media.map((item) => ({ ...item, visibility: item.visibility ?? "public", storage: item.storage ?? inferMediaStorage(item) }));
+    const records = media.map((item) => ({ ...item, visibility: item.visibility ?? "public", storage: item.storage ?? inferMediaStorage(item) }));
+    // Only cache a consistent snapshot. Imports and edits replace the catalog atomically.
+    if (await mediaFileSignature() === signature) {
+      cachedRecords = records;
+      cachedSignature = signature;
+    }
+    return records;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
@@ -23,13 +49,15 @@ async function readRecords(): Promise<LocalMediaRecord[]> {
 let pendingWrite: Promise<unknown> = Promise.resolve();
 function mutateRecords<T>(edit: (records: LocalMediaRecord[]) => T): Promise<T> {
   const operation = pendingWrite.then(async () => {
-    const records = await readRecords();
+    const records = (await readRecords()).map((item) => ({ ...item, ...(item.storage ? { storage: { ...item.storage } } : {}) }));
     const result = edit(records);
     await mkdir(dataDirectory, { recursive: true });
     const temporary = `${dataFile}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporary, JSON.stringify(records, null, 2), { encoding: "utf8", mode: 0o600 });
       await rename(temporary, dataFile);
+      cachedRecords = undefined;
+      cachedSignature = undefined;
     } finally {
       await rm(temporary, { force: true });
     }
@@ -77,5 +105,5 @@ export async function readMedia(): Promise<MediaItem[]> {
 
 export async function getLocalMediaStorage(id: string): Promise<MediaStorageRecord | null> {
   const item = (await readRecords()).find((record) => record.id === id);
-  return item?.storage ?? null;
+  return item?.storage ? { ...item.storage } : null;
 }

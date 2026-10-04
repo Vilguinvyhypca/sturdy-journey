@@ -2,4 +2,4 @@
 
 ## Uploads
 
-- [ ] Add a server-side video-duration fallback when the browser cannot read a video's metadata. Confirm the file is five minutes or shorter before accepting the upload, while preserving the existing client-side check for fast feedback.
+- [x] For local server uploads, use FFprobe to verify video duration when the browser cannot read metadata. Reject invalid videos and files longer than five minutes; keep the browser check for fast feedback.

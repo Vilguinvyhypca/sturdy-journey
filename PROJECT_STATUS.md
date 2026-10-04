@@ -1,6 +1,31 @@
 # MediaSpace project status
 
-Last updated: 2026-09-23
+Last updated: 2026-10-04
+
+## Development checkpoint — 2026-10-04
+
+The pending development work is saved together because gallery, upload, and
+visitor-tracking changes share components and media contracts. This checkpoint
+includes profile administration and public browsing, filename search, local
+catalog caching, folder imports and playback retries, HEIC/HEIF upload conversion,
+private-photo processing cards, and the visitor-experience report.
+
+Validation on October 4: all 18 Node regression tests and all 3 Python folder-import
+runner tests passed; TypeScript passed; ESLint passed with five existing warnings.
+The Node suite required execution outside the sandbox for FFmpeg subprocesses.
+Changed files were reviewed for credential patterns, with no candidates found.
+
+This is a development checkpoint, not a release certification. No production build
+or new browser walkthrough was run today. The previously reported Next.js build
+failure needs rechecking before deployment. Windows PowerShell transfer and real
+HEIC conversion still need end-to-end verification. Production was not changed.
+Two rough `media-import-plan.txt` notes remain local and untracked.
+
+Site Analytics is the intended long-term home for visitor-event storage and
+reporting. Its Day 3 backend is saved separately; Day 4 browser collection is next.
+Plan replacement of MediaSpace's tracker during integration to avoid collecting
+visits twice. Older sections below describe historical milestones and backlog;
+they are not a current deployment inventory.
 
 ## Deployment update — 2026-09-23
 
@@ -86,26 +111,42 @@ Database-driven cursor pagination means Neon returns the first group of media re
 4. Add automated authorization tests covering anonymous, administrator, public, unlisted-link, and private access.
 5. Choose one database schema strategy and remove drift between the Prisma representation and runtime SQL migrations.
 
-### Phase 4: Add subscriber accounts and entitlements
+### Future product direction: administrator-managed social profiles
 
-1. Add normal customer accounts alongside the existing administrator identity.
-2. Add plans, subscriptions, payment events, and entitlement records.
-3. Introduce subscriber-only media visibility and enforce it in pages, APIs, Mux token issuance, and protected-photo delivery.
-4. Add account, subscription-status, renewal, cancellation, and failed-payment screens.
+MediaSpace will have one administrator account. The administrator manages the
+public-facing profiles, their photos and videos, and each profile's public
+details. Subscriber accounts, paid plans, entitlements, and subscription billing
+are not part of the current product plan.
 
-### Phase 5: Add crypto subscription billing
+The next product work after core reliability is improving the administrator
+dashboard and building an import workflow for tracked creators' social updates:
 
-1. Start with a hosted USDC checkout on Base rather than maintaining custom payment contracts.
-2. Activate or extend access only from verified, idempotent provider webhooks.
-3. Prefer automatic recurring wallet authorization when a suitable provider and business account are available; otherwise begin with explicit monthly renewal.
-4. Test billing and entitlement changes in a provider sandbox before accepting live payments.
+1. Improve the dashboard for managing profiles, their media, visibility, and
+   import status from one place.
+2. Track configured social accounts and receive new-post notifications at a
+   dedicated email address. The separately developed C email service
+   ([MAGURO-045](https://github.com/ShizukoFujiki/MAGURO-045)) is intended to
+   provide this receiver. Its current v1 is a private HTTP message/file API and
+   does not yet receive email or read a mailbox, so inbound email support is a
+   prerequisite for monitoring TikTok notifications.
+3. Match each notification to the correct MediaSpace profile and create an
+   import item with the source post, account, media type, and detected date.
+4. Retrieve media through an authorized, supported source and show the result in
+   an administrator review queue.
+5. Let the administrator assign or confirm the profile, edit details, and publish
+   the imported photo or video to that profile on hymecymeyseh.fun.
 
-Crypto billing is a planned product direction, not the next implementation milestone. The account and entitlement model should remain provider-neutral so another payment rail can be added later without rewriting media authorization.
+Keep notification monitoring, media retrieval, and publishing as separate steps
+so a missing or unusable source file does not create a broken public post. Once
+the email receiver is identified, integrate through its documented API or
+standard IMAP; do not assume the current MAGURO-045 message API provides inbox
+access. Select the supported media-retrieval method during feature design, and
+keep account-to-profile matching independent of a particular social platform.
 
 ## Backlog
 
 - Set up encrypted scheduled backups to a separate remote computer over Tailscale or SSH, including media storage, the catalog, service and tunnel configuration, restore instructions, integrity checks, and completion-time email notifications.
-- Automatically refresh the gallery after a private photo finishes processing, with a temporary processing state while it becomes available.
+- [x] Show a temporary processing card for private photos and refresh it automatically when the upload callback saves the photo to the catalog.
 - Standardize the Vercel Neon connection variable from `DATABASE_URL_DATABASE_URL` to `DATABASE_URL` after confirming the live database connection.
 - Add optional album cover images.
 - Hover/press-and-hold muted video previews. (Implemented in `VideoThumbnail`; needs a browser smoke test.)

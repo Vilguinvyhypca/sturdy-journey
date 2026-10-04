@@ -2,6 +2,8 @@ export type MediaItem = {
   id: string;
   profileId?: string;
   title: string;
+  /** Original client filename retained for administrator search, even if the title is edited. */
+  originalFileName?: string;
   description?: string;
   type: "photo" | "video";
   url: string;
@@ -14,6 +16,7 @@ export type MediaItem = {
   fileSizeBytes?: number;
   visibility?: MediaVisibility;
   muxTokens?: MuxPlaybackTokens;
+  processing?: boolean;
 };
 
 export type MuxPlaybackTokens = {
@@ -25,6 +28,18 @@ export type MuxPlaybackTokens = {
 export type MediaVisibility = "public" | "unlisted" | "private";
 
 export const galleryPageSize = 12;
+
+export function normalizeOriginalFileName(value: string) {
+  return value.split(/[\\/]/).at(-1)?.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 255) ?? "";
+}
+
+export function matchesMediaSearch(item: MediaItem, query: string) {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return true;
+  return [item.title, item.originalFileName, item.description]
+    .filter((value): value is string => Boolean(value))
+    .some((value) => value.toLocaleLowerCase().includes(normalized));
+}
 
 export function muxPlaybackIdFromUrl(url: string) {
   if (url.startsWith("mux-signed:")) return url.slice("mux-signed:".length);

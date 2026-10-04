@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { trackExperience } from "./ExperienceTracker";
 
 export function ShareMediaButton({ mediaId, href }: { mediaId: string; href?: string }) {
   const [message, setMessage] = useState("");
 
   async function share() {
     const url = new URL(href ?? `/photos/${encodeURIComponent(mediaId)}`, window.location.origin);
+    trackExperience("share_link", { mediaId });
 
     if (navigator.share) {
       try {

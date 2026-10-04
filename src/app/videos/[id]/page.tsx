@@ -119,7 +119,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
       <Link href="/" className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/20">Back to library</Link>
     </header>
     <section className="mx-auto grid max-w-6xl gap-8 px-4 pb-10 sm:px-6 lg:grid-cols-[minmax(0,720px)_1fr] lg:items-start">
-      <div className="mx-auto w-full max-w-[56.25dvh] overflow-hidden rounded-2xl bg-black shadow-2xl lg:mx-0"><VideoPlayback src={item.url} muxTokens={muxTokens} /></div>
+      <div className="mx-auto w-full max-w-[56.25dvh] overflow-hidden rounded-2xl bg-black shadow-2xl lg:mx-0"><VideoPlayback src={item.url} mediaId={item.id} muxTokens={muxTokens} /></div>
       <div className="max-w-xl pt-2">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Video</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{item.title}</h1>

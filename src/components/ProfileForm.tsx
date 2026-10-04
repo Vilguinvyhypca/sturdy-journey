@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/profile-types";
 
 export function ProfileForm({ profile, photos = [] }: { profile?: Profile; photos?: { id: string; title: string }[] }) {
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -13,6 +14,7 @@ export function ProfileForm({ profile, photos = [] }: { profile?: Profile; photo
     const form = new FormData(event.currentTarget);
     setSaving(true);
     setError("");
+    setSaved(false);
     try {
       const response = await fetch("/api/profiles", {
         method: profile ? "PATCH" : "POST",
@@ -25,9 +27,15 @@ export function ProfileForm({ profile, photos = [] }: { profile?: Profile; photo
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not save profile.");
-      router.push(`/admin/profiles/${data.profile.slug}`);
+      if (profile) {
+        setSaved(true);
+        router.refresh();
+      } else {
+        router.push(`/admin/profiles/${data.profile.slug}`);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save profile.");
+    } finally {
       setSaving(false);
     }
   }
@@ -39,6 +47,7 @@ export function ProfileForm({ profile, photos = [] }: { profile?: Profile; photo
     <label className="block font-semibold">Biography<textarea name="bio" maxLength={1000} rows={4} defaultValue={profile?.bio} className={fieldClass} /></label>
     <label className="block font-semibold">Social links<textarea name="socialLinks" rows={3} defaultValue={profile?.socialLinks.join("\n")} placeholder="https://www.instagram.com/your-profile/" className={fieldClass} /><span className="text-sm font-normal text-slate-500">One HTTPS link per line, up to eight.</span></label>
     {profile && <label className="block font-semibold">Profile photo<select name="avatarMediaId" defaultValue={photos.some((photo) => photo.id === profile.avatarMediaId) ? profile.avatarMediaId : ""} className={fieldClass}><option value="">Use initials</option>{photos.map((photo) => <option key={photo.id} value={photo.id}>{photo.title}</option>)}</select><span className="text-sm font-normal text-slate-500">Upload a photo to this profile and make it public to use it here.</span></label>}
+    {saved && <p role="status" className="text-emerald-700">Profile saved.</p>}
     {error && <p role="alert" className="text-rose-700">{error}</p>}
     <button disabled={saving} className="rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white disabled:opacity-50">{saving ? "Saving…" : profile ? "Save profile" : "Create profile"}</button>
   </form>;

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdir, open, realpath, rename, unlink } from "node:fs/promises";
+import { mkdir, open, realpath, rename, stat, unlink } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { isAbsolute, join, relative } from "node:path";
@@ -12,10 +12,10 @@ export const usesLocalStorage = process.env.MEDIA_UPLOAD_PROVIDER === "local";
 export const maximumLocalUploadBytes = 500 * 1024 * 1024;
 const formats: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif",
-  "image/webp": "webp", "image/avif": "avif",
+  "image/webp": "webp", "image/avif": "avif", "image/heic": "heic", "image/heif": "heif",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
 };
-const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|mp4|webm|mov)(\.web\.mp4)?$/;
+const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|heic|heif|mp4|webm|mov)(\.web\.mp4)?$/;
 
 export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -53,7 +53,7 @@ async function objectPath(key: string) {
 
 export async function storeLocalUpload(body: ReadableStream<Uint8Array>, contentType: string, signal?: AbortSignal) {
   const extension = formats[contentType];
-  if (!extension) throw new LocalUploadError("Choose a JPEG, PNG, GIF, WebP, AVIF, MP4, WebM, or MOV file.", 415);
+  if (!extension) throw new LocalUploadError("Choose a JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, MP4, WebM, or MOV file.", 415);
   const id = randomUUID();
   const key = `${id}.${extension}`;
   const path = await objectPath(key);
@@ -93,6 +93,27 @@ export async function probeLocalVideoDuration(objectKey: string) {
     if (error instanceof LocalUploadError) throw error;
     // Metadata is optional; retain the original even when ffprobe cannot read it.
     return null;
+  }
+}
+
+export async function convertLocalHeicToJpeg(objectKey: string) {
+  if (!/\.(heic|heif)$/i.test(objectKey)) throw new LocalUploadError("Only HEIC or HEIF photos can be converted.", 400);
+  const source = await objectPath(objectKey);
+  const destinationKey = objectKey.replace(/\.(heic|heif)$/i, ".jpg");
+  const destination = await objectPath(destinationKey);
+  const temporary = `${destination}.${randomUUID()}.tmp.jpg`;
+  let destinationCreated = false;
+  try {
+    await promisify(execFile)("ffmpeg", ["-hide_banner", "-loglevel", "error", "-n", "-i", source, "-map", "0:v:0", "-frames:v", "1", "-q:v", "2", temporary]);
+    if ((await stat(temporary)).size === 0) throw new Error("FFmpeg produced an empty JPEG.");
+    await rename(temporary, destination);
+    destinationCreated = true;
+    await unlink(source);
+    return destinationKey;
+  } catch {
+    await unlink(temporary).catch(() => undefined);
+    if (destinationCreated) await unlink(destination).catch(() => undefined);
+    throw new LocalUploadError("This HEIC/HEIF photo could not be converted to JPEG. Try converting it to JPEG on your device.", 422);
   }
 }
 

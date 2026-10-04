@@ -4,8 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
-import type { MediaItem } from "@/lib/media";
+import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
+import { normalizeOriginalFileName, type MediaItem } from "@/lib/media";
 
 export const runtime = "nodejs";
 
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const contentType = request.headers.get("content-type")?.split(";")[0] ?? "";
   let stored: Awaited<ReturnType<typeof storeLocalUpload>> | undefined;
   try {
-    const name = decodeURIComponent(request.headers.get("x-media-name") ?? "Untitled media");
+    const name = normalizeOriginalFileName(decodeURIComponent(request.headers.get("x-media-name") ?? "Untitled media")) || "Untitled media";
     const captured = request.headers.get("x-media-captured-at");
     stored = await storeLocalUpload(request.body, contentType, request.signal);
     const storage = stored.storage;
@@ -45,8 +45,9 @@ export async function POST(request: Request) {
     const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash && mediaProfileId(item) === profileId);
     if (duplicate) throw new LocalUploadError("That exact photo or video has already been uploaded.", 409);
     const duration = contentType.startsWith("video/") ? await probeLocalVideoDuration(storage.objectKey) : null;
+    if (contentType === "image/heic" || contentType === "image/heif") stored.storage.objectKey = await convertLocalHeicToJpeg(storage.objectKey);
     const media: MediaItem = {
-      profileId, id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media",
+      profileId, id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media", originalFileName: name,
       type: contentType.startsWith("video/") ? "video" : "photo", createdAt: "Just now", album: "Uploads",
       contentHash: stored.contentHash, fileSizeBytes: stored.size, visibility: "private",
       capturedAt: captured && Number.isFinite(Date.parse(captured)) ? new Date(captured).toISOString() : null,

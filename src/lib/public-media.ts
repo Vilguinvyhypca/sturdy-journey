@@ -17,14 +17,16 @@ import {
 import { isPrivateBlobUrl } from "@/lib/storage";
 
 function withPublicDelivery(item: MediaItem): MediaItem {
+  const publicItem = { ...item };
+  delete publicItem.originalFileName;
   if (isSignedMuxUrl(item.url)) {
     const playbackId = muxPlaybackIdFromUrl(item.url);
-    return playbackId ? { ...item, muxTokens: createMuxPlaybackTokens(playbackId) } : item;
+    return playbackId ? { ...publicItem, muxTokens: createMuxPlaybackTokens(playbackId) } : publicItem;
   }
   if (item.type === "photo" && isPrivateBlobUrl(item.url)) {
-    return { ...item, url: privatePhotoDeliveryUrl(item) };
+    return { ...publicItem, url: privatePhotoDeliveryUrl(item) };
   }
-  return item;
+  return publicItem;
 }
 
 export async function getInitialPublicMedia(type?: MediaItem["type"], profileId = defaultProfileId): Promise<MediaPage> {

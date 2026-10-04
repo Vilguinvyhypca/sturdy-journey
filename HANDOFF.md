@@ -1,5 +1,13 @@
 # MediaSpace handoff
 
+## Latest checkpoint — 2026-10-04
+
+Pending development changes are saved in Git. See the October 4 section in
+[PROJECT_STATUS.md](PROJECT_STATUS.md) for scope, current validation, and release
+limitations. Production was not changed. The older handoff below is historical;
+the protected Cloudflare gateway has since been deployed. The next active
+product milestone is Site Analytics Day 4 browser collection in its separate repo.
+
 ## Current objective
 
 Complete Phase 2 catalog reliability and finish the Ubuntu local-storage rollout. Database-first reads, explicit Blob reconciliation, cursor pagination, provider-neutral storage records, and local uploads/playback are implemented. Verified Mux webhook finalization is implemented locally on `codex/mux-webhook` and awaits configuration and an end-to-end test.

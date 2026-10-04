@@ -33,6 +33,13 @@ test("private local file storage and range delivery", async (t) => {
   assert.equal(stored.size, bytes.length);
   assert.equal((await stat(join(process.env.MEDIA_STORAGE_ROOT, key))).mode & 0o777, 0o600);
 
+  const heic = await api.storeLocalUpload(new Blob([bytes]).stream(), "image/heic");
+  assert.match(heic.storage.objectKey, /\.heic$/);
+  const heicResponse = await api.localMediaResponse(heic.storage.objectKey, new Request("http://test/"));
+  assert.equal(heicResponse.headers.get("content-type"), "image/heic");
+  await heicResponse.body.cancel();
+  await api.deleteStoredLocalMedia(heic.storage.objectKey);
+
   for (const [range, status, expected, contentRange] of [
     [null, 200, bytes.toString(), null],
     ["bytes=2-5", 206, "2345", "bytes 2-5/20"],

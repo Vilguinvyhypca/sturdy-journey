@@ -15,6 +15,7 @@ import { ThemeSettings } from "./ThemeSettings";
 import { MuxUsagePanel } from "./MuxUsagePanel";
 import { readUploadDetails } from "@/lib/upload-details";
 import { uploadPresigned } from "@vercel/blob/client";
+import { trackExperience } from "./ExperienceTracker";
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -38,7 +39,7 @@ async function fingerprintFile(file: File) {
 
 async function uploadVideoToMux(file: File, details: { capturedAt: string | null; durationSeconds: number | null; fileSizeBytes: number }, signal: AbortSignal, onProgress: (message: string) => void) {
   const contentHash = await fingerprintFile(file);
-  const uploadDetails = { contentHash, title: file.name.replace(/\.[^/.]+$/, ""), capturedAt: details.capturedAt, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes };
+  const uploadDetails = { contentHash, title: file.name.replace(/\.[^/.]+$/, ""), originalFileName: file.name, capturedAt: details.capturedAt, durationSeconds: details.durationSeconds, fileSizeBytes: details.fileSizeBytes };
   onProgress("Preparing secure video upload...");
   const createResponse = await fetch("/api/mux/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", details: uploadDetails }), signal });
   const created = await createResponse.json() as { intentId?: string; uploadUrl?: string; error?: string };
@@ -70,6 +71,7 @@ const emptyPage: MediaPage = { media: [], nextCursor: null, totalCount: 0, photo
 export function MediaFeed({ initialPage = emptyPage, mediaType, profile, management = false }: { initialPage?: MediaPage; mediaType?: MediaItem["type"]; profile?: Profile; management?: boolean }) {
   const { data: session } = useSession();
   const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true && (!profile || management);
+  const profilePath = profile ? `${management ? "/admin/profiles" : "/p"}/${profile.slug}` : undefined;
   const [uploadConfig, setUploadConfig] = useState<UploadConfig | null>(null);
   useEffect(() => {
     if (!isAdministrator) return;
@@ -92,6 +94,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
   const [sort, setSort] = useState<"uploaded" | "newest" | "oldest">("uploaded");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pendingPhotoIds, setPendingPhotoIds] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [uploadProgress, setUploadProgress] = useState("");
   const [uploadState, setUploadState] = useState<{ total: number; completed: number; startedAt: number; estimatedRemaining: number | null } | null>(null);
@@ -127,6 +130,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
     const loadingTimer = window.setTimeout(() => setLoading(true), 0);
     const query = new URLSearchParams({ limit: String(galleryPageSize) });
     if (profile?.id) query.set("profile", profile.id);
+    if (profile && !management) query.set("visibility", "public");
     if (mediaType) query.set("type", mediaType);
     if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
     if (normalizedSearchQuery) query.set("search", searchQuery.trim());
@@ -140,16 +144,27 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
         const sharedItem = data.media.find((item) => item.id === sharedMediaId);
         if (sharedItem) setSelected(sharedItem);
       })
-      .catch(() => undefined)
+      .catch(() => { if (!controller.signal.aborted) trackExperience("client_error", { errorType: "gallery_load_failed" }); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); }), 250);
     return () => { window.clearTimeout(loadingTimer); window.clearTimeout(timer); controller.abort(); };
-  }, [mediaType, isAdministrator, visibilityFilter, normalizedSearchQuery, searchQuery, profile]);
+  }, [mediaType, isAdministrator, visibilityFilter, normalizedSearchQuery, searchQuery, profile, management]);
+
+  useEffect(() => {
+    if (!normalizedSearchQuery) return;
+    const timer = window.setTimeout(() => trackExperience("search", {
+      queryLength: Math.min(searchQuery.trim().length, 200),
+      resultCount: summary.totalCount,
+      mediaType,
+    }), 1_200);
+    return () => window.clearTimeout(timer);
+  }, [normalizedSearchQuery, searchQuery, summary.totalCount, mediaType]);
 
   async function loadMoreMedia() {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     const query = new URLSearchParams({ limit: String(galleryPageSize), cursor: nextCursor });
     if (profile) query.set("profile", profile.id);
+    if (profile && !management) query.set("visibility", "public");
     if (mediaType) query.set("type", mediaType);
     if (isAdministrator && visibilityFilter) query.set("visibility", visibilityFilter);
     if (normalizedSearchQuery) query.set("search", searchQuery.trim());
@@ -163,6 +178,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
       });
       setNextCursor(data.nextCursor);
       setSummary({ totalCount: data.totalCount, photoCount: data.photoCount, videoCount: data.videoCount, knownSizeCount: data.knownSizeCount, knownStorageBytes: data.knownStorageBytes });
+      trackExperience("load_more", { resultCount: data.media.length, mediaType });
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Could not load more media.");
     } finally {
@@ -184,6 +200,33 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
       .then((data: { albums?: Album[] }) => setAlbums(data.albums ?? []))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!isAdministrator || pendingPhotoIds.length === 0) return;
+    let active = true;
+    let timer: number | undefined;
+    const checkPendingPhotos = async () => {
+      const results = await Promise.all(pendingPhotoIds.map(async (id) => {
+        try {
+          const response = await fetch(`/api/private-upload?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+          if (!response.ok) return null;
+          const result = await response.json() as { media?: MediaItem };
+          return result.media ? { id, media: result.media } : null;
+        } catch { return null; }
+      }));
+      if (!active) return;
+      const ready = results.filter((result): result is { id: string; media: MediaItem } => result !== null);
+      if (ready.length) {
+        const completedIds = new Set(ready.map((result) => result.id));
+        const byId = new Map(ready.map((result) => [result.id, result.media]));
+        setItems((current) => current.map((item) => byId.get(item.id) ?? item));
+        setPendingPhotoIds((current) => current.filter((id) => !completedIds.has(id)));
+      }
+      timer = window.setTimeout(checkPendingPhotos, 2000);
+    };
+    timer = window.setTimeout(checkPendingPhotos, 1200);
+    return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
+  }, [isAdministrator, pendingPhotoIds]);
 
   async function addMedia(files: File[]) {
     setUploadError("");
@@ -254,6 +297,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
                 durationSeconds: details.durationSeconds,
                 fileSizeBytes: details.fileSizeBytes,
                 title: file.name.replace(/\.[^/.]+$/, ""),
+                originalFileName: file.name,
                 mediaType: "photo",
               }),
               multipart: true,
@@ -272,8 +316,10 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
               durationSeconds: details.durationSeconds,
               fileSizeBytes: details.fileSizeBytes,
               visibility: "private",
+              processing: true,
             };
             uploaded.push({ ...uploadedPhoto, url: privatePhotoDeliveryUrl(uploadedPhoto) });
+            setPendingPhotoIds((current) => current.includes(blob.pathname) ? current : [...current, blob.pathname]);
           }
         } catch (error) {
           if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) { canceled = true; break; }
@@ -363,24 +409,28 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
   }
 
   return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8">
-    <header className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">{profile?.name ?? "Hymecymeyseh"}</h1><p className="mt-2 text-slate-500">{profile?.bio ?? "We are here to just have 🤩 fun."}</p></div><div className="flex flex-wrap items-center gap-3">{profile && <Link href="/" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">All profiles</Link>}<Link href={profile ? `/p/${profile.slug}?type=video` : "/feed"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link><AuthControls />{session && <><ThemeSettings /><button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button><button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button>{management && <UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} />}</>}</div></header>
+    <header className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">{profile?.name ?? "Hymecymeyseh"}</h1><p className="mt-2 text-slate-500">{profile?.bio ?? "We are here to just have 🤩 fun."}</p></div><div className="flex flex-wrap items-center gap-3"><Link href={management ? "/admin/profiles" : "/profiles"} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">All profiles</Link><Link href={profilePath ? `${profilePath}?type=video` : "/feed"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link><AuthControls />{isAdministrator && <><Link href="/admin/profiles" className="text-sm font-bold text-indigo-700">Manage profiles</Link><ThemeSettings /><button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button><button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button>{management && <UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} />}</>}</div></header>
     <search className="mt-7 block" aria-label="Search media library">
-      <label htmlFor="media-search" className="sr-only">Search titles and descriptions</label>
+      <label htmlFor="media-search" className="sr-only">Search filenames, titles, and descriptions</label>
       <div className="relative">
         <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400" aria-hidden="true">⌕</span>
-        <input id="media-search" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search titles and descriptions" className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-20 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100" />
+        <input id="media-search" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search filenames, titles, and descriptions" className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-20 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100" />
         {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="absolute inset-y-0 right-3 my-auto h-8 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900">Clear</button>}
       </div>
     </search>
-    {isAdministrator && <div className="mt-4 flex items-center gap-3"><label htmlFor="visibility-filter" className="text-sm font-semibold text-slate-700">Visibility</label><select id="visibility-filter" value={visibilityFilter} onChange={(event) => setVisibilityFilter(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"><option value="">All visibility</option><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>}
-    <section className="mt-7 flex flex-wrap items-center gap-2">{([{ href: "/", label: "Everything", type: undefined }, { href: "/photos", label: "Photos", type: "photo" }, { href: "/videos", label: "Videos", type: "video" }] as const).map((option) => <Link key={option.href} href={option.href} aria-current={mediaType === option.type ? "page" : undefined} className={`rounded-full px-4 py-2 text-sm font-semibold ${mediaType === option.type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{option.label}</Link>)}{albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => setAlbumFilter(event.target.value)} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}<select aria-label="Sort media" value={sort} onChange={(event) => setSort(event.target.value as "uploaded" | "newest" | "oldest")} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select></section>
+    {isAdministrator && <div className="mt-4 flex items-center gap-3"><label htmlFor="visibility-filter" className="text-sm font-semibold text-slate-700">Visibility</label><select id="visibility-filter" value={visibilityFilter} onChange={(event) => { setVisibilityFilter(event.target.value); trackExperience("filter", { filter: `visibility:${event.target.value || "all"}` }); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"><option value="">All visibility</option><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>}
+    <section className="mt-7 flex flex-wrap items-center gap-2">
+      {([{ href: "/", label: "Everything", type: undefined }, { href: "/photos", label: "Photos", type: "photo" }, { href: "/videos", label: "Videos", type: "video" }] as const).map((option) => <Link key={option.href} href={profilePath ? `${profilePath}${option.type ? `?type=${option.type}` : ""}` : option.href} onClick={() => trackExperience("filter", { filter: `type:${option.type ?? "all"}` })} aria-current={mediaType === option.type ? "page" : undefined} className={`rounded-full px-4 py-2 text-sm font-semibold ${mediaType === option.type ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{option.label}</Link>)}
+      {albums.length > 0 && <select aria-label="Filter by album" value={albumFilter} onChange={(event) => { setAlbumFilter(event.target.value); trackExperience("filter", { filter: "album" }); }} className="ml-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="">All albums</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select>}
+      <select aria-label="Sort media" value={sort} onChange={(event) => { const value = event.target.value as "uploaded" | "newest" | "oldest"; setSort(value); trackExperience("filter", { filter: `sort:${value}` }); }} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50"><option value="uploaded">Recently uploaded</option><option value="newest">Date taken: newest</option><option value="oldest">Date taken: oldest</option></select>
+    </section>
     {selectionMode && <section className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3"><p className="text-sm font-bold text-indigo-950">{selectedMediaIds.length} selected</p><select aria-label="Album to add selected media to" value={targetAlbumId} onChange={(event) => setTargetAlbumId(event.target.value)} className="min-w-40 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="">Choose an album</option>{albums.map((album) => <option key={album.id} value={album.id}>{album.name}</option>)}</select><button onClick={addSelectionToAlbum} disabled={!targetAlbumId || selectedMediaIds.length === 0 || organizing} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{organizing ? "Adding..." : "Add selected to album"}</button>{albums.length === 0 && <Link href="/albums" className="text-sm font-bold text-indigo-700 hover:underline">Create an album first →</Link>}</section>}
     {uploadProgress && <p className="mt-4 rounded-lg bg-indigo-50 p-3 text-sm font-medium text-indigo-700">{uploadProgress}</p>}{scanMessage && <p className={`mt-4 rounded-lg p-3 text-sm font-medium ${scanMessage.startsWith("Could") || scanMessage.startsWith("Fingerprint") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{scanMessage}</p>}{uploadError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{uploadError}</p>}
     {isAdministrator && uploadConfig?.mux && <MuxUsagePanel refreshKey={items.length} />}
-    {!loading && <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500">{normalizedSearchQuery && <span className="font-bold text-indigo-700">{visible.length} loaded {visible.length === 1 ? "result" : "results"}</span>}<span>{summary.totalCount} files</span><span>{summary.photoCount} photos</span><span>{summary.videoCount} videos</span>{summary.knownSizeCount > 0 && <span>{formatFileSize(summary.knownStorageBytes)} tracked storage</span>}{summary.knownSizeCount < summary.totalCount && session && <span className="text-indigo-700">Scan media library to calculate all storage.</span>}</div>}
+    {!loading && <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500">{normalizedSearchQuery && <span className="font-bold text-indigo-700">{visible.length} loaded {visible.length === 1 ? "result" : "results"}</span>}<span>{summary.totalCount} files</span><span>{summary.photoCount} photos</span><span>{summary.videoCount} videos</span>{summary.knownSizeCount > 0 && <span>{formatFileSize(summary.knownStorageBytes)} tracked storage</span>}{summary.knownSizeCount < summary.totalCount && isAdministrator && <span className="text-indigo-700">Scan media library to calculate all storage.</span>}</div>}
     <section className="mt-5 grid grid-cols-3 gap-0" aria-busy={galleryLoading}>{galleryLoading ? Array.from({ length: 9 }, (_, index) => <div key={index} className="aspect-square animate-pulse border border-slate-100 bg-slate-100" aria-hidden="true" />) : <>{isAdministrator && <div className="aspect-square border border-dashed border-indigo-300 bg-indigo-50 p-3 text-indigo-950 sm:p-5"><p className="text-sm font-bold sm:text-lg">Create an album</p><p className="mt-1 hidden text-sm text-indigo-800 sm:block">Group a moment, trip, or project.</p><Link href="/albums" className="mt-3 inline-block text-xs font-bold text-indigo-700 hover:underline sm:mt-4 sm:text-sm">New album →</Link></div>}{galleryItems.map((item) => <MediaCard key={item.id} item={item} onSelect={setSelected} selectionMode={selectionMode} isSelected={selectedMediaIds.includes(item.id)} onToggleSelection={toggleMediaSelection} />)}{visible.length === 0 && <p className={`${isAdministrator ? "col-span-2" : "col-span-3"} border border-dashed border-slate-300 p-3 text-sm text-slate-500 sm:p-5`}>{normalizedSearchQuery ? `No media matches “${searchQuery.trim()}”. Try another search.` : "No media matches the selected filters yet."}</p>}</>}</section>
     {!loading && items.length > 0 && <div className="mt-5 flex flex-col items-center gap-3 text-sm text-slate-500"><p>Loaded {items.length} of {summary.totalCount} files</p>{nextCursor && <button onClick={loadMoreMedia} disabled={loadingMore} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{loadingMore ? "Loading..." : `Load up to ${Math.min(galleryPageSize, Math.max(0, summary.totalCount - items.length))} more`}</button>}</div>}
-    {selected?.type === "photo" && <PhotoViewer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}{selected?.type === "video" && <VideoPlayer item={selected} onClose={() => setSelected(null)} onDelete={session ? deleteSelectedMedia : undefined} onOrganize={session ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}
+    {selected?.type === "photo" && <PhotoViewer item={selected} onClose={() => setSelected(null)} onDelete={isAdministrator ? deleteSelectedMedia : undefined} onOrganize={isAdministrator ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}{selected?.type === "video" && <VideoPlayer item={selected} onClose={() => setSelected(null)} onDelete={isAdministrator ? deleteSelectedMedia : undefined} onOrganize={isAdministrator ? updateSelectedAlbums : undefined} onUpdate={isAdministrator ? updateSelectedMedia : undefined} />}
     {uploadState && <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-5"><div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center gap-3"><span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" /><div><p className="font-black text-slate-900">Uploading media</p><p className="text-sm text-slate-500">File {Math.min(uploadState.completed + 1, uploadState.total)} of {uploadState.total}</p></div></div><div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${(uploadState.completed / uploadState.total) * 100}%` }} /></div><div className="mt-4 flex justify-between text-sm text-slate-600"><span>Elapsed {formatDuration(elapsedSeconds)}</span><span>{uploadState.estimatedRemaining === null ? "Estimating time..." : `${formatDuration(uploadState.estimatedRemaining)} left`}</span></div><button type="button" onClick={cancelUpload} className="mt-6 w-full rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50">Cancel upload</button></div></div>}
   </main>;
 }
