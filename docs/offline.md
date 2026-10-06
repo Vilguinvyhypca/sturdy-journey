@@ -8,7 +8,8 @@ Failed full-page navigations also fall back to the cached page.
 The video plays muted on a loop, with native controls for sound and seeking.
 Reduced-motion visitors must start playback manually. The service worker serves
 byte ranges from the cached MP4 so playback and seeking work without a network.
-Only the offline page and video are cached, not authenticated pages or API data.
+Only the offline page, video, and local Monofett font are cached, not authenticated
+pages or API data.
 
 Offline support requires HTTPS (or localhost), a completed online visit, and
 browser storage. A first visit made entirely offline cannot install the cache.
@@ -20,7 +21,7 @@ For phone testing, the development server is also available over Tailscale at
 and restart `mediaspace-dev.service` after changing it. Otherwise Next.js blocks
 the app's JavaScript through this hostname, preventing offline registration.
 
-When changing the offline HTML or video, increment `CACHE` in
+When changing the offline HTML, video, or font, increment `CACHE` in
 `public/offline-sw.js` so existing visitors receive the new assets.
 
 Verification: open the app online, wait for `navigator.serviceWorker.controller`,

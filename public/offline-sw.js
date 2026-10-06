@@ -1,5 +1,5 @@
-const CACHE = "mediaspace-offline-v2";
-const ASSETS = ["/offline.html", "/offline-video.mp4"];
+const CACHE = "mediaspace-offline-v3";
+const ASSETS = ["/offline.html", "/offline-video.mp4", "/fonts/monofett.ttf"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {

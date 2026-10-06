@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>You’re offline · MediaSpace</title>
+  <title>You’re offline · Hymecymeyseh</title>
   <style>
+    @font-face { font-family: "Monofett"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/monofett.ttf") format("truetype"); }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100svh; background: #0c0c12; color: #f6f3ff; font-family: system-ui, sans-serif; display: grid; place-items: center; padding: 28px 20px; }
     main { width: 100%; max-width: 440px; text-align: center; }
-    .brand { color: #b8afcc; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; }
+    .brand { display: inline-block; font-family: "Monofett", monospace; font-weight: 400; font-size: clamp(28px, 8vw, 40px); line-height: 1; letter-spacing: .02em; background: linear-gradient(90deg, #ff3b30 0%, #ff9500 16%, #ffcc00 31%, #34c759 47%, #00c7be 62%, #007aff 77%, #af52de 90%, #ff2d55 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
     h1 { margin: 16px 0 8px; font-size: clamp(28px, 6vw, 38px); letter-spacing: -.04em; }
     p { color: #b8afcc; line-height: 1.6; margin: 8px 0 20px; }
     video { display: block; width: auto; max-width: 100%; height: min(52svh, 460px); margin: 0 auto 24px; border-radius: 18px; background: #18151e; }
@@ -26,7 +27,7 @@
 </head>
 <body>
   <main>
-    <div class="brand">MediaSpace</div>
+    <div class="brand">Hymecymeyseh</div>
     <h1>A little pause.</h1>
     <p>You’re offline. Enjoy this while you reconnect.</p>
     <video src="/offline-video.mp4" controls autoplay muted loop playsinline aria-label="Video to watch while offline"></video>
