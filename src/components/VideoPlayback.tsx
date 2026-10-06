@@ -5,7 +5,7 @@ import MuxPlayer from "@mux/mux-player-react";
 import { muxPlaybackIdFromUrl, type MuxPlaybackTokens } from "@/lib/media";
 import { trackExperience } from "./ExperienceTracker";
 
-export function VideoPlayback({ src, mediaId, muxTokens, className = "" }: { src: string; mediaId: string; muxTokens?: MuxPlaybackTokens; className?: string }) {
+export function VideoPlayback({ src, mediaId, muxTokens, startMuted = false, className = "" }: { src: string; mediaId: string; muxTokens?: MuxPlaybackTokens; startMuted?: boolean; className?: string }) {
   const [status, setStatus] = useState<"loading" | "buffering" | "ready" | "error">("loading");
   const started = useRef(false);
   const failed = useRef(false);
@@ -26,6 +26,8 @@ export function VideoPlayback({ src, mediaId, muxTokens, className = "" }: { src
       tokens={muxTokens}
       streamType="on-demand"
       autoPlay
+      muted={startMuted}
+      playsInline
       accentColor="#4f46e5"
       className="h-full w-full object-contain"
       onCanPlay={() => setStatus("ready")}
@@ -37,6 +39,7 @@ export function VideoPlayback({ src, mediaId, muxTokens, className = "" }: { src
       src={src}
       controls
       autoPlay
+      muted={startMuted}
       playsInline
       preload="metadata"
       className="h-full w-full object-contain"

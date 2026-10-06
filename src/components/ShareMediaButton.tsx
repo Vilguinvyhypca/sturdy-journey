@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trackExperience } from "./ExperienceTracker";
 
-export function ShareMediaButton({ mediaId, href }: { mediaId: string; href?: string }) {
+export function ShareMediaButton({ mediaId, href, title = "Hymecymeyseh" }: { mediaId: string; href?: string; title?: string }) {
   const [message, setMessage] = useState("");
 
   async function share() {
@@ -12,7 +12,7 @@ export function ShareMediaButton({ mediaId, href }: { mediaId: string; href?: st
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: "MediaSpace", url: url.toString() });
+        await navigator.share({ title, url: url.toString() });
       } catch {
         // Closing the device share sheet is not an error the visitor needs to see.
       }
