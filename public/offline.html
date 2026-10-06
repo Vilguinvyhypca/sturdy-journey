@@ -16,6 +16,12 @@
     a { display: inline-block; padding: 13px 28px; background: #d2c0ff; color: #201333; border-radius: 999px; text-decoration: none; font-weight: 650; }
     a:focus-visible { outline: 3px solid white; outline-offset: 5px; }
     #status { font-size: 13px; margin-bottom: 0; }
+    @media (max-width: 600px) and (orientation: portrait) {
+      body { padding: 18px 16px; }
+      h1 { margin-top: 10px; }
+      p { margin-bottom: 14px; }
+      video { height: min(64svh, 600px); margin-bottom: 18px; }
+    }
   </style>
 </head>
 <body>

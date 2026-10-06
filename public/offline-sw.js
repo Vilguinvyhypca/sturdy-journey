@@ -1,4 +1,4 @@
-const CACHE = "mediaspace-offline-v1";
+const CACHE = "mediaspace-offline-v2";
 const ASSETS = ["/offline.html", "/offline-video.mp4"];
 
 self.addEventListener("install", (event) => {
