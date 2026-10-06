@@ -14,6 +14,12 @@ Offline support requires HTTPS (or localhost), a completed online visit, and
 browser storage. A first visit made entirely offline cannot install the cache.
 The static page can be previewed directly at `/offline.html`.
 
+For phone testing, the development server is also available over Tailscale at
+`https://hymecymeyseh.tailcc86a8.ts.net:8443`. Include
+`hymecymeyseh.tailcc86a8.ts.net` in `MEDIA_DEV_ORIGINS` in `.env.local`
+and restart `mediaspace-dev.service` after changing it. Otherwise Next.js blocks
+the app's JavaScript through this hostname, preventing offline registration.
+
 When changing the offline HTML or video, increment `CACHE` in
 `public/offline-sw.js` so existing visitors receive the new assets.
 
