@@ -1,4 +1,5 @@
-const CACHE = "mediaspace-offline-v3";
+const CACHE = "mediaspace-offline-v4";
+const NAVIGATION_TIMEOUT_MS = 10000;
 const ASSETS = ["/offline.html", "/offline-video.mp4", "/fonts/monofett.ttf"];
 
 self.addEventListener("install", (event) => {
@@ -42,6 +43,30 @@ async function offlineAsset(request, pathname) {
   });
 }
 
+async function navigate(request) {
+  const controller = new AbortController();
+  let timeout;
+  try {
+    const response = await Promise.race([
+      fetch(request, { signal: controller.signal }),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Navigation timed out"));
+        }, NAVIGATION_TIMEOUT_MS);
+      }),
+    ]);
+    if (response.status < 500) return response;
+    const cache = await caches.open(CACHE);
+    return (await cache.match("/offline.html")) || response;
+  } catch {
+    const cache = await caches.open(CACHE);
+    return (await cache.match("/offline.html")) || Response.error();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -49,9 +74,6 @@ self.addEventListener("fetch", (event) => {
   if (ASSETS.includes(url.pathname)) {
     event.respondWith(offlineAsset(request, url.pathname));
   } else if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(async () => {
-      const cache = await caches.open(CACHE);
-      return (await cache.match("/offline.html")) || Response.error();
-    }));
+    event.respondWith(navigate(request));
   }
 });

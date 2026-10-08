@@ -3,7 +3,11 @@
 The root layout registers `/offline-sw.js`. Once its installation has cached
 `/offline.html` and `/offline-video.mp4`, a connection loss takes the visitor to
 the standalone offline page. The retry link returns to their original URL.
-Failed full-page navigations also fall back to the cached page.
+Failed full-page navigations, server errors (HTTP 500–599, including Cloudflare
+errors), and navigations that take more than 10 seconds also fall back to the
+cached page. Successful responses and client errors such as 401, 403, and 404
+are preserved. An already-open page does not automatically detect a server
+outage; the fallback applies on a full-page navigation or reload.
 
 The video plays muted on a loop, with native controls for sound and seeking.
 Reduced-motion visitors must start playback manually. The service worker serves
