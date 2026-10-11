@@ -2,12 +2,35 @@
 
 Last updated: 2026-10-10
 
+## Production deployment — 2026-10-10
+
+Commit `f175ad25` is deployed as `20261011T011349405759Z-f175ad25` (UTC
+release timestamp). Deployment safety tests passed (6 cases); the release passed
+page/API and all 304 JavaScript/CSS asset checks before and after activation.
+Previous release `20261008T155856178054Z-358c9880` is retained for rollback.
+
+Public-domain checks passed for home, photos, videos, profiles, admin sign-in,
+anonymous session reads, the 404 recovery screen, fallback assets, and HTTP 206
+byte-range delivery for fallback and public local videos. The production browser
+installed `mediaspace-offline-v6` and rendered the branded missing-page screen.
+With network disabled only in the test browser, cached video delivered 100 bytes
+with HTTP 206, and reconnect/Try again returned to the original `/photos` route.
+
+Cloudflare Worker upload succeeded, version `ca6f3968-7449-427e-87b5-621ceae7d3a4`.
+Route attachment failed: Wrangler could not find the `hymecymeyseh.fun` zone.
+The configured OAuth identity lists zero accessible zones. The public 404
+response has no `X-MediaSpace-Fallback` header. First-visit/tunnel-1033 protection
+remains blocked until the owning zone account grants route access; no tunnel
+interruption test was performed. Earlier Worker version
+`51dac19e-5762-4e7c-a38e-06d9e091f837` remains available as a rollback reference.
+
 ## Active scope — 2026-10-10
 
 Mux is out of scope. Historical Mux webhook tasks below are not current work or
 release blockers. Current development focuses on local media delivery and the
 pending error screens, cached offline recovery, and Cloudflare fallback.
-The current production release is `20261008T155856178054Z-358c9880`.
+At the start of verification, production was `20261008T155856178054Z-358c9880`;
+see the deployment record above for the current release.
 
 The development fallback now preserves HTTP error status, distinguishes missing
 pages with a Go home action, preserves Cloudflare challenges, and leaves manual

@@ -2,10 +2,13 @@
 
 ## Active work — 2026-10-10
 
-Finish and verify the pending error screens and offline/Cloudflare fallbacks in
-this development checkout. Mux is out of scope; historical webhook tasks below
-are not active requirements. See the current section of PROJECT_STATUS.md for
-validation and release status. Maildev is handling email-delivery diagnostics.
+The tested error screens and cached offline fallback are deployed to production
+as `20261011T011349405759Z-f175ad25`. Cloudflare Worker upload succeeded but route
+attachment failed: the configured identity sees no zones. Obtain access to the
+account owning `hymecymeyseh.fun`, then attach and verify the fallback route.
+Do not treat first-visit/tunnel-1033 protection as live yet. Mux is out of scope;
+historical webhook tasks below are not active requirements. See PROJECT_STATUS.md
+for validation and rollback details. Maildev handles email-delivery diagnostics.
 
 ## Latest checkpoint — 2026-10-04
 
