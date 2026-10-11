@@ -15,9 +15,10 @@
   "env": {
     "production": {
       "name": "mediaspace-fallback",
+      "account_id": "9afebf2e437a76d70fa9a90d9ca6a9d1",
       "workers_dev": false,
       "vars": { "SITE_HOST": "hymecymeyseh.fun" },
-      "routes": [{ "pattern": "hymecymeyseh.fun/*", "zone_name": "hymecymeyseh.fun" }]
+      "routes": [{ "pattern": "hymecymeyseh.fun/*", "zone_id": "d45d1b3edd1a8a0e25177191d5e849dd" }]
     }
   }
 }

@@ -1,6 +1,15 @@
 # MediaSpace project status
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
+
+## Cloudflare access follow-up — 2026-10-11
+
+The user identified zone `d45d1b3edd1a8a0e25177191d5e849dd` in account
+`9afebf2e437a76d70fa9a90d9ca6a9d1`. Production Wrangler configuration now targets
+those IDs explicitly. The current OAuth login returned HTTP 403 for the zone,
+its Worker routes, and that account's scripts. Authentication with access to
+the supplied account is required before publishing the fallback there. The
+production app and Mailbridge configuration were not changed by these checks.
 
 ## Production deployment — 2026-10-10
 
