@@ -1,0 +1,7 @@
+-./Import-Media-to-app-ubuntu-server.ps1
+	-Source "C:\Users\Josh Lau\Pictures\Instagram Backup\sabaideesana"
+	-Destination "/home/mediaspacedev/media-imports/
+	-Server "mediaspacedev@100.75.180.84
+	-Profile "sabaideesana"
+
+The name of the profile is the folder that comes from the source

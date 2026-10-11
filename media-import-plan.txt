@@ -1,0 +1,3 @@
+./import-media.ps1
+	-Source "C:\Users\Josh Lau\Pictures\Instagram Backup\sabaideesana"
+	-Destination 
