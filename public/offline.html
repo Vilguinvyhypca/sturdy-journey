@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>You’re offline · Hymecymeyseh</title>
+  <title>A little pause · Hymecymeyseh</title>
   <style>
     @font-face { font-family: "Monofett"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/monofett.ttf") format("truetype"); }
     * { box-sizing: border-box; }
@@ -29,17 +29,28 @@
   <main>
     <div class="brand">Hymecymeyseh</div>
     <h1>A little pause.</h1>
-    <p>We can’t reach the site right now. Enjoy this while we reconnect.</p>
-    <video src="/offline-video.mp4" controls autoplay muted loop playsinline aria-label="Video to watch while offline"></video>
+    <p id="message">Something interrupted your visit. Enjoy this while we get you back.</p>
+    <video src="/offline-video.mp4" controls muted loop playsinline aria-label="Video to watch while offline"></video>
     <a id="retry" href="/">Try again</a>
     <p id="status" role="status">We’ll be here when your connection is back.</p>
   </main>
   <script>
     const retry = document.getElementById('retry');
     const requested = new URLSearchParams(location.search).get('returnTo');
-    const target = new URL(requested || (location.pathname === '/offline.html' ? '/' : location.href), location.origin);
+    let target;
+    try { target = new URL(requested || (location.pathname === '/offline.html' ? '/' : location.href), location.origin); }
+    catch { target = new URL('/', location.origin); }
     retry.href = target.origin === location.origin && target.pathname !== '/offline.html' ? target.href : '/';
+    const missing = document.documentElement.dataset.failureStatus === '404';
+    if (missing) {
+      document.title = 'Page not found · Hymecymeyseh';
+      document.querySelector('h1').textContent = 'Page not found.';
+      document.getElementById('message').textContent = 'We couldn’t find that page. Head home to keep exploring.';
+      retry.href = '/';
+      retry.textContent = 'Go home';
+    }
     function updateStatus() {
+      if (missing) { document.getElementById('status').textContent = ''; return; }
       document.getElementById('status').textContent = navigator.onLine
         ? 'Ready to reconnect? Tap Try again.'
         : 'We’ll be here when your connection is back.';
@@ -47,10 +58,9 @@
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
     updateStatus();
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const video = document.querySelector('video');
-      video.autoplay = false;
-      video.pause();
+      video.play().catch(() => { /* Native controls remain available. */ });
     }
   </script>
 </body>

@@ -12,7 +12,12 @@
     "profiles:assign-minami": "node scripts/assign-media-profile.mjs",
     "dev:sync-production-data": "python3 scripts/sync-development-data.py",
     "lint": "eslint",
-    "test:storage": "node --test tests/*.test.mjs"
+    "test:storage": "node --test tests/*.test.mjs",
+    "cloudflare:prepare": "node scripts/prepare-cloudflare-fallback.mjs",
+    "cloudflare:login": "npm --prefix ops/cloudflare exec -- wrangler login",
+    "cloudflare:preview": "npm run cloudflare:prepare && npm --prefix ops/cloudflare exec -- wrangler dev --config ops/cloudflare/wrangler.jsonc",
+    "cloudflare:deploy": "npm run cloudflare:prepare && npm --prefix ops/cloudflare exec -- wrangler deploy --config ops/cloudflare/wrangler.jsonc --env production",
+    "test:cloudflare": "node --test tests/cloudflare-fallback.test.mjs"
   },
   "dependencies": {
     "@mux/mux-player-react": "^3.13.2",

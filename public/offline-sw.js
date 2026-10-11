@@ -1,4 +1,4 @@
-const CACHE = "mediaspace-offline-v4";
+const CACHE = "mediaspace-offline-v6";
 const NAVIGATION_TIMEOUT_MS = 10000;
 const ASSETS = ["/offline.html", "/offline-video.mp4", "/fonts/monofett.ttf"];
 
@@ -29,7 +29,7 @@ async function offlineAsset(request, pathname) {
   if (!match || (!match[1] && !match[2])) return response;
   const start = match[1] ? Number(match[1]) : Math.max(0, bytes.byteLength - Number(match[2]));
   const end = match[1] && match[2] ? Math.min(Number(match[2]), bytes.byteLength - 1) : bytes.byteLength - 1;
-  if (start > end || start >= bytes.byteLength) {
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= bytes.byteLength) {
     return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${bytes.byteLength}` } });
   }
   return new Response(bytes.slice(start, end + 1), {
@@ -56,15 +56,25 @@ async function navigate(request) {
         }, NAVIGATION_TIMEOUT_MS);
       }),
     ]);
-    if (response.status < 500) return response;
+    if (response.status < 400) return response;
+    if (response.headers.get("cf-mitigated") === "challenge") return response;
     const cache = await caches.open(CACHE);
-    return (await cache.match("/offline.html")) || response;
+    const fallback = await cache.match("/offline.html");
+    if (!fallback) return response;
+    if (response.body) await response.body.cancel();
+    return failureResponse(fallback, response.status);
   } catch {
     const cache = await caches.open(CACHE);
-    return (await cache.match("/offline.html")) || Response.error();
+    const fallback = await cache.match("/offline.html");
+    return fallback ? failureResponse(fallback, 503) : Response.error();
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function failureResponse(cached, status) {
+  const html = (await cached.text()).replace('<html lang="en">', `<html lang="en" data-failure-status="${status}">`);
+  return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 }
 
 self.addEventListener("fetch", (event) => {

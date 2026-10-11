@@ -1,6 +1,33 @@
 # MediaSpace project status
 
-Last updated: 2026-10-04
+Last updated: 2026-10-10
+
+## Active scope — 2026-10-10
+
+Mux is out of scope. Historical Mux webhook tasks below are not current work or
+release blockers. Current development focuses on local media delivery and the
+pending error screens, cached offline recovery, and Cloudflare fallback.
+The current production release is `20261008T155856178054Z-358c9880`.
+
+The development fallback now preserves HTTP error status, distinguishes missing
+pages with a Go home action, preserves Cloudflare challenges, and leaves manual
+video controls visible for reduced-motion visitors. All 33 offline and 41 Worker
+regression cases pass. TypeScript passes; lint has five existing warnings and
+the changed React files lint cleanly. The production build passed outside the
+sandbox; the sandbox attempt failed to parse TypeScript subprocess output.
+
+Browser verification on the HTTPS development host confirmed cached offline
+recovery, 206 video ranges, reconnect to the original gallery, uncaught runtime
+error recovery, missing-page actions, reduced-motion controls, normal playback,
+and a phone viewport without horizontal overflow. Temporary page and root-layout
+failure triggers confirmed both React boundaries and were removed afterward.
+Cloudflare assets were refreshed and its deployment dry run passed. No production
+app or Cloudflare deployment was performed; live first-visit fallback remains
+unverified until publication.
+
+The user also confirmed the Firefox/Windows 10 manual checks: reduced motion
+kept playback paused, missing-page navigation returned home, and offline video
+playback/seeking plus reconnect returned to the photo gallery.
 
 ## Development checkpoint — 2026-10-04
 

@@ -1,5 +1,12 @@
 # MediaSpace handoff
 
+## Active work — 2026-10-10
+
+Finish and verify the pending error screens and offline/Cloudflare fallbacks in
+this development checkout. Mux is out of scope; historical webhook tasks below
+are not active requirements. See the current section of PROJECT_STATUS.md for
+validation and release status. Maildev is handling email-delivery diagnostics.
+
 ## Latest checkpoint — 2026-10-04
 
 Pending development changes are saved in Git. See the October 4 section in

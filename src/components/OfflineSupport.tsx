@@ -4,7 +4,18 @@ import { useEffect } from "react";
 
 export function OfflineSupport() {
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    const showFailure = () => {
+      window.location.replace(`/offline.html?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
+    };
+    // React boundaries handle render failures; these catch uncaught async/event errors.
+    const onError = (event: ErrorEvent) => { if (event.error || event.message) showFailure(); };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", showFailure);
+    const cleanupErrors = () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", showFailure);
+    };
+    if (!("serviceWorker" in navigator)) return cleanupErrors;
 
     const showOffline = () => {
       if (!navigator.onLine && navigator.serviceWorker.controller) {
@@ -17,6 +28,7 @@ export function OfflineSupport() {
     window.addEventListener("offline", showOffline);
     navigator.serviceWorker.addEventListener("controllerchange", showOffline);
     return () => {
+      cleanupErrors();
       window.removeEventListener("offline", showOffline);
       navigator.serviceWorker.removeEventListener("controllerchange", showOffline);
     };

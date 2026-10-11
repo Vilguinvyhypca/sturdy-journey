@@ -46,3 +46,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cloudflare build assets and local tooling
+/ops/cloudflare/node_modules/
+/ops/cloudflare/assets/
+/ops/cloudflare/.wrangler/
+/.wrangler/
