@@ -1,6 +1,38 @@
 # MediaSpace handoff
 
+## DevOps disaster recovery handoff — 2026-10-13
+
+The owner requests backup and tested replacement-computer recovery within the
+next few days (target 2–3 focused working days). Exclude the Jellyfin video/movie
+library; include its torrent files, download-client state, Jellyfin configuration
+and database, mail, other essential server state, and MediaSpace data/media.
+Library re-download is not guaranteed and is outside the restore acceptance test.
+Cloud backups are not configured yet. Read
+[the implementation proposal](docs/operations/disaster-recovery-proposal.md)
+for inventory, daily plan, access prerequisites, and required restore evidence.
+The cloud provider remains provisional pending actual size/cost and owner approval.
+
 ## Active work — 2026-10-10
+
+October 12 completion: the authorized 90-second tunnel interruption test passed.
+A fresh browser without service workers received the branded HTTP 530 outage
+screen and playable/range-capable fallback video. After the tunnel restarted,
+Try again returned to `/photos`, which also returned HTTP 200 independently.
+The Cloudflare fallback task is complete; the tunnel is active. See the newest
+PROJECT_STATUS.md entry for evidence and rollback instructions. Pending test
+notes below describe earlier checkpoints.
+
+October 12 deployment checkpoint: `mediaspace-fallback` is now published and
+attached to `hymecymeyseh.fun/*`. Normal-page, branded 404, fallback-asset,
+video-range, and browser Go home checks passed. Next: agree on a short live
+tunnel interruption window and verify first-visit outage recovery/reconnect.
+See PROJECT_STATUS.md for version and rollback instructions. Earlier route
+access/publication blockers below are resolved.
+
+October 12 checkpoint: Cloudflare account/zone/routes/scripts access is now
+verified with a privately stored account API token. Fallback tests and deployment
+dry run pass. Publication and route attachment remain pending; see the newest
+PROJECT_STATUS.md entry. The access blocker described below is resolved.
 
 The tested error screens and cached offline fallback are deployed to production
 as `20261011T011349405759Z-f175ad25`. Cloudflare Worker upload succeeded but route
