@@ -30,3 +30,18 @@ html[data-theme="midnight"] .border-slate-200, html[data-theme="midnight"] .bord
 .theme-swatch-forest { background: linear-gradient(135deg, #15803d, #bbf7d0); }
 .theme-swatch-sunset { background: linear-gradient(135deg, #e85d2a, #fed7aa); }
 .theme-swatch-midnight { background: linear-gradient(135deg, #0f172a, #38bdf8); }
+
+.video-loading-wordmark {
+  display: block;
+  max-width: 100%;
+  font-size: clamp(1.25rem, 6vw, 2rem);
+  line-height: 1.25;
+  animation: video-wordmark-breathe 1.8s ease-in-out infinite;
+}
+@keyframes video-wordmark-breathe {
+  0%, 100% { opacity: .65; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .video-loading-wordmark { animation: none; }
+}

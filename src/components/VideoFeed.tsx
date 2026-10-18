@@ -10,14 +10,14 @@ function FeedVideo({ item, active, muted, onToggleMuted, galleryHref }: { galler
   const muxPlayer = useRef<MuxPlayerRefAttributes | null>(null);
   const nativePlayer = useRef<HTMLVideoElement | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "buffering" | "ready" | "error">("loading");
   const muxPlaybackId = muxPlaybackIdFromUrl(item.url);
   const muxThumbnail = muxPlaybackId ? item.muxTokens?.thumbnail ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?token=${encodeURIComponent(item.muxTokens.thumbnail)}` : `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0.5&width=720&fit_mode=preserve` : null;
   const startPlayback = useCallback(() => {
     const player = muxPlayer.current ?? nativePlayer.current;
     if (!active || !player) return;
     player.muted = muted;
-    player.play().catch(() => undefined);
+    player.play().catch((error: unknown) => { if (error instanceof Error && error.name === "NotAllowedError") setStatus("ready"); });
   }, [active, muted]);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ function FeedVideo({ item, active, muted, onToggleMuted, galleryHref }: { galler
   function togglePlayback() {
     const player = muxPlayer.current ?? nativePlayer.current;
     if (!player) return;
-    if (player.paused) player.play().catch(() => undefined);
+    if (player.paused) player.play().catch((error: unknown) => { if (error instanceof Error && error.name === "NotAllowedError") setStatus("ready"); });
     else player.pause();
   }
 
@@ -55,9 +55,11 @@ function FeedVideo({ item, active, muted, onToggleMuted, galleryHref }: { galler
       style={{ "--controls": "none", "--media-object-fit": "contain" }}
       metadataVideoId={item.id}
       metadataVideoTitle={item.title}
-      onCanPlay={() => { setStatus("ready"); startPlayback(); }}
+      onLoadStart={() => setStatus("loading")}
+      onWaiting={() => setStatus("buffering")}
+      onCanPlay={startPlayback}
       onPlaying={() => { setPlaying(true); setStatus("ready"); trackExperience("video_start", { mediaType: "video", mediaId: item.id }); }}
-      onPause={() => setPlaying(false)}
+      onPause={() => { setPlaying(false); setStatus((current) => current === "error" ? current : "ready"); }}
       onError={() => { setStatus("error"); trackExperience("video_error", { mediaType: "video", mediaId: item.id, errorType: "feed_playback_error" }); }}
     /> : <video
       key="active-video"
@@ -69,13 +71,15 @@ function FeedVideo({ item, active, muted, onToggleMuted, galleryHref }: { galler
       playsInline
       preload="auto"
       className="h-full w-full object-contain"
-      onCanPlay={() => { setStatus("ready"); startPlayback(); }}
+      onLoadStart={() => setStatus("loading")}
+      onWaiting={() => setStatus("buffering")}
+      onCanPlay={startPlayback}
       onPlaying={() => { setPlaying(true); setStatus("ready"); trackExperience("video_start", { mediaType: "video", mediaId: item.id }); }}
-      onPause={() => setPlaying(false)}
+      onPause={() => { setPlaying(false); setStatus((current) => current === "error" ? current : "ready"); }}
       onError={() => { setStatus("error"); trackExperience("video_error", { mediaType: "video", mediaId: item.id, errorType: "feed_playback_error" }); }}
     /> : muxPlaybackId ? <div role="img" aria-label={`${item.title} video preview`} className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url("${muxThumbnail}")` }} /> : <video key="video-preview" src={item.url} muted playsInline preload="metadata" className="h-full w-full object-contain" />}
 
-    {active && status === "loading" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="h-9 w-9 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-label="Loading video" /></div>}
+    {active && (status === "loading" || status === "buffering") && <div role="status" aria-live="polite" className="pointer-events-none absolute inset-0 grid place-items-center p-3"><span className="flex max-w-full flex-col items-center gap-3 px-4 py-5 text-sm font-semibold text-white"><span aria-hidden="true" className="brand-wordmark video-loading-wordmark">Hymecymeyseh</span>{status === "buffering" ? "Buffering video…" : "Loading video…"}</span></div>}
     {active && status === "error" && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm font-bold text-white">This video could not be played.</div>}
     {active && !playing && status === "ready" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid h-16 w-16 place-items-center rounded-full bg-black/45 pl-1 text-3xl text-white backdrop-blur" aria-hidden="true">▶</span></div>}
 
@@ -155,7 +159,7 @@ export function VideoFeed({ profileId, galleryHref = "/" }: { profileId?: string
     return () => observer.disconnect();
   }, [videos]);
 
-  if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-black text-white"><div className="text-center"><span className="mx-auto block h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" /><p className="mt-4 text-sm font-bold">Loading video feed…</p></div></main>;
+  if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-black text-white"><div className="text-center"><span aria-hidden="true" className="brand-wordmark video-loading-wordmark">Hymecymeyseh</span><p className="mt-4 text-sm font-bold">Loading video feed…</p></div></main>;
   if (error) return <main className="grid min-h-[100dvh] place-items-center bg-black p-6 text-center text-white"><div><p className="font-bold">{error}</p><Link href={galleryHref} className="mt-5 inline-block rounded-full bg-white px-5 py-3 text-sm font-bold text-black">Return to gallery</Link></div></main>;
   if (videos.length === 0) return <main className="grid min-h-[100dvh] place-items-center bg-black p-6 text-center text-white"><div><h1 className="text-2xl font-black">No videos yet</h1><p className="mt-2 text-white/70">This gallery has no public videos yet.</p><Link href={galleryHref} className="mt-5 inline-block rounded-full bg-white px-5 py-3 text-sm font-bold text-black">Return to gallery</Link></div></main>;
 
