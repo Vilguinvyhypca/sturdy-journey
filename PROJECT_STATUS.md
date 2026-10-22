@@ -12,6 +12,19 @@ checkpoint. Earlier sections describe the local development state at each step.
 This checkpoint does not merge main or deploy production. The unrelated local
 email-report script is excluded.
 
+## Request/response hardening — development checkpoint
+
+`codex/v1-request-hardening` is stacked on the unmerged polling/deletion branch.
+This first pass rejects malformed/non-object media-edit JSON with HTTP 400,
+marks local thumbnails private/no-store, escapes public legacy video JSON-LD,
+and adds baseline nosniff/referrer/frame headers. A development health request
+returned HTTP 200 with the expected headers. Focused regression tests cover
+malformed input, safe script serialization, and thumbnail bytes/headers. All 120
+Node regressions, targeted lint, TypeScript, and diff checks passed. See
+[review findings and remaining work](docs/operations/request-hardening.md).
+The broader security audit stays open. No merge or production deployment is part
+of this checkpoint.
+
 ## Polling and deletion limits — development checkpoint
 
 `codex/v1-poll-delete-limits` adds independent persistent quotas for private-photo

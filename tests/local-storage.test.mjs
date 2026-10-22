@@ -29,6 +29,12 @@ test("private local file storage and range delivery", async (t) => {
   const stored = await api.storeLocalUpload(new Blob([bytes]).stream(), "video/mp4");
   const key = stored.storage.objectKey;
   await assert.rejects(api.probeLocalVideoDuration(key), (error) => error instanceof api.LocalUploadError && error.status === 422);
+  await writeFile(join(process.env.MEDIA_STORAGE_ROOT, `${key}.jpg`), "thumbnail fixture");
+  const thumbnail = await api.localThumbnailResponse(key);
+  assert.equal(thumbnail.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(thumbnail.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(await thumbnail.text(), "thumbnail fixture");
+  await rm(join(process.env.MEDIA_STORAGE_ROOT, `${key}.jpg`));
   assert.equal(stored.storage.access, "private");
   assert.equal(stored.size, bytes.length);
   assert.equal((await stat(join(process.env.MEDIA_STORAGE_ROOT, key))).mode & 0o777, 0o600);

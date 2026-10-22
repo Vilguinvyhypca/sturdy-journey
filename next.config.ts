@@ -10,6 +10,13 @@ const nextConfig = (phase: string): NextConfig => {
     if (release.ready) throw new Error("Published releases cannot be rebuilt in place. Run npm run deploy:prod from the development checkout.");
   }
   return {
+    async headers() {
+      return [{ source: "/:path*", headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      ] }];
+    },
     distDir: process.env.NEXT_DIST_DIR ?? (phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next"),
     allowedDevOrigins: (process.env.MEDIA_DEV_ORIGINS ?? "").split(",").map((host) => host.trim()).filter(Boolean),
     images: {

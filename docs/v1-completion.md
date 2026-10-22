@@ -102,6 +102,11 @@ These are starting points, not a fresh certification of every workflow:
   headers, and JSON-LD serialization for the active local-storage paths. Record
   fixes and regression evidence; local media already has private/no-store and
   several security headers, so preserve existing protections.
+  The first hardening pass on `codex/v1-request-hardening` fixes malformed media
+  edit JSON, thumbnail cache lifetime, legacy video JSON-LD escaping, and baseline
+  response headers. See [findings and open review work](operations/request-hardening.md).
+  Origin/proxy trust, bounded mutation bodies, other active input paths, and
+  broader session-dependent caching remain open; this audit item stays unchecked.
 - [ ] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,

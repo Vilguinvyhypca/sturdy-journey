@@ -185,7 +185,7 @@ export async function localThumbnailResponse(key: string) {
     const stat = await file.stat();
     if (!stat.isFile()) throw new Error("Not a thumbnail.");
     return new Response(Readable.toWeb(file.createReadStream({ autoClose: true })) as ReadableStream, {
-      headers: { "Content-Type": "image/jpeg", "Content-Length": String(stat.size), "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" },
+      headers: { "Content-Type": "image/jpeg", "Content-Length": String(stat.size), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" },
     });
   } catch (error) {
     await file.close().catch(() => undefined);

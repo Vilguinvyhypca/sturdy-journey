@@ -115,7 +115,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   return <main className="min-h-screen bg-slate-950 text-white">
     {playbackId && item.visibility === "public" && !isSignedMuxUrl(item.url) && <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
     />}
     <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
       <Link href="/" className="font-bold tracking-tight hover:text-indigo-200">Hymecymeyseh</Link>

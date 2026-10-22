@@ -67,7 +67,13 @@ export async function GET(request: Request) {
 async function patchMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
-  const body = await request.json() as { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
+  let body: { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
+  try {
+    body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Expected a media object");
+  } catch {
+    return NextResponse.json({ error: "Provide a valid JSON media object." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+  }
   const isDetailsUpdate = "title" in body || "description" in body || "visibility" in body;
   if (isDetailsUpdate) {
     const mediaId = typeof body.id === "string" ? body.id.trim() : "";
