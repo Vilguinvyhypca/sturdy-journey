@@ -11,6 +11,7 @@ test('new private uploads immediately return the converted playback URL', async 
   const id = 'local:11111111-1111-4111-8111-111111111111';
   const key = '11111111-1111-4111-8111-111111111111.mp4';
   const mocks = {
+    "@/lib/rate-limit": { limitAdminAction: async () => null },
     '@/lib/profile-types': { defaultProfileId: 'default', mediaProfileId: () => 'default' },
     '@/lib/profiles': { getProfile: async () => ({ id: 'default' }) },
     'next-auth': { getServerSession: async () => ({ user: { isAdmin: true } }) },

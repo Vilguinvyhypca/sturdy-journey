@@ -31,6 +31,7 @@ test("overlapping upload requests save one record and clean only the rejected up
   const bothPrepared = new Promise((resolve) => { release = resolve; });
   const deleted = [];
   const mocks = {
+    "@/lib/rate-limit": { limitAdminAction: async () => null },
     "@/lib/profile-types": load("profile-types"),
     "@/lib/profiles": { getProfile: async () => ({ id: "hymecymeyseh" }) },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },

@@ -89,6 +89,11 @@ These are starting points, not a fresh certification of every workflow:
   trusted client identity behind Cloudflare, and normal administrator use.
   The experience-event endpoint already has a per-session limiter; this does not
   establish coverage of administrator routes.
+  Development now limits login attempts to 10/minute and authenticated local
+  uploads to 120/minute with persistent shared quotas. See
+  [administrator request limits](operations/admin-rate-limits.md) for the global
+  policy, proxy-header tradeoff, and tests. Polling/destructive operations remain
+  unfinished; this milestone item is intentionally not marked complete.
 - [ ] Audit request origins, input/file validation, response caching, security
   headers, and JSON-LD serialization for the active local-storage paths. Record
   fixes and regression evidence; local media already has private/no-store and

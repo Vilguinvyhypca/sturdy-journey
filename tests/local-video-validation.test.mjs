@@ -34,6 +34,7 @@ test("real upload validation rejects corrupt, audio-only, overlong, and empty fi
   let saved = 0;
   let prepared = 0;
   const mocks = {
+    "@/lib/rate-limit": { limitAdminAction: async () => null },
     "@/lib/profile-types": { defaultProfileId: "hymecymeyseh", mediaProfileId: () => "hymecymeyseh" },
     "@/lib/profiles": { getProfile: async () => ({ id: "hymecymeyseh" }) },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },

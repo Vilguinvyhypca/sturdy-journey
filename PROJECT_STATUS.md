@@ -12,6 +12,22 @@ checkpoint. Earlier sections describe the local development state at each step.
 This checkpoint does not merge main or deploy production. The unrelated local
 email-report script is excluded.
 
+## Administrator sign-in and local-upload limits — 2026-10-22
+
+Security work is on `codex/v1-auth-upload-limits`, stacked on the unmerged
+reliability checkpoint `06e49a1`. Shared persistent rolling-window quotas cap
+sign-in attempts at 10/minute and authenticated local uploads at 120/minute.
+The policy deliberately ignores client-supplied forwarding headers. Quota
+rejections include Retry-After, and NextAuth-compatible credentials responses
+allow the administrator form to explain the wait. Session/CSRF/signout/OAuth
+callback flows are not charged. Polling/destructive-action limits remain open.
+See [operator notes and tradeoffs](docs/operations/admin-rate-limits.md).
+
+The full suite passed 115 tests; targeted tests check concurrency, persistence,
+expiry, state corruption, encoded paths, NextAuth response compatibility, and
+rejection before upload storage. This checkpoint remains development-only;
+main has not been merged and production has not been deployed.
+
 ## Browser-upload processing failures — development checkpoint
 
 Video uploads now require a successful nonempty converted playback copy before

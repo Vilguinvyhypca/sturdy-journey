@@ -50,6 +50,7 @@ test("processing errors remove originals and partial output without saving; retr
   let saved = 0;
   const logs = [];
   const mocks = {
+    "@/lib/rate-limit": { limitAdminAction: async () => null },
     "@/lib/profile-types": { defaultProfileId: "hymecymeyseh", mediaProfileId: () => "hymecymeyseh" },
     "@/lib/profiles": { getProfile: async () => ({ id: "hymecymeyseh" }) },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },

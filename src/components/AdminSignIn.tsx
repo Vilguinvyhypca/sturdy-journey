@@ -38,7 +38,11 @@ export function AdminSignIn() {
         callbackUrl: "/admin",
       });
       if (!result?.ok) {
-        setError(result?.error === "CredentialsSignin"
+        setError(result?.status === 429
+          ? "Too many sign-in attempts. Please wait one minute and try again."
+          : result?.status === 503
+          ? "Sign-in is temporarily unavailable. Please try again shortly."
+          : result?.error === "CredentialsSignin"
           ? "That administrator password is incorrect."
           : "We couldn’t sign you in. Please try again.");
         return;

@@ -6,6 +6,7 @@ import { addMedia, DuplicateMediaError, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
 import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
 import { normalizeOriginalFileName, type MediaItem } from "@/lib/media";
+import { limitAdminAction } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return Response.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
   if (!usesLocalStorage) return Response.json({ error: "Local uploads are not enabled." }, { status: 503 });
+  const limited = await limitAdminAction("upload");
+  if (limited) return limited;
   const profileId = request.headers.get("x-media-profile") ?? defaultProfileId;
   if (request.headers.has("x-media-profile") && usesDatabase) return Response.json({ error: "Profiles require the local catalog." }, { status: 503 });
   if (!usesDatabase && !await getProfile(profileId)) return Response.json({ error: "Profile not found." }, { status: 404 });
