@@ -15,7 +15,7 @@ test('new private uploads immediately return the converted playback URL', async 
     '@/lib/profiles': { getProfile: async () => ({ id: 'default' }) },
     'next-auth': { getServerSession: async () => ({ user: { isAdmin: true } }) },
     '@/lib/auth': { authOptions: {}, isAdmin: () => true },
-    '@/lib/db': { readMedia: async () => [], addMedia: async (media, storage) => { saved = { media, storage }; } },
+    '@/lib/db': { DuplicateMediaError: class extends Error {}, readMedia: async () => [], addMedia: async (media, storage) => { saved = { media, storage }; } },
     '@/lib/database': { usesDatabase: false },
     '@/lib/media': { normalizeOriginalFileName: (value) => value },
     '@/lib/local-storage': {

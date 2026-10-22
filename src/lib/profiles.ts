@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { initialProfile, type Profile } from "./profile-types";
+import { withCatalogLock } from "./catalog-lock.cjs";
 
 const directory = process.env.MEDIA_DATA_DIR || join(process.cwd(), "data");
 const file = join(directory, "profiles.json");
@@ -54,7 +55,7 @@ export function validateProfile(input: Record<string, unknown>) {
 
 export async function saveProfile(input: Record<string, unknown>, id?: string): Promise<Profile> {
   const fields = validateProfile(input);
-  const operation = pending.then(async () => {
+  const operation = pending.then(() => withCatalogLock(directory, async () => {
     const profiles = await readProfiles();
     const existing = id ? profiles.find((profile) => profile.id === id) : undefined;
     if (id && !existing) throw new ProfileInputError("Profile not found.");
@@ -69,7 +70,7 @@ export async function saveProfile(input: Record<string, unknown>, id?: string): 
       await rename(temporary, file);
     } finally { await rm(temporary, { force: true }); }
     return profile;
-  });
+  }));
   pending = operation.catch(() => undefined);
   return operation;
 }

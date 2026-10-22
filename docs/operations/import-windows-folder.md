@@ -69,3 +69,11 @@ If the server reboots, the job is killed, or the restart itself fails, inspect t
 ## Manual importer
 
 The low-level importer supports `--source`, `--profile`, and `--apply`. Without `--apply` it only lists candidate counts. It respects `MEDIA_DATA_DIR` and `MEDIA_STORAGE_ROOT`, refuses database-backed configurations, and requires a separate source, repository, and managed storage location. When running it manually, the operator is responsible for preventing concurrent catalog writers and restarting the service. Prefer the Windows script and Ubuntu helper for normal imports.
+
+## Catalog coordination
+
+Development now includes a shared catalog writer lock for app mutations and
+maintenance commands. Continue using the runner's stop/import/restart workflow.
+See [catalog writer rules](catalog-writes.md) for supported commands, retryable
+contention, and the boundary with older production releases. Do not remove the
+persistent `.catalog-write.lock` file to clear a busy writer.

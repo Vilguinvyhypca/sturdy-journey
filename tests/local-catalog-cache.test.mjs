@@ -17,7 +17,8 @@ test("local media catalog cache refreshes after app writes and external atomic i
   });
 
   const sources = new Map();
-  for (const name of ["media-storage"]) {
+  sources.set("./catalog-lock.cjs", createRequire(import.meta.url)("../src/lib/catalog-lock.cjs"));
+  for (const name of ["media-storage", "profile-types"]) {
     const source = await readFile(new URL(`../src/lib/${name}.ts`, import.meta.url), "utf8");
     const compiled = ts.transpileModule(source, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

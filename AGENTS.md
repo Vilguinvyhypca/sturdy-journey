@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Git workflow
+
+Create a feature branch before making changes. Commit and push code to that
+branch before merging into `main`; review the diff and checks before merging.
+Do not commit directly to `main`. Production deployment is a separate step.
+
 ## Deployment boundaries
 
 This checkout is development only. Production runs from independent releases in

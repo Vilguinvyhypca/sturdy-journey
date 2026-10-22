@@ -38,6 +38,7 @@ async function write(request: Request, update: boolean) {
     const profile = await saveProfile(body, update ? body.id as string : undefined);
     return Response.json({ profile }, { status: update ? 200 : 201, headers });
   } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { ...headers, "Retry-After": "10" } });
     if (error instanceof ProfileInputError) return Response.json({ error: error.message }, { status: 400, headers });
     throw error;
   }

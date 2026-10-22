@@ -1,6 +1,135 @@
 # MediaSpace project status
 
-Last updated: 2026-10-11
+Last updated: 2026-10-18
+
+## Feature-branch workflow — 2026-10-21
+
+The owner requires changes to be committed and pushed to a feature branch before
+review and merge into main. This rule is recorded in AGENTS.md. The accumulated
+v1 completion/backlog documentation and upload/catalog reliability work are being
+saved on `codex/v1-upload-reliability`; see that branch's commit history for the
+checkpoint. Earlier sections describe the local development state at each step.
+This checkpoint does not merge main or deploy production. The unrelated local
+email-report script is excluded.
+
+## Browser-upload processing failures — development checkpoint
+
+Video uploads now require a successful nonempty converted playback copy before
+catalog insertion. Failed conversion returns a clear retryable HTTP 503 and
+removes unaccepted originals and derivatives. Conversion, metadata probes,
+thumbnail generation, and HEIC conversion have bounded subprocess runtimes.
+Thumbnail failure remains optional when playback succeeds. Requests are checked
+for cancellation before saving; cleanup failures are explicitly reported/logged.
+
+All 112 Node regression tests, targeted ESLint, TypeScript, and diff checks passed.
+New tests simulate converter failure, missing tools, empty output, and process
+termination while using real storage/cleanup; successful FFmpeg codec/range tests
+also passed. Tests cover successful retry, optional thumbnail failure, late
+cancellation, catalog-write failure, cleanup failure, invalid HEIC cleanup, and
+preservation of existing files. This remains local development work; no commit,
+push, or deployment was made. Maintenance imports retain their separate private
+original/log/nonzero-exit/retry behavior.
+
+## Browser-upload video validation — development checkpoint
+
+Local browser uploads now require FFprobe to identify a real video track and a
+positive finite duration no longer than five minutes. Corrupt, audio-only,
+cover-art-only, and unknown-duration files are rejected before processing/catalog
+insertion. Missing/inaccessible or timed-out validators return temporary-unavailable
+errors. The existing upload failure path deletes rejected files.
+
+Real-file route tests cover corrupt bytes, audio-only content, empty uploads,
+301-second rejection, exactly-300-second acceptance, and absence of rejected files
+or saved records. Probe tests cover duration edge cases, cover art, and validator
+outages. All 111 Node regression tests, targeted ESLint, TypeScript, and diff checks
+passed. Changes are development only. Full decoding/conversion failures and the
+folder importer's original-retention behavior remain separate work; existing media
+was not modified or revalidated.
+
+## Catalog writer coordination — development checkpoint
+
+Development now uses a shared Linux flock for media/profile mutations, folder
+imports, profile assignment, and playback backfills. Writers acquire it before
+reading their mutable catalog snapshot; local deletion resolves its record and
+removes files under the same lock. API lock contention returns retryable HTTP
+503 responses. Playback backfills now honor MEDIA_DATA_DIR; profile assignment
+replaces each JSON file atomically. See
+[writer rules and limitations](docs/operations/catalog-writes.md).
+
+Separate-process tests cover an app edit/delete/insert overlapping a real import,
+duplicate protection across app processes, profile creation, lock contention,
+exception release, and release after a killed writer. All 109 Node regressions,
+three Python import-runner tests, targeted lint, TypeScript, and a separate
+production-mode build passed. These
+changes are local development work; no commit, push, or production deployment
+has been performed for this checkpoint. Production remains on the loader release.
+
+## Current completion plan — 2026-10-18
+
+Use [MediaSpace v1 completion](docs/v1-completion.md) for the current finish line,
+evidence audit, ordered remaining application milestones, and acceptance checks.
+The older development phases below are historical and contain tasks already
+implemented or outside the active local-storage scope. Backup and restore testing
+are assigned to DevOps separately. The audit is not a fresh full-system test pass.
+
+The transparent animated Hymecymeyseh video loader and autoplay fallback were
+committed as `e815595` and deployed in isolated release
+`20261018T170511790687Z-e8155951`. Build, TypeScript, six deployment tests,
+pre/post-activation page/API/asset checks, and live browser playback/loader checks
+passed. The user reviewed the design on iPhone before deployment.
+
+## Administrator-only profile navigation — 2026-10-13
+
+Commit `5d6a45bb` hides the gallery's All profiles link unless the session has
+the administrator flag, including on public profile pages. Direct profile and
+directory URLs remain available as agreed. Published isolated release
+`20261013T120557272858Z-5d6a45bb` from a clean temporary worktree. Targeted lint,
+TypeScript, all six deployment tests, production build, and pre/post-activation
+page/API/326 asset checks passed. Unrelated untracked email-report code was not
+included in the release.
+
+## Cloudflare fallback deployed — 2026-10-12
+
+Authorized live outage test completed at approximately 02:27–02:29 UTC on
+October 13 (October 12 local time). The administrator scheduled a 90-second
+systemd restart before stopping `cloudflared.service`. While the service was
+inactive, a fresh browser with zero service-worker registrations and no
+controller loaded `/photos` as the branded outage screen, preserving HTTP 530
+with `X-MediaSpace-Fallback: cloudflare`, `no-store`, `noindex`, and Retry-After.
+The fallback video played (readyState 4, paused false, no reported error); a
+100-byte range request returned HTTP 206. The tunnel returned to active state,
+and Try again restored the original `/photos` gallery. An independent curl
+request then returned HTTP 200. First-visit tunnel outage recovery is verified.
+
+Published `mediaspace-fallback` to account `9afebf2e437a76d70fa9a90d9ca6a9d1`,
+version `7577aebe-98e1-4668-93ac-0418094c741f`, and attached route
+`hymecymeyseh.fun/*` to zone `d45d1b3edd1a8a0e25177191d5e849dd`.
+The existing `mailbridge-inbound` Worker was not modified.
+
+Curl checks returned HTTP 200 for home, photos, videos, profiles, admin,
+anonymous session reads, and all non-video fallback assets. A missing document
+returned branded HTTP 404 with `X-MediaSpace-Fallback: cloudflare`, `no-store`,
+and `noindex`. The fallback video returned HTTP 206 for bytes 100–199 with a
+100-byte body. Browser verification rendered the missing-page message, loaded
+the video to readyState 4 without a reported media error, and confirmed Go home
+returns to the normal MediaSpace gallery. Initial Python HTTP requests received
+403 responses; curl and browser checks subsequently verified the live route.
+
+The live tunnel interruption and reconnect test subsequently passed as recorded
+above. To bypass the fallback,
+remove only the `hymecymeyseh.fun/*` route for `mediaspace-fallback`; DNS and
+the tunnel destination do not need changing. The production app release is
+unchanged.
+
+## Cloudflare access restored — 2026-10-12
+
+A privately stored account API token now returns HTTP 200 for the configured
+account, zone, Worker routes, and Worker scripts. The zone currently has no
+Worker routes; the account contains only `mailbridge-inbound`. The fallback
+regression command and production deployment dry run passed after refreshing
+the staged assets. No Worker was published and no route was attached during
+these checks. Next: deploy `mediaspace-fallback`, verify normal public requests
+and fallback responses, then arrange the live tunnel interruption test.
 
 ## Cloudflare access follow-up — 2026-10-11
 

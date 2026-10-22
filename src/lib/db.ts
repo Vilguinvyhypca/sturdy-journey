@@ -3,6 +3,8 @@ import { mkdir, readFile, writeFile, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import type { MediaItem } from "./media";
+import { mediaProfileId } from "./profile-types";
+import { withCatalogLock } from "./catalog-lock.cjs";
 
 const dataDirectory = process.env.MEDIA_DATA_DIR && join(process.env.MEDIA_DATA_DIR) || join(process.cwd(), "data");
 const dataFile = join(dataDirectory, "media.json");
@@ -45,12 +47,13 @@ async function readRecords(): Promise<LocalMediaRecord[]> {
   }
 }
 
-// One writer per development server; atomic rename prevents readers seeing partial JSON.
+// Queue this process's requests; flock coordinates with other app/import processes.
+// Atomic rename prevents readers seeing partial JSON.
 let pendingWrite: Promise<unknown> = Promise.resolve();
-function mutateRecords<T>(edit: (records: LocalMediaRecord[]) => T): Promise<T> {
-  const operation = pendingWrite.then(async () => {
+function mutateRecords<T>(edit: (records: LocalMediaRecord[]) => T | Promise<T>): Promise<T> {
+  const operation = pendingWrite.then(() => withCatalogLock(dataDirectory, async () => {
     const records = (await readRecords()).map((item) => ({ ...item, ...(item.storage ? { storage: { ...item.storage } } : {}) }));
-    const result = edit(records);
+    const result = await edit(records);
     await mkdir(dataDirectory, { recursive: true });
     const temporary = `${dataFile}.${randomUUID()}.tmp`;
     try {
@@ -62,13 +65,25 @@ function mutateRecords<T>(edit: (records: LocalMediaRecord[]) => T): Promise<T> 
       await rm(temporary, { force: true });
     }
     return result;
-  });
+  }));
   pendingWrite = operation.catch(() => undefined);
   return operation;
 }
 
+export class DuplicateMediaError extends Error {
+  constructor() {
+    super("That exact photo or video has already been uploaded.");
+    this.name = "DuplicateMediaError";
+  }
+}
+
 export async function addMedia(item: MediaItem, storage: MediaStorageRecord = inferMediaStorage(item)) {
   return mutateRecords((media) => {
+    // Check in the same serialized operation as insertion, including legacy
+    // records whose missing profileId means the default profile.
+    if (item.contentHash && media.some((existing) => existing.contentHash === item.contentHash && mediaProfileId(existing) === mediaProfileId(item))) {
+      throw new DuplicateMediaError();
+    }
     media.unshift({ ...item, storage });
     return item;
   });
@@ -83,10 +98,13 @@ export async function updateLocalMediaDetails(id: string, title: string, descrip
   });
 }
 
-export async function removeMedia(id: string) {
-  await mutateRecords((media) => {
+export async function removeMedia(id: string, beforeRemove?: (item: MediaItem, storage: MediaStorageRecord | null) => Promise<void>) {
+  return mutateRecords(async (media) => {
     const index = media.findIndex((item) => item.id === id);
-    if (index !== -1) media.splice(index, 1);
+    if (index === -1) return false;
+    if (beforeRemove) await beforeRemove(publicMedia(media[index]), media[index].storage ?? null);
+    media.splice(index, 1);
+    return true;
   });
 }
 

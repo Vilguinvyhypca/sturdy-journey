@@ -11,12 +11,13 @@ test("storage compatibility and local persistence", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "mediaspace-storage-"));
   const originalCwd = process.cwd();
   t.after(async () => { process.chdir(originalCwd); await rm(directory, { recursive: true, force: true }); });
-  for (const name of ["media-storage", "db"]) {
+  for (const name of ["media-storage", "profile-types", "db"]) {
     const source = await readFile(new URL(`../src/lib/${name}.ts`, import.meta.url), "utf8");
     await writeFile(join(directory, `${name}.js`), ts.transpileModule(source, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     }).outputText);
   }
+  await writeFile(join(directory, "catalog-lock.cjs"), await readFile(new URL("../src/lib/catalog-lock.cjs", import.meta.url)));
   const require = createRequire(import.meta.url);
   const { inferMediaStorage } = require(join(directory, "media-storage.js"));
   for (const [url, provider, access, key, playbackId] of [
@@ -58,10 +59,29 @@ test("storage compatibility and local persistence", async (t) => {
   assert.equal((await db.readMedia()).length, 9);
   await Promise.all(Array.from({ length: 8 }, (_, index) => db.removeMedia(`concurrent-${index}`)));
   assert.equal((await db.readMedia()).length, 1);
+  await assert.rejects(db.removeMedia("legacy", async () => { throw new Error("File removal failed"); }), /File removal failed/);
+  assert.ok((await db.readMedia()).some((item) => item.id === "legacy"));
+  assert.equal(await db.removeMedia("missing", async () => assert.fail("Must not touch files")), false);
   const validCatalog = await readFile(catalog, "utf8");
   await writeFile(catalog, "not valid JSON");
   await assert.rejects(db.addMedia({ ...legacy, id: "must-not-overwrite" }));
   assert.equal(await readFile(catalog, "utf8"), "not valid JSON");
   await writeFile(catalog, validCatalog);
+
+  const sameFile = { ...legacy, contentHash: "same-content", profileId: "profile-a" };
+  const outcomes = await Promise.allSettled(Array.from({ length: 12 }, (_, index) =>
+    db.addMedia({ ...sameFile, id: `duplicate-${index}` })));
+  assert.equal(outcomes.filter((result) => result.status === "fulfilled").length, 1);
+  const rejected = outcomes.filter((result) => result.status === "rejected");
+  assert.equal(rejected.length, 11);
+  for (const result of rejected) assert.ok(result.reason instanceof db.DuplicateMediaError);
+  assert.equal((await db.readMedia()).filter((item) => item.contentHash === "same-content").length, 1);
+
+  // A rejected mutation must not poison the queue; other profiles may share content.
+  await db.addMedia({ ...sameFile, id: "other-profile", profileId: "profile-b" });
+  await db.addMedia({ ...legacy, id: "default-legacy", contentHash: "default-content" });
+  await assert.rejects(db.addMedia({ ...legacy, id: "default-explicit", contentHash: "default-content", profileId: "hymecymeyseh" }), db.DuplicateMediaError);
+  await db.addMedia({ ...legacy, id: "no-hash" });
+  assert.ok((await db.readMedia()).some((item) => item.id === "no-hash"));
 
 });

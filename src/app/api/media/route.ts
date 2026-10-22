@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
 }
 
-export async function PATCH(request: Request) {
+async function patchMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
   const body = await request.json() as { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
@@ -97,11 +97,19 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ updated: true });
 }
 
-export async function DELETE(request: Request) {
+async function deleteMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete media." }, { status: 401 });
   const id = new URL(request.url).searchParams.get("pathname");
   if (!id) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
+  if (!usesDatabase && usesLocalStorage) {
+    // Resolve the latest record and remove its files while holding the writer lock.
+    const removed = await removeMedia(id, async (item, storage) => {
+      if (storage?.provider === "local" && storage.access === "private") await deleteStoredLocalMedia(storage.objectKey);
+      else await deleteLocalMedia(item.url);
+    });
+    return removed ? NextResponse.json({ deleted: true }) : NextResponse.json({ error: "Media item not found." }, { status: 404 });
+  }
   const databaseItem = usesDatabase ? await getMediaById(id) : null;
   const storage = usesDatabase ? await getMediaStorage(id) : await getLocalMediaStorage(id);
   if (storage?.provider === "local" && storage.access === "private") {
@@ -129,3 +137,14 @@ export async function DELETE(request: Request) {
   }
   return NextResponse.json({ deleted: true });
 }
+
+async function writeResponse(action: () => Promise<Response>) {
+  try { return await action(); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return NextResponse.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
+    throw error;
+  }
+}
+
+export async function PATCH(request: Request) { return writeResponse(() => patchMedia(request)); }
+export async function DELETE(request: Request) { return writeResponse(() => deleteMedia(request)); }

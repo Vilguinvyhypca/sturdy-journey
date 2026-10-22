@@ -25,7 +25,7 @@ export const maximumLocalVideoDurationSeconds = 5 * 60;
 
 export function validateLocalVideoDuration(duration: number) {
   if (!Number.isFinite(duration) || duration <= 0) {
-    return null;
+    throw new LocalUploadError("This video has no readable duration. Choose a valid video file.", 422);
   }
   if (duration > maximumLocalVideoDurationSeconds) {
     throw new LocalUploadError("Videos must be five minutes or shorter.", 422);
@@ -86,13 +86,20 @@ export async function probeLocalVideoDuration(objectKey: string) {
   const source = await objectPath(objectKey);
   try {
     const { stdout } = await promisify(execFile)("ffprobe", [
-      "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source,
+      "-v", "error", "-select_streams", "v", "-show_entries", "format=duration:stream=codec_type:stream_disposition=attached_pic", "-of", "json", source,
     ], { timeout: 30_000, maxBuffer: 4_096 });
-    return validateLocalVideoDuration(Number(stdout.trim()));
+    const metadata = JSON.parse(stdout);
+    if (!metadata.streams?.some((stream: { codec_type?: string; disposition?: { attached_pic?: number } }) => stream.codec_type === "video" && stream.disposition?.attached_pic !== 1)) {
+      throw new LocalUploadError("This file does not contain a readable video track. Choose a valid video file.", 422);
+    }
+    return validateLocalVideoDuration(Number(metadata.format?.duration));
   } catch (error) {
     if (error instanceof LocalUploadError) throw error;
-    // Metadata is optional; retain the original even when ffprobe cannot read it.
-    return null;
+    const failure = error as NodeJS.ErrnoException & { killed?: boolean };
+    if (failure.code === "ENOENT" || failure.code === "EACCES" || failure.killed) {
+      throw new LocalUploadError("Video validation is temporarily unavailable. Please try again later.", 503);
+    }
+    throw new LocalUploadError("This video could not be read. Choose a valid MP4, WebM, or MOV video.", 422);
   }
 }
 
@@ -104,7 +111,7 @@ export async function convertLocalHeicToJpeg(objectKey: string) {
   const temporary = `${destination}.${randomUUID()}.tmp.jpg`;
   let destinationCreated = false;
   try {
-    await promisify(execFile)("ffmpeg", ["-hide_banner", "-loglevel", "error", "-n", "-i", source, "-map", "0:v:0", "-frames:v", "1", "-q:v", "2", temporary]);
+    await promisify(execFile)("ffmpeg", ["-hide_banner", "-loglevel", "error", "-n", "-i", source, "-map", "0:v:0", "-frames:v", "1", "-q:v", "2", temporary], { timeout: 60_000, killSignal: "SIGKILL" });
     if ((await stat(temporary)).size === 0) throw new Error("FFmpeg produced an empty JPEG.");
     await rename(temporary, destination);
     destinationCreated = true;
@@ -135,7 +142,7 @@ export async function generateLocalThumbnail(key: string) {
   const temporary = `${destination}.${randomUUID()}.jpg`;
   try {
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-ss", "0.5", "-i", source, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", "-y", temporary], { stdio: "ignore" });
+      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-ss", "0.5", "-i", source, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", "-y", temporary], { stdio: "ignore", timeout: 30_000, killSignal: "SIGKILL" });
       child.once("error", reject);
       child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
     });
@@ -151,7 +158,7 @@ export async function generateLocalPlayback(key: string) {
   const destination = `${source}.web.mp4`;
   const temporary = `${destination}.${randomUUID()}.tmp.mp4`;
   try {
-    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "json", source]);
+    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "json", source], { timeout: 30_000, maxBuffer: 4_096 });
     const video = JSON.parse(stdout).streams?.[0];
     // H.264 alone is not enough: 10-bit/4:4:4 video and copied audio can fail in browsers.
     const codecArgs = video?.codec_name === "h264" && video?.pix_fmt === "yuv420p"
@@ -159,10 +166,11 @@ export async function generateLocalPlayback(key: string) {
       : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-vf", "scale=ceil(iw/2)*2:ceil(ih/2)*2", "-pix_fmt", "yuv420p"];
     codecArgs.push("-c:a", "aac", "-profile:a", "aac_low", "-ac", "2", "-b:a", "128k");
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a:0?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore" });
+      const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a:0?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore", timeout: 10 * 60_000, killSignal: "SIGKILL" });
       child.once("error", reject);
       child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg exited with status ${code}`)));
     });
+    if ((await stat(temporary)).size === 0) throw new Error("FFmpeg produced an empty playback file.");
     await rename(temporary, destination);
     return `${key}.web.mp4`;
   } catch (error) {
