@@ -5,6 +5,7 @@ import { usesLocalStorage } from "@/lib/local-storage";
 import { readMedia } from "@/lib/db";
 import { mediaProfileId } from "@/lib/profile-types";
 import { ProfileInputError, readProfiles, saveProfile } from "@/lib/profiles";
+import { JsonRequestError, readJsonObject } from "@/lib/request-json";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
@@ -26,9 +27,11 @@ async function write(request: Request, update: boolean) {
   if (denied) return denied;
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
-  } catch { return Response.json({ error: "Invalid profile data." }, { status: 400, headers }); }
+    body = await readJsonObject(request);
+  } catch (error) {
+    if (!(error instanceof JsonRequestError)) throw error;
+    return Response.json({ error: error.message }, { status: error.status, headers });
+  }
   if (update && (typeof body.id !== "string" || !body.id)) return Response.json({ error: "Choose a profile." }, { status: 400, headers });
   try {
     if (body.avatarMediaId) {

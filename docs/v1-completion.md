@@ -105,8 +105,10 @@ These are starting points, not a fresh certification of every workflow:
   The first hardening pass on `codex/v1-request-hardening` fixes malformed media
   edit JSON, thumbnail cache lifetime, legacy video JSON-LD escaping, and baseline
   response headers. See [findings and open review work](operations/request-hardening.md).
-  Origin/proxy trust, bounded mutation bodies, other active input paths, and
-  broader session-dependent caching remain open; this audit item stays unchecked.
+  The follow-up `codex/v1-bounded-admin-json` branch adds a 64 KiB streaming
+  JSON-object limit and content-type/UTF-8 validation to media PATCH and profile
+  POST/PATCH after authorization. Origin/proxy trust, other active input paths,
+  and broader session-dependent caching remain open; this audit item stays unchecked.
 - [ ] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,

@@ -12,6 +12,17 @@ checkpoint. Earlier sections describe the local development state at each step.
 This checkpoint does not merge main or deploy production. The unrelated local
 email-report script is excluded.
 
+## Bounded administrator JSON — development checkpoint
+
+`codex/v1-bounded-admin-json` is stacked on the still-unmerged hardening branch.
+Media PATCH and profile POST/PATCH now require application/json objects, enforce
+64 KiB against actual streamed bytes, and reject malformed UTF-8, wrong content
+types, and non-object JSON with clear private/no-store errors. Authorization still
+precedes parsing. File-upload size limits are unchanged. Focused tests cover
+boundary/chunk/Unicode/length-header cases and rejection before catalog writes.
+All 122 Node regressions, targeted lint, TypeScript, and diff checks passed.
+No merge or production deployment is part of this checkpoint.
+
 ## Request/response hardening — development checkpoint
 
 `codex/v1-request-hardening` is stacked on the unmerged polling/deletion branch.

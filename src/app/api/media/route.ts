@@ -12,6 +12,7 @@ import { demoMedia, galleryPageSize, isMediaVisibility, isSignedMuxUrl, matchesM
 import { paginateMedia } from "@/lib/media-page";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
 import { limitAdminAction } from "@/lib/rate-limit";
+import { JsonRequestError, readJsonObject } from "@/lib/request-json";
 
 function withDelivery(item: MediaItem, includeOriginalFileName = false): MediaItem {
   let delivered = item;
@@ -69,10 +70,10 @@ async function patchMedia(request: Request) {
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
   let body: { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
   try {
-    body = await request.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Expected a media object");
-  } catch {
-    return NextResponse.json({ error: "Provide a valid JSON media object." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    body = await readJsonObject(request);
+  } catch (error) {
+    if (!(error instanceof JsonRequestError)) throw error;
+    return NextResponse.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
   }
   const isDetailsUpdate = "title" in body || "description" in body || "visibility" in body;
   if (isDetailsUpdate) {

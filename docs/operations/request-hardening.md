@@ -39,3 +39,31 @@ Validation: all 120 Node regression tests, targeted ESLint, TypeScript, and diff
 checks passed. The development health endpoint confirmed the live header
 configuration. No production build or production deployment was performed in
 this checkpoint; final release and authenticated browser acceptance remain open.
+
+## Bounded administrator JSON follow-up
+
+Branch `codex/v1-bounded-admin-json` is stacked on hardening commit `b68a4c9`.
+Media PATCH and profile POST/PATCH now use a shared streaming JSON-object reader
+*after* administrator authorization. The maximum request body is 64 KiB (65,536
+bytes), including JSON syntax and UTF-8 encoding; exactly the limit is accepted.
+This limit applies to edit/profile JSON, not uploaded media files.
+
+The reader requires application/json (charset parameters are allowed), checks a
+large declared Content-Length before reading, and enforces the same cap against
+actual chunks even when the length is absent or understated. It stops/cancels
+oversized streams, rejects invalid UTF-8 and non-object JSON, and preserves valid
+Unicode split across chunks. Responses are 400 for invalid objects/encoding,
+413 for too-large bodies, and 415 for unsupported content type, with
+private/no-store caching. Existing field-level validators remain in place.
+
+Tests exercise the exact byte boundary, streamed overflow/cancellation, misleading
+length headers, multibyte byte counts, split Unicode, malformed bodies, wrong
+content types, rejection before writes, accepted media/profile operations, and
+unauthorized access before parsing. This follow-up remains unmerged and undeployed.
+Origin/proxy trust and the full authorization/caching matrix remain open; no new
+CSRF or trusted-proxy guarantees are being claimed by a body-size parser.
+
+The bounded-JSON follow-up passed all 122 Node regression tests, targeted ESLint,
+TypeScript, and diff checks. No production deployment was performed. Before a
+manual test, record the checked-out development commit: the shared development
+server can contain newer stacked branches than an earlier emailed procedure.

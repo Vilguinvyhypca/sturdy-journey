@@ -10,14 +10,16 @@ async function load(path, mocks) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, process });
+  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, process, TextDecoder });
   return exports;
 }
 
 test("media edits reject malformed and non-object JSON before catalog changes", async () => {
   let administrator = true;
   let writes = 0;
+  const json = await load("../src/lib/request-json.ts", {});
   const route = await load("../src/app/api/media/route.ts", {
+    "@/lib/request-json": json,
     "next/server": { NextResponse: Response },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: administrator } }) },
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
