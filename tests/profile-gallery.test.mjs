@@ -29,6 +29,7 @@ test("profile media stays isolated and public previews exclude private items for
     { id: "legacy", title: "Legacy", url: "/uploads/legacy.jpg", type: "photo", visibility: "public" },
   ];
   const route = await loadSource("../src/app/api/media/route.ts", {
+    "@/lib/rate-limit": { limitAdminAction: async () => null },
     "@/lib/profile-types": profiles,
     "@/lib/profiles": { getProfile: async (id) => ["a", "b", profiles.defaultProfileId].includes(id) },
     "@/lib/local-storage": { usesLocalStorage: true },

@@ -4,6 +4,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { deleteAlbum, getAlbum, updateAlbum, usesDatabase } from "@/lib/database";
 import { privatePhotoDeliveryUrl } from "@/lib/media";
 import { isPrivateBlobUrl } from "@/lib/storage";
+import { limitAdminAction } from "@/lib/rate-limit";
 
 export async function GET(_request: Request, { params }: RouteContext<"/api/albums/[id]">) {
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
@@ -45,6 +46,8 @@ export async function DELETE(_request: Request, { params }: RouteContext<"/api/a
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete an album." }, { status: 401 });
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
+  const limited = await limitAdminAction("delete");
+  if (limited) return limited;
   const { id } = await params;
   if (!await deleteAlbum(id)) return NextResponse.json({ error: "Album not found." }, { status: 404 });
   return NextResponse.json({ deleted: true });

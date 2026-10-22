@@ -3,7 +3,8 @@ import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { withCatalogLock } from "./catalog-lock.cjs";
 
-const policies = { signin: 10, upload: 120 } as const;
+const policies = { signin: 10, upload: 120, poll: 600, delete: 60 } as const;
+const labels = { signin: "sign-in attempts", upload: "uploads", poll: "upload-status checks", delete: "deletion requests" } as const;
 type Action = keyof typeof policies;
 const windowMs = 60_000;
 const directory = join(process.env.MEDIA_DATA_DIR || join(process.cwd(), "data"), "rate-limits");
@@ -23,7 +24,7 @@ export async function limitAdminAction(action: Action, now = Date.now()): Promis
       const recent = previous.filter((at) => at > now - windowMs).sort((a, b) => a - b);
       if (recent.length >= policies[action]) {
         const retry = Math.max(1, Math.ceil((recent[0] + windowMs - now) / 1000));
-        return Response.json({ error: `Too many ${action === "signin" ? "sign-in attempts" : "uploads"}. Please try again in ${retry} seconds.` },
+        return Response.json({ error: `Too many ${labels[action]}. Please try again in ${retry} seconds.` },
           { status: 429, headers: { ...headers, "Retry-After": String(retry) } });
       }
       recent.push(now);

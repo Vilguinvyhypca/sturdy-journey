@@ -1,5 +1,7 @@
 "use client";
 
+import { uploadPollDelay } from "@/lib/upload-polling";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -96,6 +98,7 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingPhotoIds, setPendingPhotoIds] = useState<string[]>([]);
+  const pendingPhotoRetryAt = useRef(0);
   const [uploadError, setUploadError] = useState("");
   const [uploadProgress, setUploadProgress] = useState("");
   const [uploadState, setUploadState] = useState<{ total: number; completed: number; startedAt: number; estimatedRemaining: number | null } | null>(null);
@@ -207,9 +210,20 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
     let active = true;
     let timer: number | undefined;
     const checkPendingPhotos = async () => {
+      if (!active) return;
+      const remaining = pendingPhotoRetryAt.current - Date.now();
+      if (remaining > 0) {
+        timer = window.setTimeout(checkPendingPhotos, remaining);
+        return;
+      }
+      let delay = 2000;
       const results = await Promise.all(pendingPhotoIds.map(async (id) => {
         try {
           const response = await fetch(`/api/private-upload?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+          delay = Math.max(delay, uploadPollDelay(response));
+          if (response.status === 429 || response.status === 503) {
+            pendingPhotoRetryAt.current = Math.max(pendingPhotoRetryAt.current, Date.now() + uploadPollDelay(response));
+          }
           if (!response.ok) return null;
           const result = await response.json() as { media?: MediaItem };
           return result.media ? { id, media: result.media } : null;
@@ -223,9 +237,9 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
         setItems((current) => current.map((item) => byId.get(item.id) ?? item));
         setPendingPhotoIds((current) => current.filter((id) => !completedIds.has(id)));
       }
-      timer = window.setTimeout(checkPendingPhotos, 2000);
+      timer = window.setTimeout(checkPendingPhotos, Math.max(delay, pendingPhotoRetryAt.current - Date.now()));
     };
-    timer = window.setTimeout(checkPendingPhotos, 1200);
+    timer = window.setTimeout(checkPendingPhotos, Math.max(1200, pendingPhotoRetryAt.current - Date.now()));
     return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
   }, [isAdministrator, pendingPhotoIds]);
 

@@ -11,6 +11,7 @@ import { createMuxPlaybackTokens, deleteMuxAsset } from "@/lib/mux";
 import { demoMedia, galleryPageSize, isMediaVisibility, isSignedMuxUrl, matchesMediaSearch, muxPlaybackIdFromUrl, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import { paginateMedia } from "@/lib/media-page";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
+import { limitAdminAction } from "@/lib/rate-limit";
 
 function withDelivery(item: MediaItem, includeOriginalFileName = false): MediaItem {
   let delivered = item;
@@ -102,6 +103,8 @@ async function deleteMedia(request: Request) {
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete media." }, { status: 401 });
   const id = new URL(request.url).searchParams.get("pathname");
   if (!id) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
+  const limited = await limitAdminAction("delete");
+  if (limited) return limited;
   if (!usesDatabase && usesLocalStorage) {
     // Resolve the latest record and remove its files while holding the writer lock.
     const removed = await removeMedia(id, async (item, storage) => {

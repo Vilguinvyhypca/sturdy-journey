@@ -37,6 +37,16 @@ test("administrator quotas are atomic, persistent, bounded, independent, and rec
   assert.equal(await load().limitAdminAction("signin", 160_000), null);
   for (let index = 0; index < 120; index++) assert.equal(await instances[0].limitAdminAction("upload", 100_000), null);
   assert.equal((await instances[1].limitAdminAction("upload", 100_000)).status, 429);
+  for (const [action, cap] of [["poll", 600], ["delete", 60]]) {
+    const state = join(directory, "rate-limits", `${action}.json`);
+    await writeFile(state, JSON.stringify(Array(cap - 1).fill(100_000)));
+    assert.equal(await instances[0].limitAdminAction(action, 100_000), null);
+    const response = await instances[1].limitAdminAction(action, 100_000);
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get("Retry-After"), "60");
+    assert.match((await response.json()).error, action === "poll" ? /upload-status/ : /deletion/);
+    assert.equal(await load().limitAdminAction(action, 160_000), null);
+  }
   const file = join(directory, "rate-limits", "upload.json");
   assert.equal(JSON.parse(await readFile(file, "utf8")).length, 120);
   assert.equal((await stat(file)).mode & 0o777, 0o600);

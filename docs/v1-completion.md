@@ -84,16 +84,20 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 2. Access control and security
 
-- [ ] Add bounded application-level rate limits for administrator sign-in,
-  upload creation, polling, and destructive operations. Test rejection, recovery,
+- [x] Add bounded application-level rate limits for administrator sign-in,
+  local upload creation, private-photo status polling, and media/album deletion. Test rejection, recovery,
   trusted client identity behind Cloudflare, and normal administrator use.
   The experience-event endpoint already has a per-session limiter; this does not
   establish coverage of administrator routes.
   Development now limits login attempts to 10/minute and authenticated local
   uploads to 120/minute with persistent shared quotas. See
   [administrator request limits](operations/admin-rate-limits.md) for the global
-  policy, proxy-header tradeoff, and tests. Polling/destructive operations remain
-  unfinished; this milestone item is intentionally not marked complete.
+  policy, proxy-header tradeoff, and tests. The follow-up feature branch adds
+  private-photo status polling (600/minute), a shared media/album deletion allowance
+  (60/minute), and client Retry-After handling. These additions remain unmerged and
+  undeployed. All 118 Node regressions, targeted lint, TypeScript, and diff checks
+  passed. The general endpoint-security review below still covers other mutation
+  paths; inactive legacy cloud-upload creation is not a new local v1 blocker.
 - [ ] Audit request origins, input/file validation, response caching, security
   headers, and JSON-LD serialization for the active local-storage paths. Record
   fixes and regression evidence; local media already has private/no-store and

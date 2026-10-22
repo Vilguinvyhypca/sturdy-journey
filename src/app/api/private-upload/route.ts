@@ -8,6 +8,7 @@ import type { MediaItem } from "@/lib/media";
 import { privatePhotoDeliveryUrl } from "@/lib/media";
 import { isPrivateBlobUrl, usesPrivateBlobStorage } from "@/lib/storage";
 import { readClientPayload } from "@/lib/upload-payload";
+import { limitAdminAction } from "@/lib/rate-limit";
 
 const privateBlobToken = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;
 const privateBlobStoreId = process.env.PRIVATE_BLOB_STORE_ID;
@@ -20,6 +21,8 @@ export async function GET(request: Request) {
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to check this upload." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
   const id = new URL(request.url).searchParams.get("id")?.trim();
   if (!id || id.length > 2_048 || !id.startsWith("protected-media/")) return NextResponse.json({ error: "Invalid photo upload." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+  const limited = await limitAdminAction("poll");
+  if (limited) return limited;
   const media = await getMediaById(id);
   if (!media) return NextResponse.json({ processing: true }, { status: 202, headers: { "Cache-Control": "private, no-store", "Retry-After": "2" } });
   if (media.type !== "photo" || media.visibility !== "private" || !isPrivateBlobUrl(media.url)) return NextResponse.json({ error: "Photo upload is invalid." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });

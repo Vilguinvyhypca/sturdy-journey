@@ -12,6 +12,16 @@ checkpoint. Earlier sections describe the local development state at each step.
 This checkpoint does not merge main or deploy production. The unrelated local
 email-report script is excluded.
 
+## Polling and deletion limits — development checkpoint
+
+`codex/v1-poll-delete-limits` adds independent persistent quotas for private-photo
+upload-status checks (600/minute) and media/album deletion (60/minute shared).
+Authorization and input checks precede quota use, and quota rejection precedes
+lookups or destructive side effects. The pending-photo checker respects retry
+headers and retains its cooldown across changes to pending items. All 118 Node regressions, targeted lint, TypeScript, and diff checks passed.
+These changes are saved on the feature branch, without merge or production deployment.
+No live media deletion or production quota exhaustion was performed.
+
 ## Administrator sign-in and local-upload limits — 2026-10-22
 
 Security work is on `codex/v1-auth-upload-limits`, stacked on the unmerged
