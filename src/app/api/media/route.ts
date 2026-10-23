@@ -30,7 +30,7 @@ function withDelivery(item: MediaItem, includeOriginalFileName = false): MediaIt
   return publicItem;
 }
 
-export async function GET(request: Request) {
+async function getMedia(request: Request) {
   const session = await getServerSession(authOptions);
   const administrator = isAdmin(session?.user as { isAdmin?: boolean } | undefined);
   const searchParams = new URL(request.url).searchParams;
@@ -64,6 +64,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ ...page, media: page.media.map((item) => withDelivery(item, administrator)) }, { headers: { "Cache-Control": "private, no-store" } });
   }
   catch { return NextResponse.json({ error: "Invalid media cursor. Refresh the library." }, { status: 400 }); }
+}
+
+// Every listing branch depends on the session, including provider/error responses.
+export async function GET(request: Request) {
+  const response = await getMedia(request);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 async function patchMedia(request: Request) {

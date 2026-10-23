@@ -107,8 +107,12 @@ These are starting points, not a fresh certification of every workflow:
   response headers. See [findings and open review work](operations/request-hardening.md).
   The follow-up `codex/v1-bounded-admin-json` branch adds a 64 KiB streaming
   JSON-object limit and content-type/UTF-8 validation to media PATCH and profile
-  POST/PATCH after authorization. Origin/proxy trust, other active input paths,
-  and broader session-dependent caching remain open; this audit item stays unchecked.
+  POST/PATCH after authorization. The pending origin-validation branch restricts
+  administrator mutations to exact configured origins without trusting forwarded
+  hosts. The theme-input/media-cache follow-up applies the JSON limit to theme
+  PATCH and private/no-store to all handled media-list GET responses. See the
+  findings document for tests and remaining scope. The broader input/cache review
+  and route authorization matrix remain open; this audit item stays unchecked.
 - [ ] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,

@@ -9,7 +9,7 @@ async function load(path, env = {}, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, process: { env } });
+  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, TextDecoder, process: { env } });
   return exports;
 }
 const canonical = "https://site.test";
@@ -76,6 +76,7 @@ test("all guarded mutations authenticate first and reject cross-origin requests 
 test("a configured origin permits an authenticated theme update behind an internal proxy URL", async () => {
   const guard = await load("../src/lib/admin-origin.ts", { NEXTAUTH_URL: canonical });
   let saved;
+  const json = await load("../src/lib/request-json.ts");
   const route = await load("../src/app/api/settings/route.ts", {}, {
     "@/lib/admin-origin": guard,
     "next/server": { NextResponse: Response },
@@ -83,6 +84,7 @@ test("a configured origin permits an authenticated theme update behind an intern
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
     "@/lib/theme": { isSiteTheme: (theme) => theme === "dark" },
     "@/lib/database": { saveSiteTheme: async (theme) => { saved = theme; } },
+    "@/lib/request-json": json,
   });
   const result = await route.PATCH(new Request("http://127.0.0.1:3000/api/settings", {
     method: "PATCH", headers: { origin: canonical, "content-type": "application/json" }, body: JSON.stringify({ theme: "dark" }),

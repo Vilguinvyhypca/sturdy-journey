@@ -106,3 +106,38 @@ these branches are stacked. Do not use production content for destructive tests.
 Validation for the origin checkpoint: all 126 Node regression tests, targeted
 ESLint, TypeScript, and diff checks passed. Authenticated browser acceptance and
 release build/deployment remain pending. No production changes were made.
+
+## Theme input and media-list caching follow-up
+
+Branch `codex/v1-theme-input-media-cache` is stacked on traffic-report commit
+`4fb78c9` (which includes the pending origin-validation branch).
+
+Theme PATCH now uses the same 64 KiB streaming JSON-object reader as media/profile
+edits, after administrator authentication and origin validation. Invalid JSON,
+null/arrays, unsupported content types, and oversized requests return 400/415/413
+without saving a theme. Existing theme-name validation remains. The public theme
+GET is unchanged.
+
+Every handled media-list GET response now explicitly uses `Cache-Control:
+private, no-store`, including database/blob provider branches and invalid-profile
+or invalid-cursor responses. These listings depend on the session and may include
+administrator-only fields. This closes an inconsistent cache policy; it does not
+establish that a cache leak occurred or invalidate historical caches. Media byte
+routes and list filtering are unchanged.
+
+Regression tests cover successful theme saves, rejection before persistence,
+authentication/origin ordering, and cache/filter behavior across anonymous,
+signed-in non-administrator, and administrator sessions for all three listing
+providers. Local production remains the supported v1 scope; legacy coverage does
+not enable database-backed profiles or cloud provider rollout.
+
+Manual review: on development, change the theme to another supported option,
+reload and confirm it persists, then restore it. Inspect /api/media responses
+while signed out and signed in: expect private/no-store, with private/unlisted
+items absent for public users. Use disposable data for any visibility changes.
+The broader original/playback/thumbnail/page authorization matrix and retained
+legacy mutation inputs remain open. No merge or production deployment is included.
+
+Validation: all 128 Node regression tests passed, along with targeted ESLint,
+TypeScript, and diff checks. Authenticated browser acceptance and the final
+release build remain pending.
