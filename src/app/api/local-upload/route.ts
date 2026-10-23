@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { defaultProfileId, mediaProfileId } from "@/lib/profile-types";
 import { getProfile } from "@/lib/profiles";
 import { getServerSession } from "next-auth";
@@ -13,28 +14,14 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return Response.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   if (!usesLocalStorage) return Response.json({ error: "Local uploads are not enabled." }, { status: 503 });
   const limited = await limitAdminAction("upload");
   if (limited) return limited;
   const profileId = request.headers.get("x-media-profile") ?? defaultProfileId;
   if (request.headers.has("x-media-profile") && usesDatabase) return Response.json({ error: "Profiles require the local catalog." }, { status: 503 });
   if (!usesDatabase && !await getProfile(profileId)) return Response.json({ error: "Profile not found." }, { status: 404 });
-  const origin = request.headers.get("origin");
-  if (origin) {
-    let validOrigin = false;
-    try {
-      const originUrl = new URL(origin);
-      const requestUrl = new URL(request.url);
-      const requestHost = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? requestUrl.host).split(",")[0].trim().split(":")[0];
-      const configuredHosts = (process.env.MEDIA_DEV_ORIGINS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean);
-      validOrigin = originUrl.origin === requestUrl.origin
-        || originUrl.hostname.toLowerCase() === requestHost.toLowerCase()
-        || configuredHosts.includes(originUrl.hostname.toLowerCase());
-    } catch {
-      validOrigin = false;
-    }
-    if (!validOrigin) return Response.json({ error: "Invalid upload origin." }, { status: 403 });
-  }
   if (!request.body) return Response.json({ error: "Choose a file first." }, { status: 400 });
   if (Number(request.headers.get("content-length")) > maximumLocalUploadBytes) return Response.json({ error: "Files must be 500 MB or smaller." }, { status: 413 });
   const contentType = request.headers.get("content-type")?.split(";")[0] ?? "";

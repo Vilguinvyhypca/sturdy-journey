@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { defaultProfileId, mediaProfileId } from "@/lib/profile-types";
 import { getProfile } from "@/lib/profiles";
 import { deleteStoredLocalMedia, usesLocalStorage } from "@/lib/local-storage";
@@ -68,6 +69,8 @@ export async function GET(request: Request) {
 async function patchMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to update media." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   let body: { id?: unknown; profileId?: unknown; title?: unknown; description?: unknown; visibility?: unknown; albumIds?: unknown; ids?: unknown; addToAlbumId?: unknown };
   try {
     body = await readJsonObject(request);
@@ -108,6 +111,8 @@ async function patchMedia(request: Request) {
 async function deleteMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete media." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   const id = new URL(request.url).searchParams.get("pathname");
   if (!id) return NextResponse.json({ error: "Invalid media item." }, { status: 400 });
   const limited = await limitAdminAction("delete");

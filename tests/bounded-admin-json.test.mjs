@@ -51,6 +51,7 @@ test("media/profile writes stop before mutations on rejected JSON and retain nor
     "@/lib/request-json": json,
     "next/server": { NextResponse: Response },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: administrator } }) },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
     "@/lib/database": { usesDatabase: false },
     "@/lib/local-storage": { usesLocalStorage: true },

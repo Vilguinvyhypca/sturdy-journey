@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { createHash } from "node:crypto";
 import * as exifr from "exifr";
 import { NextResponse } from "next/server";
@@ -6,9 +7,11 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { saveMedia, usesDatabase } from "@/lib/database";
 import { listBlobMedia, usesBlobStorage } from "@/lib/storage";
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to scan media." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   if (!usesDatabase || !usesBlobStorage) return NextResponse.json({ error: "Fingerprint scanning is available after connecting Blob storage and the database." }, { status: 503 });
 
   const media = await listBlobMedia();

@@ -67,3 +67,42 @@ The bounded-JSON follow-up passed all 122 Node regression tests, targeted ESLint
 TypeScript, and diff checks. No production deployment was performed. Before a
 manual test, record the checked-out development commit: the shared development
 server can contain newer stacked branches than an earlier emailed procedure.
+
+## Exact administrator origins
+
+Branch `codex/v1-origin-validation` builds on bounded-JSON commit `a5371d9`.
+Authenticated local uploads, media PATCH/DELETE, profile POST/PATCH, theme PATCH,
+album POST/PATCH/DELETE, and legacy fingerprint POST reject untrusted browser
+origins before reading bodies, consuming quotas, or writing storage. Signed-out
+requests still return 401 first. Public reads are unaffected.
+
+Trust comes from `NEXTAUTH_URL` (or `NEXT_PUBLIC_SITE_URL` if absent), plus optional
+comma-separated full origins in `MEDIA_ADMIN_ORIGINS`. Scheme, host, and port
+must match. Request URLs, Host, Forwarded, X-Forwarded-Host, Cloudflare headers,
+and bare `MEDIA_DEV_ORIGINS` entries do not grant administrator write access.
+Missing/invalid canonical configuration or malformed extra origins fail closed
+with 503. Denials return 403 and private/no-store. An explicit Origin must be
+valid; a trusted Referer is accepted only when Origin is absent. Requests marked
+Sec-Fetch-Site: cross-site are denied. Scripts using these endpoints must send a
+configured Origin along with their existing administrator authentication.
+
+For phone development using the HTTPS Tailscale alias, add
+`MEDIA_ADMIN_ORIGINS=https://hymecymeyseh.tailcc86a8.ts.net:8443` to the development
+environment and restart the dev service. Keep the existing canonical development
+NEXTAUTH_URL. This checkpoint does not change environment files or production.
+The hostname-only Next development allowlist remains a separate setting.
+
+NextAuth callbacks and signed provider upload/webhook routes retain their own
+validation and are outside this guard; a full audit remains open. Other remaining
+work includes remaining body limits and the authorization/cache matrix.
+
+Developer review: sign in at the configured development origin and use disposable
+media to upload, edit a title/profile/theme, and delete. Repeat an authenticated
+mutation with an untrusted Origin: expect 403 and no changes. Spoofed forwarded
+hosts must not bypass denial. Confirm public browsing and sign-in still work.
+Check the development commit before following an emailed test procedure because
+these branches are stacked. Do not use production content for destructive tests.
+
+Validation for the origin checkpoint: all 126 Node regression tests, targeted
+ESLint, TypeScript, and diff checks passed. Authenticated browser acceptance and
+release build/deployment remain pending. No production changes were made.

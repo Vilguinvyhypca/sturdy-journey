@@ -21,6 +21,7 @@ test("media and album deletion require authorization and quota before any lookup
   let files = 0;
   const common = {
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: administrator } }) },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { authOptions: {}, isAdmin: (user) => user.isAdmin },
     "next/server": { NextResponse: Response },
     "@/lib/rate-limit": { limitAdminAction: async (action) => {

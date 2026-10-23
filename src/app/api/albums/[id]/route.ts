@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
@@ -26,6 +27,8 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/albu
 export async function PATCH(request: Request, { params }: RouteContext<"/api/albums/[id]">) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to edit an album." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   const { id } = await params;
   const body = await request.json() as { name?: unknown; description?: unknown };
@@ -42,9 +45,11 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/alb
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteContext<"/api/albums/[id]">) {
+export async function DELETE(request: Request, { params }: RouteContext<"/api/albums/[id]">) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to delete an album." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   const limited = await limitAdminAction("delete");
   if (limited) return limited;

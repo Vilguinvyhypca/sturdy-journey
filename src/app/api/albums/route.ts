@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -20,6 +21,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to create an album." }, { status: 401 });
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
 
   const body = await request.json() as { name?: unknown; description?: unknown };

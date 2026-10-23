@@ -38,6 +38,7 @@ test("profile media stays isolated and public previews exclude private items for
     "@vercel/blob": {},
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: administrator } }) },
     "@/lib/db": { readMedia: async () => items },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { isAdmin: (user) => user?.isAdmin === true },
     "@/lib/database": { usesDatabase: false },
     "@/lib/mux": { createMuxPlaybackTokens: () => ({}) },

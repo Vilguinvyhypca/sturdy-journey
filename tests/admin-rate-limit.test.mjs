@@ -95,6 +95,7 @@ test("local upload rejects unauthenticated requests before quota use and throttl
   const route = {};
   const mocks = {
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: administrator } }) },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { authOptions: {}, isAdmin: (user) => user.isAdmin },
     "@/lib/local-storage": { usesLocalStorage: true, storeLocalUpload: async () => { stored++; } },
     "@/lib/rate-limit": { limitAdminAction: async () => { counted++; return new Response(null, { status: 429 }); } },

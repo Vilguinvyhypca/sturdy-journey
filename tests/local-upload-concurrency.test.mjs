@@ -35,6 +35,7 @@ test("overlapping upload requests save one record and clean only the rejected up
     "@/lib/profile-types": load("profile-types"),
     "@/lib/profiles": { getProfile: async () => ({ id: "hymecymeyseh" }) },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { authOptions: {}, isAdmin: () => true },
     "@/lib/db": db,
     "@/lib/database": { usesDatabase: false },

@@ -1,3 +1,4 @@
+import { validateAdminOrigin } from "@/lib/admin-origin";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { usesDatabase } from "@/lib/database";
@@ -25,6 +26,8 @@ export async function GET() {
 async function write(request: Request, update: boolean) {
   const denied = await access();
   if (denied) return denied;
+  const originDenied = validateAdminOrigin(request);
+  if (originDenied) return originDenied;
   let body: Record<string, unknown>;
   try {
     body = await readJsonObject(request);

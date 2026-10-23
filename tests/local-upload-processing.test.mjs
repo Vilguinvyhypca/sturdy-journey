@@ -54,6 +54,7 @@ test("processing errors remove originals and partial output without saving; retr
     "@/lib/profile-types": { defaultProfileId: "hymecymeyseh", mediaProfileId: () => "hymecymeyseh" },
     "@/lib/profiles": { getProfile: async () => ({ id: "hymecymeyseh" }) },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },
+    "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { authOptions: {}, isAdmin: () => true },
     "@/lib/db": { DuplicateMediaError: class extends Error {}, readMedia: async () => [], addMedia: async () => { saved++; } },
     "@/lib/database": { usesDatabase: false },

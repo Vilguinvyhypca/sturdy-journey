@@ -57,3 +57,7 @@ phone viewport had no horizontal overflow. Temporary server-page and root-layout
 failure triggers verified both React error boundaries and were removed.
 Cloudflare deployment dry run passed. These checks do not establish live Worker
 deployment or first-visit protection on the production domain.
+
+Administrator writes through the HTTPS development alias also require the exact
+origin in `MEDIA_ADMIN_ORIGINS=https://hymecymeyseh.tailcc86a8.ts.net:8443`.
+See [administrator origin validation](operations/request-hardening.md#exact-administrator-origins).
