@@ -118,6 +118,12 @@ These are starting points, not a fresh certification of every workflow:
   original bytes, converted playback, thumbnails, profile updates, uploads,
   edits, and deletion. Cover public, unlisted, and private visibility; test that
   public previews remain public-only even during an administrator session.
+  The pending `codex/v1-media-authorization-matrix` branch adds isolated original,
+  playback, thumbnail, photo/video page and metadata role/visibility matrices,
+  public-list isolation, and anonymous/member mutation-denial tests. See
+  [coverage and limits](operations/media-authorization.md). The final browser
+  walkthrough and runtime cache/HEAD checks are still pending; keep this item
+  open until the remaining acceptance evidence is recorded.
 
 ### 3. Administrator clarity
 
