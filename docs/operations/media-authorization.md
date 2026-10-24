@@ -66,3 +66,8 @@ theme/cache, administrator origins, bounded JSON, polling/deletion, and sign-in/
 upload quotas. ESLint for the new test and diff checks passed. The full 128-test
 suite passed at parent `885e4d3`; this test/documentation-only checkpoint did not
 repeat the unrelated FFmpeg suite or a production build.
+
+A subsequent [desktop development browser review](browser-access-review-2026-10-24.md)
+verified a disposable video's private/unlisted/public transitions, range/HEAD
+responses, real playback, sign-out denial and deletion on source `e6667df`.
+iPhone, photo workflows and full form interaction remain pending.

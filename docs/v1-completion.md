@@ -124,6 +124,10 @@ These are starting points, not a fresh certification of every workflow:
   [coverage and limits](operations/media-authorization.md). The final browser
   walkthrough and runtime cache/HEAD checks are still pending; keep this item
   open until the remaining acceptance evidence is recorded.
+  A [desktop browser review on October 24](operations/browser-access-review-2026-10-24.md)
+  verified disposable-video visibility transitions, sign-out denial, byte ranges,
+  runtime HEAD responses, basic playback and deletion against development source
+  `e6667df`. Photo workflows, form interaction and iPhone acceptance remain open.
 
 ### 3. Administrator clarity
 
