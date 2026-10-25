@@ -185,3 +185,11 @@ See the existing operations proposals for the historical recovery scope.
 
 Required fixes discovered during acceptance remain required. Changes to product
 scope should be recorded explicitly rather than inferred from the optional backlog.
+
+## Latest development acceptance evidence
+
+[October 25 photo browser review](operations/photo-browser-review-2026-10-25.md):
+disposable PNG upload, duplicate rejection, private/unlisted/public transitions,
+signed-out image rendering and deletion/file cleanup passed on source `3c1cf76`.
+iPhone/Safari and click-through administrator forms remain pending; this does not
+close the broader audit or authorize a merge/deployment.
