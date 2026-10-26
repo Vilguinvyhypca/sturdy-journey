@@ -1,6 +1,28 @@
 # MediaSpace project status
 
-Last updated: 2026-10-18
+Last updated: 2026-10-26
+
+## Production release — 2026-10-26
+
+The owner authorized merging and deploying the accumulated reviewed work.
+Main now includes the previously pending branches through `315f826`.
+Production is running isolated release `20261026T002940452940Z-315f826c`, built
+from that commit. Upload/catalog reliability, administrator request limits,
+exact-origin validation, bounded edit JSON, response/security headers, and cache
+hardening are live. Traffic-email URL/count tables are versioned on main and used
+by the existing scheduler. No Cloudflare Worker deployment was part of this release.
+
+All 132 Node tests, six deployment tests, three traffic-email tests and TypeScript
+passed. Full lint passed with five existing warnings and zero errors. The production
+build and both deployment smoke passes succeeded (371 JS/CSS assets). Live HTTPS
+checks passed for pages, public media, private-media denial, canonical origin
+configuration, and invalid-input/untrusted-origin rejection. See
+[release evidence](docs/operations/production-release-2026-10-26.md).
+
+The previous loader release is retained as the rollback target. iPhone/Safari,
+full administrator form acceptance, remaining audit work and the other unchecked
+v1 milestones remain open. Earlier development-only/unmerged statements below
+are historical checkpoints, superseded for release status by this section.
 
 ## Feature-branch workflow — 2026-10-21
 
