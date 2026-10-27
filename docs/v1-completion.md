@@ -203,3 +203,9 @@ disposable PNG upload, duplicate rejection, private/unlisted/public transitions,
 signed-out image rendering and deletion/file cleanup passed on source `3c1cf76`.
 iPhone/Safari and click-through administrator forms remain pending; this does not
 close the broader audit or authorize a merge/deployment.
+
+[October 27 administrator form review](operations/admin-form-review-2026-10-27.md):
+real desktop sign-in, photo/video file-input uploads, detail/visibility forms,
+delete controls and sign-out passed on development source `7e74b08`. Both fixtures
+and their stored files were removed. See the record for native-confirmation
+handling limits. iPhone, profile-management and remaining acceptance work stay open.
