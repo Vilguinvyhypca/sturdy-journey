@@ -209,3 +209,9 @@ real desktop sign-in, photo/video file-input uploads, detail/visibility forms,
 delete controls and sign-out passed on development source `7e74b08`. Both fixtures
 and their stored files were removed. See the record for native-confirmation
 handling limits. iPhone, profile-management and remaining acceptance work stay open.
+
+[October 28 profile form review](operations/profile-form-review-2026-10-28.md):
+desktop creation, duplicate-URL and HTTPS-link validation, editing with a fixed
+URL, public-preview isolation and signed-out rendering passed on source `d8764b1`.
+The empty temporary profile was removed under the writer lock and the original
+profiles were verified unchanged. Actual avatar selection and iPhone checks stay open.
