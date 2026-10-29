@@ -215,3 +215,10 @@ desktop creation, duplicate-URL and HTTPS-link validation, editing with a fixed
 URL, public-preview isolation and signed-out rendering passed on source `d8764b1`.
 The empty temporary profile was removed under the writer lock and the original
 profiles were verified unchanged. Actual avatar selection and iPhone checks stay open.
+
+[October 29 profile-photo review](operations/avatar-review-2026-10-29.md):
+selection offered only a public photo belonging to the profile; private and
+other-profile API assignments were rejected. Public rendering fell back to
+initials when the selected photo became private, moved or was deleted, and
+restored the image when eligible again. New avatar regression tests cover these
+rules. All temporary media/profiles were removed; production was unchanged.
