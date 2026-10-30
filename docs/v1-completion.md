@@ -222,3 +222,11 @@ other-profile API assignments were rejected. Public rendering fell back to
 initials when the selected photo became private, moved or was deleted, and
 restored the image when eligible again. New avatar regression tests cover these
 rules. All temporary media/profiles were removed; production was unchanged.
+
+[October 29 folder/gallery review](operations/folder-gallery-review-2026-10-29.md):
+nested photo-folder import, unsupported-file skipping, load-more pagination,
+search and type/visibility controls passed on desktop development. A real issue
+was found: completed uploads polluted active search/visibility results and counts.
+`codex/v1-folder-gallery-acceptance` fixes insertion/counting to respect the active
+filters and adds upload-handler regressions. The fix remains unmerged/undeployed;
+iPhone and broader acceptance remain open. All temporary files/profile were removed.

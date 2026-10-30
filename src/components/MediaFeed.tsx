@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album, MediaPage } from "@/lib/database";
-import { galleryPageSize, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
+import { galleryPageSize, matchesMediaSearch, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import type { Profile } from "@/lib/profile-types";
 import { AuthControls } from "./AuthControls";
 import { MediaCard } from "./MediaCard";
@@ -353,8 +353,10 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
       uploadAbortController.current = null;
       setUploadState(null);
     }
-    setItems((current) => [...uploaded, ...current]);
-    const relevantUploads = uploaded.filter((item) => !mediaType || item.type === mediaType);
+    const relevantUploads = uploaded.filter((item) => (!mediaType || item.type === mediaType)
+      && (!visibilityFilter || item.visibility === visibilityFilter)
+      && matchesMediaSearch(item, searchQuery.trim().slice(0, 200)));
+    setItems((current) => [...relevantUploads, ...current]);
     if (relevantUploads.length) setSummary((current) => ({ totalCount: current.totalCount + relevantUploads.length, photoCount: current.photoCount + relevantUploads.filter((item) => item.type === "photo").length, videoCount: current.videoCount + relevantUploads.filter((item) => item.type === "video").length, knownSizeCount: current.knownSizeCount + relevantUploads.filter((item) => typeof item.fileSizeBytes === "number").length, knownStorageBytes: current.knownStorageBytes + relevantUploads.reduce((total, item) => total + (item.fileSizeBytes ?? 0), 0) }));
     setUploadProgress("");
     if (canceled) {
