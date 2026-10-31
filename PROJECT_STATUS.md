@@ -1,6 +1,25 @@
 # MediaSpace project status
 
-Last updated: 2026-10-26
+Last updated: 2026-10-30
+
+## PR #20 deployed — 2026-10-30
+
+PR #20 is merged, and production now runs release
+`20261031T031826605888Z-e4a17b4a` from main commit `e4a17b4`.
+It fixes uploads polluting nonmatching gallery search/visibility results and counts,
+and includes the recent administrator/profile/avatar/folder acceptance records.
+The preceding release `20261026T002940452940Z-315f826c` is the rollback target.
+
+The production build and both smoke passes succeeded (395 JS/CSS assets), six
+fresh deployment tests and four focused regressions passed, and live public/private
+access and input/origin checks passed. The merged application/tests are identical
+to the source that passed all 135 Node regressions, lint and TypeScript before merge.
+See [release evidence](docs/operations/production-release-2026-10-30.md).
+
+Production media and the targeted optimized video file were unchanged by this
+release. Disk has approximately 15 GiB free after the earlier obsolete-release
+cleanup and this new build. iPhone/Safari, sound and wider v1 sign-off remain open.
+Earlier pending/unmerged statements below are historical checkpoints.
 
 ## Production release — 2026-10-26
 

@@ -4,15 +4,15 @@ Audited: 2026-10-18. This is the working completion plan for the current
 self-hosted application. It supersedes the ordering of historical phases in
 `PROJECT_STATUS.md`; it does not certify unchecked work or authorize deployment.
 
-## Current release status — 2026-10-26
+## Current release status — 2026-10-30
 
-The owner approved merging/deploying the accumulated work through `315f826`.
-It is now on main and active in production release
-`20261026T002940452940Z-315f826c`. References below to development-only or pending
-branches describe their earlier checkpoints; the runtime changes are now deployed.
-See [release validation and remaining work](operations/production-release-2026-10-26.md).
-This release does not certify completion of the unchecked milestones or DevOps
-recovery acceptance.
+PR #20 was merged and deployed with owner authorization. Production runs
+`20261031T031826605888Z-e4a17b4a` from main commit `e4a17b4`, including the gallery
+upload-filter fix and recent acceptance evidence. See
+[release validation](operations/production-release-2026-10-30.md).
+References below to pending/unmerged branches are historical checkpoints and do
+not describe the current deployment. This release does not certify completion
+of unchecked milestones, iPhone/sound acceptance or DevOps recovery acceptance.
 
 ## Finish line
 
