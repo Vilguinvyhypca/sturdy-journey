@@ -203,3 +203,30 @@ disposable PNG upload, duplicate rejection, private/unlisted/public transitions,
 signed-out image rendering and deletion/file cleanup passed on source `3c1cf76`.
 iPhone/Safari and click-through administrator forms remain pending; this does not
 close the broader audit or authorize a merge/deployment.
+
+[October 27 administrator form review](operations/admin-form-review-2026-10-27.md):
+real desktop sign-in, photo/video file-input uploads, detail/visibility forms,
+delete controls and sign-out passed on development source `7e74b08`. Both fixtures
+and their stored files were removed. See the record for native-confirmation
+handling limits. iPhone, profile-management and remaining acceptance work stay open.
+
+[October 28 profile form review](operations/profile-form-review-2026-10-28.md):
+desktop creation, duplicate-URL and HTTPS-link validation, editing with a fixed
+URL, public-preview isolation and signed-out rendering passed on source `d8764b1`.
+The empty temporary profile was removed under the writer lock and the original
+profiles were verified unchanged. Actual avatar selection and iPhone checks stay open.
+
+[October 29 profile-photo review](operations/avatar-review-2026-10-29.md):
+selection offered only a public photo belonging to the profile; private and
+other-profile API assignments were rejected. Public rendering fell back to
+initials when the selected photo became private, moved or was deleted, and
+restored the image when eligible again. New avatar regression tests cover these
+rules. All temporary media/profiles were removed; production was unchanged.
+
+[October 29 folder/gallery review](operations/folder-gallery-review-2026-10-29.md):
+nested photo-folder import, unsupported-file skipping, load-more pagination,
+search and type/visibility controls passed on desktop development. A real issue
+was found: completed uploads polluted active search/visibility results and counts.
+`codex/v1-folder-gallery-acceptance` fixes insertion/counting to respect the active
+filters and adds upload-handler regressions. The fix remains unmerged/undeployed;
+iPhone and broader acceptance remain open. All temporary files/profile were removed.
