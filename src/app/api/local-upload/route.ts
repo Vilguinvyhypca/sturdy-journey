@@ -11,7 +11,7 @@ import { limitAdminAction } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+async function uploadLocalMedia(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return Response.json({ error: "Sign in as the administrator to upload." }, { status: 401 });
   const originDenied = validateAdminOrigin(request);
@@ -71,4 +71,10 @@ export async function POST(request: Request) {
     console.error("Local upload failed", error);
     return Response.json({ error: "The server could not save this upload. Check local storage configuration and disk space." }, { status: 500 });
   }
+}
+
+export async function POST(request: Request) {
+  const response = await uploadLocalMedia(request);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }

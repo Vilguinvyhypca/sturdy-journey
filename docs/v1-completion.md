@@ -230,3 +230,13 @@ was found: completed uploads polluted active search/visibility results and count
 `codex/v1-folder-gallery-acceptance` fixes insertion/counting to respect the active
 filters and adds upload-handler regressions. The fix remains unmerged/undeployed;
 iPhone and broader acceptance remain open. All temporary files/profile were removed.
+
+## Pending development hardening — November 1, 2026
+
+[Local upload boundary and administrator caching](operations/local-upload-boundary-2026-11-01.md):
+`codex/v1-local-upload-boundary` blocks the old public `/api/upload` fallback when
+local mode is enabled, preserving the guarded `/api/local-upload` workflow. It also
+adds consistent private/no-store to handled upload/media/theme mutations and
+administrator config/usage responses. This work is pending review and deployment;
+current production remains the October 30 release. Image-content validation,
+experience-event review and wider acceptance remain open.

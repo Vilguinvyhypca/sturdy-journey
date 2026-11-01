@@ -141,3 +141,12 @@ legacy mutation inputs remain open. No merge or production deployment is include
 Validation: all 128 Node regression tests passed, along with targeted ESLint,
 TypeScript, and diff checks. Authenticated browser acceptance and the final
 release build remain pending.
+
+## Local upload boundary and mutation cache follow-up — November 1
+
+The pending `codex/v1-local-upload-boundary` branch disables the legacy public
+upload fallback in local mode before reading a body or writing files, and makes
+handled local-upload/media/theme mutations and administrator config/usage responses
+consistently private/no-store. See [finding, evidence and remaining scope](local-upload-boundary-2026-11-01.md).
+Normal local uploads and retained nonlocal callback behavior are covered by tests.
+This checkpoint remains unmerged/undeployed and does not close the broader audit.

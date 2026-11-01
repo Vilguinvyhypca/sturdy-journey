@@ -10,7 +10,7 @@ export async function GET() {
   return NextResponse.json({ theme: await getSiteTheme() });
 }
 
-export async function PATCH(request: Request) {
+async function updateTheme(request: Request) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session?.user as { isAdmin?: boolean } | undefined)) return NextResponse.json({ error: "Sign in as the administrator to change the theme." }, { status: 401 });
   const originDenied = validateAdminOrigin(request);
@@ -25,4 +25,10 @@ export async function PATCH(request: Request) {
   if (!isSiteTheme(body.theme)) return NextResponse.json({ error: "That theme is not available." }, { status: 400 });
   await saveSiteTheme(body.theme);
   return NextResponse.json({ theme: body.theme });
+}
+
+export async function PATCH(request: Request) {
+  const response = await updateTheme(request);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
