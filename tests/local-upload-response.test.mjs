@@ -32,6 +32,7 @@ test('new private uploads immediately return the converted playback URL', async 
   vm.runInNewContext(code, { exports, require: (name) => { assert.ok(name in mocks, name); return mocks[name]; }, Response, URL, console, process });
   const response = await exports.POST(new Request('http://localhost/api/local-upload', { method: 'POST', headers: { 'Content-Type': 'video/mp4', 'X-Media-Name': 'test.mp4' }, body: 'fixture' }));
   assert.equal(response.status, 201);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
   const { media } = await response.json();
   assert.equal(media.url, `/api/local-playback?id=${encodeURIComponent(id)}`);
   assert.equal(media.visibility, 'private');

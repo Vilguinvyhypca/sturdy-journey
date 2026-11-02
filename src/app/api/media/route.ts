@@ -161,7 +161,11 @@ async function deleteMedia(request: Request) {
 }
 
 async function writeResponse(action: () => Promise<Response>) {
-  try { return await action(); }
+  try {
+    const response = await action();
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  }
   catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return NextResponse.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
     throw error;

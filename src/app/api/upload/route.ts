@@ -7,11 +7,15 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
 import type { MediaItem } from "@/lib/media";
 import { uploadMedia, usesBlobStorage } from "@/lib/storage";
+import { usesLocalStorage } from "@/lib/local-storage";
 import { readClientPayload } from "@/lib/upload-payload";
 
 const maximumVideoDurationSeconds = 5 * 60;
 
 export async function POST(request: Request) {
+  // The legacy fallback writes public files and must never bypass local uploads.
+  if (usesLocalStorage) return NextResponse.json({ error: "This upload route is unavailable in local storage mode. Refresh the page and use Upload media." },
+    { status: 503, headers: { "Cache-Control": "private, no-store" } });
   if (request.headers.get("content-type")?.includes("application/json")) {
     if (!usesBlobStorage) return NextResponse.json({ error: "Cloud uploads are not configured." }, { status: 503 });
     const body = await request.json() as HandleUploadBody;
