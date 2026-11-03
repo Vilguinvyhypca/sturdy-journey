@@ -150,3 +150,12 @@ handled local-upload/media/theme mutations and administrator config/usage respon
 consistently private/no-store. See [finding, evidence and remaining scope](local-upload-boundary-2026-11-01.md).
 Normal local uploads and retained nonlocal callback behavior are covered by tests.
 This checkpoint remains unmerged/undeployed and does not close the broader audit.
+
+## Photo-content validation — November 2
+
+The pending `codex/v1-image-content-validation` follow-up checks actual photo
+format, dimensions and first-frame decoding before browser uploads enter the
+catalog, with bounded worker execution and cleanup on rejection/cancellation.
+HEIC/HEIF retains its existing conversion and gains pre/post checks. See
+[behavior, limits and tests](image-content-validation-2026-11-02.md).
+This is not deployed and does not close the traffic-event or broader audit work.

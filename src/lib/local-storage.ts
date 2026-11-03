@@ -82,6 +82,25 @@ export async function storeLocalUpload(body: ReadableStream<Uint8Array>, content
   }
 }
 
+export const maximumLocalImagePixels = 64_000_000;
+
+export async function validateLocalImage(objectKey: string, contentType: string) {
+  const source = await objectPath(objectKey);
+  try {
+    await promisify(execFile)(process.execPath, ["--max-old-space-size=128", join(process.cwd(), "scripts/validate-local-image.cjs"), source, contentType, String(maximumLocalImagePixels)],
+      { timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 8_192 });
+  } catch (error) {
+    const failure = error as NodeJS.ErrnoException & { killed?: boolean; stderr?: string };
+    if (String(failure.code) !== "2" || failure.killed) {
+      throw new LocalUploadError("Photo validation is temporarily unavailable. Please try again later.", 503);
+    }
+    if (failure.stderr?.includes("IMAGE_TOO_LARGE")) {
+      throw new LocalUploadError("Photos must be 64 megapixels or smaller.", 422);
+    }
+    throw new LocalUploadError("This photo could not be read or does not match its file type. Choose a valid photo.", 422);
+  }
+}
+
 export async function probeLocalVideoDuration(objectKey: string) {
   const source = await objectPath(objectKey);
   try {

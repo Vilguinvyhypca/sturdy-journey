@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, DuplicateMediaError, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage } from "@/lib/local-storage";
+import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage, validateLocalImage } from "@/lib/local-storage";
 import { normalizeOriginalFileName, type MediaItem } from "@/lib/media";
 import { limitAdminAction } from "@/lib/rate-limit";
 
@@ -35,7 +35,11 @@ async function uploadLocalMedia(request: Request) {
     const duplicate = usesDatabase ? await findMediaByHash(stored.contentHash) : (await readMedia()).some((item) => item.contentHash === stored?.contentHash && mediaProfileId(item) === profileId);
     if (duplicate) throw new LocalUploadError("That exact photo or video has already been uploaded.", 409);
     const duration = contentType.startsWith("video/") ? await probeLocalVideoDuration(storage.objectKey) : null;
-    if (contentType === "image/heic" || contentType === "image/heif") stored.storage.objectKey = await convertLocalHeicToJpeg(storage.objectKey);
+    if (contentType.startsWith("image/")) await validateLocalImage(storage.objectKey, contentType);
+    if (contentType === "image/heic" || contentType === "image/heif") {
+      stored.storage.objectKey = await convertLocalHeicToJpeg(storage.objectKey);
+      await validateLocalImage(stored.storage.objectKey, "image/jpeg");
+    }
     const media: MediaItem = {
       profileId, id: stored.id, url: stored.url, title: name.replace(/\.[^/.]+$/, "").slice(0, 120) || "Untitled media", originalFileName: name,
       type: contentType.startsWith("video/") ? "video" : "photo", createdAt: "Just now", album: "Uploads",
