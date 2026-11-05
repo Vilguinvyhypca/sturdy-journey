@@ -240,3 +240,13 @@ adds consistent private/no-store to handled upload/media/theme mutations and
 administrator config/usage responses. This work is pending review and deployment;
 current production remains the October 30 release. Image-content validation,
 experience-event review and wider acceptance remain open.
+
+## Pending photo-validation follow-up — November 2, 2026
+
+[Photo content validation](operations/image-content-validation-2026-11-02.md):
+`codex/v1-image-content-validation` adds detected-format and first-frame decoder
+checks with a 64-megapixel limit and bounded execution, before browser photos are
+saved. HEIC/HEIF gets container and converted-JPEG checks. Rejected/cancelled files
+are cleaned up; ordinary accepted originals are unchanged. Tests/build and live
+development checks passed; this work remains pending review and deployment.
+Traffic-event review and remaining acceptance are still open.
