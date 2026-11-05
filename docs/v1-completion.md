@@ -240,3 +240,12 @@ adds consistent private/no-store to handled upload/media/theme mutations and
 administrator config/usage responses. This work is pending review and deployment;
 current production remains the October 30 release. Image-content validation,
 experience-event review and wider acceptance remain open.
+
+## Visitor-event security checkpoint — November 4, 2026
+
+The independent `codex/v1-experience-request-security` follow-up checks configured
+origins, strict streamed JSON/UTF-8, shared rolling quotas (60 events/session/minute
+and 1,200 overall/minute), retry responses and private report caching.
+See [findings, behavior and limits](operations/experience-ingestion-security-2026-11-04.md).
+This remains pending review/deployment. Wider endpoint/cache checks and device
+acceptance stay open; photo-validation PR #22 is a separate review checkpoint.

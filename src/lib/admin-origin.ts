@@ -1,5 +1,5 @@
 /** Exact operator-configured origins; proxy and request host headers are not trusted. */
-export function validateAdminOrigin(request: Request): Response | null {
+export function validateRequestOrigin(request: Request, audience = "administrator"): Response | null {
   const reject = (status: number, error: string) => Response.json({ error }, {
     status, headers: { "Cache-Control": "private, no-store" },
   });
@@ -18,9 +18,9 @@ export function validateAdminOrigin(request: Request): Response | null {
       allowed.add(parse(value, true));
     }
   } catch {
-    return reject(503, "Administrator origins are not configured correctly.");
+    return reject(503, "Request origins are not configured correctly.");
   }
-  if (request.headers.get("sec-fetch-site") === "cross-site") return reject(403, "Invalid administrator request origin.");
+  if (request.headers.get("sec-fetch-site") === "cross-site") return reject(403, `Invalid ${audience} request origin.`);
   const origin = request.headers.get("origin");
   const source = origin ?? request.headers.get("referer");
   try {
@@ -30,7 +30,9 @@ export function validateAdminOrigin(request: Request): Response | null {
       || (origin !== null && (url.pathname !== "/" || url.search || url.hash))
       || !allowed.has(url.origin)) throw new Error("Untrusted origin");
   } catch {
-    return reject(403, "Invalid administrator request origin.");
+    return reject(403, `Invalid ${audience} request origin.`);
   }
   return null;
 }
+
+export const validateAdminOrigin = (request: Request) => validateRequestOrigin(request);

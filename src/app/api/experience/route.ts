@@ -1,58 +1,54 @@
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { recordExperienceEvent, validateExperienceEvent } from "@/lib/experience";
+import { validateRequestOrigin } from "@/lib/admin-origin";
+import { limitExperienceEvent } from "@/lib/experience-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const recentEvents = new Map<string, { startedAt: number; count: number }>();
-const responseHeaders = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+const responseHeaders = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      const originUrl = new URL(origin);
-      const requestUrl = new URL(request.url);
-      const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? requestUrl.host).split(",")[0].trim().toLowerCase();
-      if (originUrl.host.toLowerCase() !== host) return Response.json({ error: "Invalid event origin." }, { status: 403, headers: responseHeaders });
-    } catch { return Response.json({ error: "Invalid event origin." }, { status: 403, headers: responseHeaders }); }
+  const denied = validateRequestOrigin(request, "event");
+  if (denied) {
+    denied.headers.set("X-Content-Type-Options", "nosniff");
+    return denied;
   }
-  if (request.headers.get("sec-fetch-site") === "cross-site") return Response.json({ error: "Invalid event origin." }, { status: 403, headers: responseHeaders });
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return Response.json({ error: "Invalid event content type." }, { status: 415, headers: responseHeaders });
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") return Response.json({ error: "Invalid event content type." }, { status: 415, headers: responseHeaders });
+  if (Number(request.headers.get("content-length")) > 4_096) {
+    await request.body?.cancel().catch(() => undefined);
+    return Response.json({ error: "Event is too large." }, { status: 413, headers: responseHeaders });
+  }
 
   let raw = "";
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
   const reader = request.body?.getReader();
   if (!reader) return Response.json({ error: "Invalid event." }, { status: 400, headers: responseHeaders });
   let size = 0;
-  while (true) {
-    let chunk: ReadableStreamReadResult<Uint8Array>;
-    try { chunk = await reader.read(); } catch { return Response.json({ error: "Invalid event." }, { status: 400, headers: responseHeaders }); }
-    if (chunk.done) break;
-    size += chunk.value.byteLength;
-    if (size > 4_096) {
-      await reader.cancel().catch(() => undefined);
-      return Response.json({ error: "Event is too large." }, { status: 413, headers: responseHeaders });
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > 4_096) {
+        await reader.cancel().catch(() => undefined);
+        return Response.json({ error: "Event is too large." }, { status: 413, headers: responseHeaders });
+      }
+      raw += decoder.decode(chunk.value, { stream: true });
     }
-    raw += decoder.decode(chunk.value, { stream: true });
-  }
-  raw += decoder.decode();
+    raw += decoder.decode();
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    return Response.json({ error: "Invalid event." }, { status: 400, headers: responseHeaders });
+  } finally { reader.releaseLock(); }
   let body: unknown;
   try { body = JSON.parse(raw); } catch { return Response.json({ error: "Invalid event." }, { status: 400, headers: responseHeaders }); }
   const event = validateExperienceEvent(body);
   if (!event) return Response.json({ error: "Invalid event." }, { status: 400, headers: responseHeaders });
 
-  const now = Date.now();
-  const rate = recentEvents.get(event.sessionId);
-  if (rate && now - rate.startedAt < 60_000 && rate.count >= 60) {
-    return Response.json({ accepted: false }, { status: 429, headers: responseHeaders });
-  }
-  if (!rate || now - rate.startedAt >= 60_000) recentEvents.set(event.sessionId, { startedAt: now, count: 1 });
-  else rate.count += 1;
-  if (recentEvents.size > 10_000) {
-    for (const [sessionId, entry] of recentEvents) if (now - entry.startedAt >= 60_000) recentEvents.delete(sessionId);
-  }
+  const limited = await limitExperienceEvent(event.sessionId);
+  if (limited) return limited;
 
   try {
     await recordExperienceEvent(event);

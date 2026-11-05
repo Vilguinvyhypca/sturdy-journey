@@ -150,3 +150,11 @@ handled local-upload/media/theme mutations and administrator config/usage respon
 consistently private/no-store. See [finding, evidence and remaining scope](local-upload-boundary-2026-11-01.md).
 Normal local uploads and retained nonlocal callback behavior are covered by tests.
 This checkpoint remains unmerged/undeployed and does not close the broader audit.
+
+## Visitor-event ingestion — November 4
+
+The independent `codex/v1-experience-request-security` branch replaces forwarded-host
+origin checks and the process-local session map with configured exact origins and
+bounded shared rolling quotas. It tightens the 4 KiB JSON/UTF-8 boundary while
+retaining administrator-only reports. See [findings and limitations](experience-ingestion-security-2026-11-04.md).
+This remains pending review/deployment; the broader audit stays open.
