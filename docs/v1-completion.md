@@ -4,12 +4,15 @@ Audited: 2026-10-18. This is the working completion plan for the current
 self-hosted application. It supersedes the ordering of historical phases in
 `PROJECT_STATUS.md`; it does not certify unchecked work or authorize deployment.
 
-## Current release status — 2026-10-30
+## Current release status — 2026-11-06
 
-PR #20 was merged and deployed with owner authorization. Production runs
-`20261031T031826605888Z-e4a17b4a` from main commit `e4a17b4`, including the gallery
-upload-filter fix and recent acceptance evidence. See
-[release validation](operations/production-release-2026-10-30.md).
+Merged main was deployed with owner authorization. Production runs
+`20261106T225749970236Z-4717446f` from `4717446`, including PRs #21–25: local upload
+boundary/cache protections, photo validation, visitor-event ingestion hardening,
+album input/cache protections and repeatable runtime access verification. All 147
+Node regressions, six deployment tests and 176 runtime checks passed before
+deployment; live HTTPS verification passed afterward. See
+[release validation and rollback](operations/production-release-2026-11-06.md).
 References below to pending/unmerged branches are historical checkpoints and do
 not describe the current deployment. This release does not certify completion
 of unchecked milestones, iPhone/sound acceptance or DevOps recovery acceptance.
