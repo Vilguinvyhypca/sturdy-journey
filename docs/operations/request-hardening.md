@@ -159,3 +159,11 @@ catalog, with bounded worker execution and cleanup on rejection/cancellation.
 HEIC/HEIF retains its existing conversion and gains pre/post checks. See
 [behavior, limits and tests](image-content-validation-2026-11-02.md).
 This is not deployed and does not close the traffic-event or broader audit work.
+
+## Visitor-event ingestion — November 4
+
+The independent `codex/v1-experience-request-security` branch replaces forwarded-host
+origin checks and the process-local session map with configured exact origins and
+bounded shared rolling quotas. It tightens the 4 KiB JSON/UTF-8 boundary while
+retaining administrator-only reports. See [findings and limitations](experience-ingestion-security-2026-11-04.md).
+This remains pending review/deployment; the broader audit stays open.

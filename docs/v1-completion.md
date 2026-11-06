@@ -250,3 +250,13 @@ saved. HEIC/HEIF gets container and converted-JPEG checks. Rejected/cancelled fi
 are cleaned up; ordinary accepted originals are unchanged. Tests/build and live
 development checks passed; this work remains pending review and deployment.
 Traffic-event review and remaining acceptance are still open.
+
+## Visitor-event security checkpoint — November 4, 2026
+
+The independent `codex/v1-experience-request-security` follow-up checks configured
+origins, strict streamed JSON/UTF-8, shared rolling quotas (60 events/session/minute
+and 1,200 overall/minute), retry responses and private report caching.
+See [findings, behavior and limits](operations/experience-ingestion-security-2026-11-04.md).
+This remains pending review/deployment. Wider endpoint/cache checks and device
+acceptance stay open. Photo-validation PR #22 has since merged into main
+`0c61f94`; that source merge does not establish a production deployment.
