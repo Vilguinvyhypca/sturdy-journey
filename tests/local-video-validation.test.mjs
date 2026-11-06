@@ -64,7 +64,7 @@ test("real upload validation rejects corrupt, audio-only, overlong, and empty fi
     [await readFile(audio), 422, /video track/],
     [await readFile(long), 422, /five minutes/],
     [Buffer.alloc(0), 400, /empty/],
-    [Buffer.from("not a HEIC image"), 422, /could not be converted/, "image/heic"],
+    [Buffer.from("not a HEIC image"), 422, /photo could not be read/, "image/heic"],
   ]) {
     const response = await upload(bytes, contentType);
     assert.equal(response.status, status);

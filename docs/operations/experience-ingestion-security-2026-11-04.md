@@ -1,7 +1,9 @@
 # Visitor-event ingestion security — November 4, 2026
 
-Branch `codex/v1-experience-request-security` is based on main `c92ee71`, independent
-of pending photo-validation PR #22. Deployment is a separate step.
+Branch `codex/v1-experience-request-security` originally started from `c92ee71`.
+It now includes main `0c61f94`, which merged photo-validation PR #22. Its two
+documentation conflicts were resolved by retaining both checkpoints in date
+order. Deployment remains a separate step.
 
 ## Findings and behavior
 
@@ -69,3 +71,13 @@ recovery. Its four fixture events, quota files and test credentials were removed
 with the temporary directory after stopping the server. No real reports were seeded.
 
 The broader endpoint/cache review and iPhone/Safari/sound acceptance remain open.
+
+## Follow-up after PR #22 merged
+
+The combined photo-validation and visitor-event source passed all 145 Node
+regressions and a fresh production-mode development build. The isolated built-app
+HTTP smoke check passed again: valid ingestion, forged-origin/media-type rejection,
+anonymous report 401, authenticated report 200, session/global 429 responses and
+expired-window recovery. Its temporary server, four accepted fixture events,
+quota state and credentials were removed. Resolving these documentation conflicts
+does not merge PR #23 into main or deploy a release.

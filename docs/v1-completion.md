@@ -241,6 +241,16 @@ administrator config/usage responses. This work is pending review and deployment
 current production remains the October 30 release. Image-content validation,
 experience-event review and wider acceptance remain open.
 
+## Pending photo-validation follow-up — November 2, 2026
+
+[Photo content validation](operations/image-content-validation-2026-11-02.md):
+`codex/v1-image-content-validation` adds detected-format and first-frame decoder
+checks with a 64-megapixel limit and bounded execution, before browser photos are
+saved. HEIC/HEIF gets container and converted-JPEG checks. Rejected/cancelled files
+are cleaned up; ordinary accepted originals are unchanged. Tests/build and live
+development checks passed; this work remains pending review and deployment.
+Traffic-event review and remaining acceptance are still open.
+
 ## Visitor-event security checkpoint — November 4, 2026
 
 The independent `codex/v1-experience-request-security` follow-up checks configured
@@ -248,4 +258,5 @@ origins, strict streamed JSON/UTF-8, shared rolling quotas (60 events/session/mi
 and 1,200 overall/minute), retry responses and private report caching.
 See [findings, behavior and limits](operations/experience-ingestion-security-2026-11-04.md).
 This remains pending review/deployment. Wider endpoint/cache checks and device
-acceptance stay open; photo-validation PR #22 is a separate review checkpoint.
+acceptance stay open. Photo-validation PR #22 has since merged into main
+`0c61f94`; that source merge does not establish a production deployment.
