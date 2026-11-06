@@ -71,3 +71,13 @@ A subsequent [desktop development browser review](browser-access-review-2026-10-
 verified a disposable video's private/unlisted/public transitions, range/HEAD
 responses, real playback, sign-out denial and deletion on source `e6667df`.
 iPhone, photo workflows and full form interaction remain pending.
+
+On November 5, a [repeatable built-app HTTP check](runtime-access-check.md) passed
+176 runtime checks on main `0c61f94`, including generated photos/videos, a real
+decoded member session, administrator password sign-in/sign-out, private page
+title/description denial, no-store, actual original/playback/thumbnail GET/HEAD
+and byte ranges. Public profiles stayed public-only during administrator preview.
+All temporary media, credentials and server data were removed. This closes the
+local HTTP/runtime-cache and automatic HEAD verification gap for these tested
+surfaces; browser form interaction, browser/CDN caches and real-device acceptance
+remain open.
