@@ -81,3 +81,11 @@ All temporary media, credentials and server data were removed. This closes the
 local HTTP/runtime-cache and automatic HEAD verification gap for these tested
 surfaces; browser form interaction, browser/CDN caches and real-device acceptance
 remain open.
+
+The [November 7 photo browser acceptance](photo-browser-acceptance-2026-11-07.md)
+then exercised the real photo upload/edit/share/detail/delete UI with disposable
+development media on source `4717446f`. It found and fixed a viewer overflow that
+put the share close control and footer actions beyond the viewport. Chromium
+checks at 1280×577, 390×667, and 320×480 passed after the fix. The exact
+development media catalog, storage filenames, and profile file were restored.
+Physical iPhone/Safari and native share/clipboard checks remain open.
