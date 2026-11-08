@@ -8,11 +8,13 @@ views; they are not unique visitor counts. Empty periods display an explicit
 no-recorded-views message. Untrusted paths are escaped and cannot create links
 to other domains.
 
-The existing user systemd traffic-report service runs
-`scripts/email-traffic-report.py` from this checkout. Its Monday/Wednesday 6 PM
-Eastern schedule and recipients are unchanged. Formatting changes therefore apply
-to the next scheduled report without an application deployment. No extra email
-is sent by previewing or testing the script.
+The installed user systemd timer runs `scripts/email-traffic-report.py` from this
+checkout on Mondays and Wednesdays at 6 PM Eastern. It sends through
+`/usr/sbin/sendmail` to the Proton, AOL, and server mailboxes. Its exact current
+configuration, last successful runs, and delivery-status limits are recorded in
+[the November 8 production check](current-production-state-2026-11-08.md).
+Formatting changes therefore apply to the next scheduled report without an
+application deployment. No extra email is sent by previewing or testing the script.
 
 Preview a single day's report with:
 
@@ -28,7 +30,7 @@ analytics data and a mocked sendmail call:
 python3 -m unittest discover -s tests -p test_traffic_report.py
 ```
 
-This branch is stacked on origin-validation commit `f343368`; the report script
-was previously present on the server but untracked. It is now included in version
-control with its format tests. Application main and the production release are
-unchanged by this report update.
+The service log reports when the script submits a message to the local relay; it
+does not certify recipient inbox delivery. Use SMTP2GO's message activity for
+recipient-level status. `postqueue -p` only checks the local mail queue. Never use
+`--send` as a test; previewing requires no message relay.

@@ -1,18 +1,19 @@
 # MediaSpace v1 completion checklist
 
-Audited: 2026-10-18. This is the working completion plan for the current
+Plan established: 2026-10-18; production status and maintenance documentation
+reviewed: 2026-11-08. This is the working completion plan for the current
 self-hosted application. It supersedes the ordering of historical phases in
 `PROJECT_STATUS.md`; it does not certify unchecked work or authorize deployment.
 
-## Current release status — 2026-10-30
+## Current release status — 2026-11-08
 
-PR #20 was merged and deployed with owner authorization. Production runs
-`20261031T031826605888Z-e4a17b4a` from main commit `e4a17b4`, including the gallery
-upload-filter fix and recent acceptance evidence. See
-[release validation](operations/production-release-2026-10-30.md).
-References below to pending/unmerged branches are historical checkpoints and do
-not describe the current deployment. This release does not certify completion
-of unchecked milestones, iPhone/sound acceptance or DevOps recovery acceptance.
+Read-only host verification found production running isolated release
+`20261106T225749970236Z-4717446f`, with local JSON catalog and media storage.
+Vercel remains connected for pull-request preview builds; it is not the
+production host. See the [current production configuration and reporting
+check](operations/current-production-state-2026-11-08.md). This status does not
+certify completion of unchecked milestones, iPhone/sound acceptance or DevOps
+recovery acceptance.
 
 ## Finish line
 
@@ -151,14 +152,24 @@ These are starting points, not a fresh certification of every workflow:
 - [ ] Record administrator changes and important application failures with enough
   context to diagnose them, without logging passwords, session tokens, or private
   file contents. Define retention and how the operator reviews failures.
-- [ ] Document the local catalog as the current production source of truth,
+- [x] Document the local catalog as the current production source of truth,
   its supported writer model, and the supported storage/provider combinations.
   Reconcile Prisma/runtime SQL documentation for retained legacy support; a Neon
-  migration is not required to finish the local-storage application.
-- [ ] Update README and project status to reflect local production and the
+  migration is not required to finish the local-storage application. The README
+  and [writer contract](operations/catalog-writes.md) describe local JSON/media
+  as current production, the cooperating-writer limits, and optional database,
+  Blob, Mux, and external-URL records. Prisma is documented as schema reference;
+  runtime SQL is not a Prisma migration workflow. Verified against the active
+  November 6 release on November 8.
+- [x] Update README and project status to reflect local production and the
   current release workflow; mark historical Vercel/Mux instructions explicitly.
   Confirm the active traffic-report schedule/recipients and diagnostics in the
-  operator documentation without bundling unrelated email-service changes.
+  operator documentation without bundling unrelated email-service changes. See
+  the [production check](operations/current-production-state-2026-11-08.md) and
+  [traffic report operations](operations/traffic-reports.md). The timer is
+  enabled and recent reports were submitted to the local relay; recipient inbox
+  delivery still requires SMTP2GO message-activity confirmation. Vercel builds
+  pull-request previews and does not host the active production release.
 
 ### 5. Final acceptance and application sign-off
 
