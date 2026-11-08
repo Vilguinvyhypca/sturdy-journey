@@ -8,6 +8,7 @@ import { readProfiles } from "@/lib/profiles";
 import { readMedia } from "@/lib/db";
 import { mediaProfileId } from "@/lib/profile-types";
 import { ProfileForm } from "@/components/ProfileForm";
+import { AdminModeBanner } from "@/components/AdminModeBanner";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Manage profiles", robots: { index: false, follow: false } };
@@ -18,8 +19,9 @@ export default async function ProfilesAdmin() {
   if (usesDatabase || !usesLocalStorage) return <main className="p-8">Profiles require the local Ubuntu catalog and storage.</main>;
   const [profiles, media] = await Promise.all([readProfiles(), readMedia()]);
   return <main className="mx-auto max-w-5xl px-5 py-10">
+    <AdminModeBanner mode="manage" context="profile settings" href="/admin" action="Admin dashboard" />
     <Link href="/" className="text-indigo-700">← Gallery</Link>
-    <h1 className="mt-4 text-3xl font-bold">Manage profiles</h1>
+    <h1 className="mt-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-3xl font-bold">Manage profiles</h1>
     <p className="mt-2 text-slate-600">Choose whose gallery you want to manage. New uploads start private.</p>
     <div className="my-8 grid gap-4 sm:grid-cols-2">{profiles.map((profile) => {
       const items = media.filter((item) => mediaProfileId(item) === profile.id);

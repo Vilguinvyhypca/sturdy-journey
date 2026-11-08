@@ -26,6 +26,9 @@ html[data-theme="midnight"] .bg-slate-900, html[data-theme="midnight"] .bg-slate
 html[data-theme="midnight"] .text-slate-900, html[data-theme="midnight"] .text-slate-700 { color: #e5edf9 !important; }
 html[data-theme="midnight"] .text-slate-500, html[data-theme="midnight"] .text-slate-600 { color: #a8b5cc !important; }
 html[data-theme="midnight"] .border-slate-200, html[data-theme="midnight"] .border-slate-300 { border-color: #33445f !important; }
+.admin-mode-banner { color: var(--ink); }
+.admin-mode-banner[data-mode="manage"] { background-color: var(--accent-soft); border-color: var(--accent); }
+.admin-mode-banner[data-mode="preview"] { background-color: var(--paper); border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
 .theme-swatch-indigo { background: linear-gradient(135deg, #4f46e5, #c7d2fe); }
 .theme-swatch-forest { background: linear-gradient(135deg, #15803d, #bbf7d0); }
 .theme-swatch-sunset { background: linear-gradient(135deg, #e85d2a, #fed7aa); }

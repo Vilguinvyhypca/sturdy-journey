@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { readExperienceSummary } from "@/lib/experience";
 import { ExperienceLinkBuilder } from "@/components/ExperienceLinkBuilder";
+import { AdminModeBanner } from "@/components/AdminModeBanner";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Visitor experience | MediaSpace", robots: { index: false, follow: false } };
@@ -19,6 +20,7 @@ export default async function ExperiencePage() {
   }
   const report = await readExperienceSummary(30);
   return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8">
+    <AdminModeBanner mode="manage" context="visitor experience reports" href="/admin" action="Admin dashboard" />
     <Link href="/admin" className="font-bold text-indigo-700">← Admin dashboard</Link>
     <header className="my-6"><p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">MediaSpace</p><h1 className="mt-2 text-3xl font-black text-slate-950">Visitor experience</h1><p className="mt-2 text-sm text-slate-600">Session-level activity from the last 30 days. Session replay is off; search text, IP addresses, and full referrer URLs are not stored.</p></header>
     <section aria-label="Visitor activity totals" className="grid grid-cols-2 gap-3 sm:grid-cols-5">{[

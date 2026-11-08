@@ -141,10 +141,12 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 3. Administrator clarity
 
-- [ ] Complete the explicit task in `docs/backlog.md`: distinguish administration
+- [x] Complete the explicit task in `docs/backlog.md`: distinguish administration
   from public preview with an Admin mode indicator, a distinct header, grouped
   management controls, and a clear profile context. Verify phone and desktop
   layouts and keyboard access; public visitors must not receive management UI.
+  Completed in the [November 7 administrator mode review](operations/admin-mode-review-2026-11-07.md)
+  on `codex/admin-mode-indicator`; production deployment is separate.
 
 ### 4. Application maintenance and documentation
 
