@@ -9,6 +9,7 @@ import type { Album, MediaPage } from "@/lib/database";
 import { galleryPageSize, matchesMediaSearch, privatePhotoDeliveryUrl, type MediaItem } from "@/lib/media";
 import type { Profile } from "@/lib/profile-types";
 import { AuthControls } from "./AuthControls";
+import { AdminModeBanner } from "./AdminModeBanner";
 import { MediaCard } from "./MediaCard";
 import { PhotoViewer } from "./PhotoViewer";
 import { UploadButton } from "./UploadButton";
@@ -70,7 +71,7 @@ async function uploadVideoToMux(file: File, details: { capturedAt: string | null
 
 const emptyPage: MediaPage = { media: [], nextCursor: null, totalCount: 0, photoCount: 0, videoCount: 0, knownSizeCount: 0, knownStorageBytes: 0 };
 
-export function MediaFeed({ initialPage = emptyPage, mediaType, profile, management = false }: { initialPage?: MediaPage; mediaType?: MediaItem["type"]; profile?: Profile; management?: boolean }) {
+export function MediaFeed({ initialPage = emptyPage, mediaType, profile, management = false, showAdminModeBanner = true }: { initialPage?: MediaPage; mediaType?: MediaItem["type"]; profile?: Profile; management?: boolean; showAdminModeBanner?: boolean }) {
   const { data: session } = useSession();
   const hasAdministratorSession = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
   const isAdministrator = hasAdministratorSession && (!profile || management);
@@ -425,8 +426,33 @@ export function MediaFeed({ initialPage = emptyPage, mediaType, profile, managem
     stopSelecting();
   }
 
-  return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8">
-    <header className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">{profile?.name ?? "Hymecymeyseh"}</h1><p className="mt-2 text-slate-500">{profile?.bio ?? "We are here to just have 🤩 fun."}</p></div><div className="flex flex-wrap items-center gap-3">{hasAdministratorSession && <Link href={management ? "/admin/profiles" : "/profiles"} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">All profiles</Link>}<Link href={profile ? `/feed?profile=${encodeURIComponent(profile.slug)}` : "/feed"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link><AuthControls />{isAdministrator && <><Link href="/admin/profiles" className="text-sm font-bold text-indigo-700">Manage profiles</Link><ThemeSettings /><button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button><button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button>{management && <UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} />}</>}</div></header>
+  return <main className="mx-auto min-h-screen w-full min-w-0 max-w-6xl px-5 py-8 sm:px-8">
+    {hasAdministratorSession && showAdminModeBanner && <AdminModeBanner
+      mode={management ? "manage" : "preview"}
+      context={profile?.name}
+      href={management ? (profile ? `/p/${profile.slug}` : "/") : (profile ? `/admin/profiles/${profile.slug}` : "/admin")}
+      action={management ? "View public page" : (profile ? "Manage this profile" : "Admin dashboard")}
+    />}
+    <header className={`flex min-w-0 flex-col gap-5 border-b pb-7 sm:flex-row sm:items-center sm:justify-between ${isAdministrator ? "rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4 sm:p-5" : "border-slate-200"}`}>
+      <div><h1 className="brand-wordmark mt-1 text-4xl sm:text-5xl">{profile?.name ?? "Hymecymeyseh"}</h1><p className="mt-2 text-slate-500">{profile?.bio ?? "We are here to just have 🤩 fun."}</p></div>
+      <div className="flex min-w-0 flex-col gap-3 sm:items-end">
+        <nav aria-label="Site navigation" className="flex min-w-0 flex-wrap items-center gap-3">
+          {hasAdministratorSession && <Link href={management ? "/admin/profiles" : "/profiles"} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">All profiles</Link>}
+          <Link href={profile ? `/feed?profile=${encodeURIComponent(profile.slug)}` : "/feed"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Video feed</Link>
+          <AuthControls />
+        </nav>
+        {isAdministrator && <div role="group" aria-label="Administrator management controls" className="flex min-w-0 max-w-full flex-col gap-2 rounded-xl border border-indigo-300 bg-white p-3 sm:items-end">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-900">Management controls</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <Link href="/admin/profiles" className="text-sm font-bold text-indigo-700">Manage profiles</Link>
+            <ThemeSettings />
+            <button onClick={() => selectionMode ? stopSelecting() : setSelectionMode(true)} disabled={Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{selectionMode ? "Cancel organize" : "Organize media"}</button>
+            <button onClick={scanExistingMedia} disabled={scanning || Boolean(uploadState)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">{scanning ? "Scanning..." : "Scan media library"}</button>
+            {management && <UploadButton onSelect={addMedia} uploading={Boolean(uploadState)} />}
+          </div>
+        </div>}
+      </div>
+    </header>
     <search className="mt-7 block" aria-label="Search media library">
       <label htmlFor="media-search" className="sr-only">Search filenames, titles, and descriptions</label>
       <div className="relative">

@@ -4,11 +4,13 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Album, AlbumPage } from "@/lib/database";
+import { AdminModeBanner } from "./AdminModeBanner";
 
 const albumPageSize = 24;
 
 export function AlbumsManager() {
   const { data: session } = useSession();
+  const isAdministrator = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
   const [albums, setAlbums] = useState<Album[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
@@ -91,6 +93,7 @@ export function AlbumsManager() {
   }
 
   return <main className="mx-auto min-h-screen max-w-4xl px-5 py-8 sm:px-8">
+    {isAdministrator && <AdminModeBanner mode="manage" context="albums" href="/admin" action="Admin dashboard" />}
     <Link href="/" className="text-sm font-bold uppercase tracking-[.2em] text-indigo-600 hover:underline">MediaSpace</Link>
     <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Albums</h1>
     <p className="mt-2 text-slate-500">Group photos and videos by a moment, trip, or project.</p>

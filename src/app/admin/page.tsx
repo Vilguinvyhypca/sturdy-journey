@@ -9,6 +9,7 @@ import { usesLocalStorage } from "@/lib/local-storage";
 import { readProfiles } from "@/lib/profiles";
 import { readMedia } from "@/lib/db";
 import { mediaProfileId } from "@/lib/profile-types";
+import { AdminModeBanner } from "@/components/AdminModeBanner";
 
 export const metadata: Metadata = {
   title: "Admin dashboard | MediaSpace",
@@ -38,7 +39,8 @@ export default async function AdminPage() {
       if (item.visibility === "private" && count) count.private += 1;
     }
     return <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
+      <AdminModeBanner mode="manage" context="site content" href="/" action="Open public website" />
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5">
         <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">MediaSpace</p><h1 className="mt-2 text-3xl font-black text-slate-950">Admin dashboard</h1><p className="mt-1 text-sm text-slate-600">Manage public profiles and the media in each gallery.</p></div>
         <div className="flex flex-wrap items-center gap-3"><Link className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700" href="/">Open website</Link><AuthControls showDashboardLink={false} /></div>
       </header>

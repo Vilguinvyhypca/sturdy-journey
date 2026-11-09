@@ -6,7 +6,7 @@ its order alone does not define the release finish line.
 
 ## Administration
 
-- [ ] Make admin mode visually distinct from public browsing with CSS: add a clear Admin mode indicator, a distinct header treatment, and grouped management controls. Make it clear when an administrator is managing a profile versus previewing its public page, including when the administrator session remains active during public-page viewing.
+- [x] Make admin mode visually distinct from public browsing with CSS: add a clear Admin mode indicator, a distinct header treatment, and grouped management controls. Make it clear when an administrator is managing a profile versus previewing its public page, including when the administrator session remains active during public-page viewing. Browser review: [administrator mode clarity](operations/admin-mode-review-2026-11-07.md).
 
 ## Uploads
 
