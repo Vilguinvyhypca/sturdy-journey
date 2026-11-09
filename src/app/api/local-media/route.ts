@@ -3,6 +3,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { getLocalMediaStorage, readMedia } from "@/lib/db";
 import { getMediaById, getMediaStorage, usesDatabase } from "@/lib/database";
 import { localMediaResponse } from "@/lib/local-storage";
+import { recordApplicationFailure } from "@/lib/operational-logging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     return await localMediaResponse(storage.objectKey, request);
   } catch (error) {
     if (["ENOENT", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return missing();
-    console.error("Local media unavailable", error);
+    await recordApplicationFailure({ route: "/api/local-media", operation: "serve_local_media", error });
     return new Response("Media temporarily unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

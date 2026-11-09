@@ -5,6 +5,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { getSiteTheme, saveSiteTheme } from "@/lib/database";
 import { JsonRequestError, readJsonObject } from "@/lib/request-json";
 import { isSiteTheme } from "@/lib/theme";
+import { recordAdminChange, recordApplicationFailure } from "@/lib/operational-logging";
 
 export async function GET() {
   return NextResponse.json({ theme: await getSiteTheme() });
@@ -23,12 +24,19 @@ async function updateTheme(request: Request) {
     return NextResponse.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
   }
   if (!isSiteTheme(body.theme)) return NextResponse.json({ error: "That theme is not available." }, { status: 400 });
+  const previousTheme = await getSiteTheme();
   await saveSiteTheme(body.theme);
+  if (previousTheme !== body.theme) await recordAdminChange("theme.updated", "site_theme", "site_theme", { changedFields: ["theme"], theme: body.theme });
   return NextResponse.json({ theme: body.theme });
 }
 
 export async function PATCH(request: Request) {
-  const response = await updateTheme(request);
-  response.headers.set("Cache-Control", "private, no-store");
-  return response;
+  try {
+    const response = await updateTheme(request);
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  } catch (error) {
+    await recordApplicationFailure({ route: "/api/settings", operation: "update_theme", error });
+    throw error;
+  }
 }

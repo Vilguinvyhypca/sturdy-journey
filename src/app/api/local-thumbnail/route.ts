@@ -3,6 +3,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { getLocalMediaStorage, readMedia } from "@/lib/db";
 import { getMediaById, getMediaStorage, usesDatabase } from "@/lib/database";
 import { localThumbnailResponse } from "@/lib/local-storage";
+import { recordApplicationFailure } from "@/lib/operational-logging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   try { return await localThumbnailResponse(storage.objectKey); }
   catch (error) {
     if (["ENOENT", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return missing();
-    console.error("Local thumbnail unavailable", error);
+    await recordApplicationFailure({ route: "/api/local-thumbnail", operation: "serve_local_thumbnail", error });
     return new Response("Thumbnail unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

@@ -14,6 +14,7 @@ import { paginateMedia } from "@/lib/media-page";
 import { deleteLocalMedia, deletePrivateBlob, isPrivateBlobUrl, listBlobMedia, usesBlobStorage } from "@/lib/storage";
 import { limitAdminAction } from "@/lib/rate-limit";
 import { JsonRequestError, readJsonObject } from "@/lib/request-json";
+import { recordAdminChange, recordApplicationFailure } from "@/lib/operational-logging";
 
 function withDelivery(item: MediaItem, includeOriginalFileName = false): MediaItem {
   let delivered = item;
@@ -98,20 +99,29 @@ async function patchMedia(request: Request) {
     if (description.length > 500) return NextResponse.json({ error: "The description must be 500 characters or fewer." }, { status: 400 });
     const profileId = typeof body.profileId === "string" ? body.profileId : undefined;
     if ("profileId" in body && (!profileId || usesDatabase || !usesLocalStorage || !await getProfile(profileId))) return NextResponse.json({ error: "Choose an existing local profile." }, { status: 400 });
+    const before = usesDatabase ? await getMediaById(mediaId) : (await readMedia()).find((item) => item.id === mediaId);
     const media = usesDatabase
       ? await updateMediaDetails(mediaId, title, description, visibility)
       : await updateLocalMediaDetails(mediaId, title, description, visibility, profileId);
     if (!media) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
+    await recordAdminChange("media.updated", "media", mediaId, {
+      changedFields: ["title", "description", "visibility", "profileId"].filter((field) => field in body),
+      mediaType: media.type,
+      previousVisibility: before?.visibility,
+      visibility: media.visibility,
+    });
     return NextResponse.json({ media: withDelivery(media) });
   }
   if (!usesDatabase) return NextResponse.json({ error: "The database is not configured yet." }, { status: 503 });
   if (Array.isArray(body.ids) && typeof body.addToAlbumId === "string") {
     if (body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && (id.startsWith("media/") || id.startsWith("protected-media/") || id.startsWith("mux:") || id.startsWith("local:")))) return NextResponse.json({ error: "Invalid media selection." }, { status: 400 });
     await addMediaToAlbum(body.ids, body.addToAlbumId);
+    await recordAdminChange("media.album_assignment", "album", body.addToAlbumId, { changedFields: ["albums"] });
     return NextResponse.json({ updated: true });
   }
   if (typeof body.id !== "string" || (!body.id.startsWith("media/") && !body.id.startsWith("protected-media/") && !body.id.startsWith("mux:") && !body.id.startsWith("local:")) || !Array.isArray(body.albumIds) || !body.albumIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "Invalid media or album selection." }, { status: 400 });
   await setMediaAlbums(body.id, body.albumIds);
+  await recordAdminChange("media.album_assignment", "media", body.id, { changedFields: ["albums"] });
   return NextResponse.json({ updated: true });
 }
 
@@ -130,6 +140,7 @@ async function deleteMedia(request: Request) {
       if (storage?.provider === "local" && storage.access === "private") await deleteStoredLocalMedia(storage.objectKey);
       else await deleteLocalMedia(item.url);
     });
+    if (removed) await recordAdminChange("media.deleted", "media", id);
     return removed ? NextResponse.json({ deleted: true }) : NextResponse.json({ error: "Media item not found." }, { status: 404 });
   }
   const databaseItem = usesDatabase ? await getMediaById(id) : null;
@@ -157,20 +168,22 @@ async function deleteMedia(request: Request) {
     await deleteLocalMedia(item.url);
     await removeMedia(item.id);
   }
+  await recordAdminChange("media.deleted", "media", id);
   return NextResponse.json({ deleted: true });
 }
 
-async function writeResponse(action: () => Promise<Response>) {
+async function writeResponse(operation: "update_media" | "delete_media", action: () => Promise<Response>) {
   try {
     const response = await action();
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }
   catch (error) {
+    await recordApplicationFailure({ route: "/api/media", operation, error });
     if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return NextResponse.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
     throw error;
   }
 }
 
-export async function PATCH(request: Request) { return writeResponse(() => patchMedia(request)); }
-export async function DELETE(request: Request) { return writeResponse(() => deleteMedia(request)); }
+export async function PATCH(request: Request) { return writeResponse("update_media", () => patchMedia(request)); }
+export async function DELETE(request: Request) { return writeResponse("delete_media", () => deleteMedia(request)); }

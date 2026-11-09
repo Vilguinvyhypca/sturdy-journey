@@ -7,6 +7,7 @@ import { readMedia } from "@/lib/db";
 import { mediaProfileId } from "@/lib/profile-types";
 import { ProfileInputError, readProfiles, saveProfile } from "@/lib/profiles";
 import { JsonRequestError, readJsonObject } from "@/lib/request-json";
+import { recordAdminChange, recordApplicationFailure } from "@/lib/operational-logging";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
@@ -42,13 +43,27 @@ async function write(request: Request, update: boolean) {
       if (!update || !photo || photo.type !== "photo" || photo.visibility !== "public" || mediaProfileId(photo) !== body.id || !photo.id.startsWith("local:")) throw new ProfileInputError("Choose a public local photo belonging to this profile.");
     }
     const profile = await saveProfile(body, update ? body.id as string : undefined);
+    await recordAdminChange(update ? "profile.updated" : "profile.created", "profile", profile.id, {
+      changedFields: ["name", "slug", "bio", "handle", "avatarMediaId", "socialLinks"].filter((field) => field in body),
+    });
     return Response.json({ profile }, { status: update ? 200 : 201, headers });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { ...headers, "Retry-After": "10" } });
+    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") {
+      await recordApplicationFailure({ route: "/api/profiles", operation: "catalog_busy", error });
+      return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { ...headers, "Retry-After": "10" } });
+    }
     if (error instanceof ProfileInputError) return Response.json({ error: error.message }, { status: 400, headers });
     throw error;
   }
 }
 
-export async function POST(request: Request) { return write(request, false); }
-export async function PATCH(request: Request) { return write(request, true); }
+async function writeWithFailureLog(request: Request, update: boolean) {
+  try { return await write(request, update); }
+  catch (error) {
+    await recordApplicationFailure({ route: "/api/profiles", operation: update ? "update_profile" : "create_profile", error });
+    throw error;
+  }
+}
+
+export async function POST(request: Request) { return writeWithFailureLog(request, false); }
+export async function PATCH(request: Request) { return writeWithFailureLog(request, true); }

@@ -17,6 +17,7 @@ test("profile avatar updates accept only an existing public local photo owned by
   let writes = 0;
   class ProfileInputError extends Error {}
   const route = await load("../src/app/api/profiles/route.ts", {
+    "@/lib/operational-logging": { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} },
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
     "@/lib/admin-origin": { validateAdminOrigin: () => null },

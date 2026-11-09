@@ -9,7 +9,7 @@ async function load(path, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, process, TextDecoder });
+  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? (name === "@/lib/operational-logging" ? { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} } : {}), Response, URL, process, TextDecoder });
   return exports;
 }
 
@@ -56,9 +56,10 @@ test("media/profile writes stop before mutations on rejected JSON and retain nor
     "@/lib/database": { usesDatabase: false },
     "@/lib/local-storage": { usesLocalStorage: true },
     "@/lib/media": { isSignedMuxUrl: () => false, isMediaVisibility: () => true },
+    "@/lib/storage": { isPrivateBlobUrl: () => false },
   };
   const media = await load("../src/app/api/media/route.ts", { ...common,
-    "@/lib/db": { updateLocalMediaDetails: async () => { writes++; return { title: "Edited" }; } },
+    "@/lib/db": { readMedia: async () => [], updateLocalMediaDetails: async () => { writes++; return { id: "test", type: "photo", visibility: "private", title: "Edited" }; } },
   });
   const profiles = await load("../src/app/api/profiles/route.ts", { ...common,
     "@/lib/profiles": { ProfileInputError: class extends Error {}, saveProfile: async () => { writes++; return { id: "test" }; } },

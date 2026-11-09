@@ -3,6 +3,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { getLocalMediaStorage, readMedia } from "@/lib/db";
 import { getMediaById, getMediaStorage, usesDatabase } from "@/lib/database";
 import { localMediaResponse } from "@/lib/local-storage";
+import { recordApplicationFailure } from "@/lib/operational-logging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   try { return await localMediaResponse(storage.playbackObjectKey, request); }
   catch (error) {
     if (["ENOENT", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return missing();
-    console.error("Local playback unavailable", error);
+    await recordApplicationFailure({ route: "/api/local-playback", operation: "serve_local_playback", error });
     return new Response("Playback unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

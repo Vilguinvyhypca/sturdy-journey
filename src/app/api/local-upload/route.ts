@@ -8,6 +8,7 @@ import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
 import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage, validateLocalImage } from "@/lib/local-storage";
 import { normalizeOriginalFileName, type MediaItem } from "@/lib/media";
 import { limitAdminAction } from "@/lib/rate-limit";
+import { recordAdminChange, recordApplicationFailure } from "@/lib/operational-logging";
 
 export const runtime = "nodejs";
 
@@ -51,28 +52,35 @@ async function uploadLocalMedia(request: Request) {
       try {
         storage.playbackObjectKey = await generateLocalPlayback(storage.objectKey);
       } catch (error) {
-        console.error("Could not generate browser playback copy", error);
+        await recordApplicationFailure({ route: "/api/local-upload", operation: "generate_playback_copy", error });
         throw new LocalUploadError("This video could not be prepared for playback. The upload was not saved. Please try again.", 503);
       }
-      await generateLocalThumbnail(storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
+      await generateLocalThumbnail(storage.objectKey).catch((error) => recordApplicationFailure({ route: "/api/local-upload", operation: "generate_thumbnail", error }));
     }
     request.signal.throwIfAborted();
     if (usesDatabase) await saveMedia(media, storage);
     else await addMedia(media, storage);
+    await recordAdminChange("media.uploaded", "media", media.id, { mediaType: media.type });
     return Response.json({ media: storage.playbackObjectKey ? { ...media, url: `/api/local-playback?id=${encodeURIComponent(media.id)}` } : media }, { status: 201 });
   } catch (error) {
     if (stored) {
       try { await deleteStoredLocalMedia(stored.storage.objectKey); }
       catch (cleanupError) {
-        console.error("Upload cleanup failed", cleanupError);
+        await recordApplicationFailure({ route: "/api/local-upload", operation: "cleanup_rejected_upload", error: cleanupError });
         return Response.json({ error: "The upload failed and its files could not be fully removed. Please contact the administrator." }, { status: 500 });
       }
     }
     if ((error as Error)?.name === "AbortError") return Response.json({ error: "The upload was cancelled and was not saved." }, { status: 400 });
-    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
+    if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") {
+      await recordApplicationFailure({ route: "/api/local-upload", operation: "catalog_busy", error });
+      return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
+    }
     if (error instanceof DuplicateMediaError) return Response.json({ error: error.message }, { status: 409 });
-    if (error instanceof LocalUploadError) return Response.json({ error: error.message }, { status: error.status, headers: error.status === 503 ? { "Retry-After": "10", "Cache-Control": "private, no-store" } : undefined });
-    console.error("Local upload failed", error);
+    if (error instanceof LocalUploadError) {
+      if (error.status === 503) await recordApplicationFailure({ route: "/api/local-upload", operation: "upload_validation_unavailable", error });
+      return Response.json({ error: error.message }, { status: error.status, headers: error.status === 503 ? { "Retry-After": "10", "Cache-Control": "private, no-store" } : undefined });
+    }
+    await recordApplicationFailure({ route: "/api/local-upload", operation: "save_upload", error });
     return Response.json({ error: "The server could not save this upload. Check local storage configuration and disk space." }, { status: 500 });
   }
 }
