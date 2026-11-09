@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="960" viewBox="0 0 1400 960" role="img" aria-labelledby="title description">
-  <title id="title">How MediaSpace works</title>
-  <desc id="description">An architecture diagram showing an administrator uploading photos to Vercel Blob and videos to Mux, metadata being stored in Neon, and the Next.js application serving public galleries, albums, and video pages.</desc>
+  <title id="title">Optional cloud-provider architecture (legacy reference)</title>
+  <desc id="description">A historical reference diagram for optional Vercel Blob, Mux, and Neon provider paths. It does not depict current production, which uses self-hosted local media storage and JSON catalogs.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f8f7ff"/>
@@ -32,10 +32,10 @@
 
   <rect width="1400" height="960" rx="32" fill="url(#background)"/>
   <rect x="28" y="28" width="1344" height="132" rx="26" fill="url(#header)"/>
-  <text x="76" y="78" class="subtitle" style="font-weight:700;letter-spacing:3px">MEDIASPACE</text>
-  <text x="76" y="126" class="title">How media moves through the app</text>
-  <text x="955" y="91" class="subtitle">Photos, videos, details, albums</text>
-  <text x="955" y="122" class="subtitle">and public pages working together</text>
+  <text x="76" y="78" class="subtitle" style="font-weight:700;letter-spacing:3px">OPTIONAL PROVIDER MODE</text>
+  <text x="76" y="126" class="title">Historical cloud-provider flow</text>
+  <text x="955" y="91" class="subtitle">Vercel Blob · Mux · Neon</text>
+  <text x="955" y="122" class="subtitle">Not current production</text>
 
   <!-- Admin -->
   <g filter="url(#shadow)">

@@ -1,6 +1,8 @@
 # Local catalog writer coordination
 
-Implemented in development on 2026-10-20; not deployed to production yet.
+Included in the active production release from November 6, 2026
+(`20261106T225749970236Z-4717446f`). The contract applies only to cooperating
+writers that use the shared lock; see the limits below.
 
 The local JSON catalog is shared by app requests and maintenance processes.
 Atomic file replacement keeps readers from seeing partial JSON, but by itself
