@@ -10,24 +10,53 @@ export function UploadButton({ onSelect, uploading = false }: { onSelect?: (file
     webp: "image/webp", avif: "image/avif", heic: "image/heic", heif: "image/heif",
     mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
   };
+  const formatByMime: Record<string, string> = {
+    "image/jpeg": "JPEG", "image/png": "PNG", "image/gif": "GIF", "image/webp": "WebP",
+    "image/avif": "AVIF", "image/heic": "HEIC", "image/heif": "HEIF",
+    "video/mp4": "MP4", "video/webm": "WebM", "video/quicktime": "MOV",
+  };
   const photoMimeTypes = new Set(Object.values(mimeByExtension).filter((type) => type.startsWith("image/")));
-  function normalizeFileType(file: File) {
+  function prepareFile(file: File) {
     const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
     const inferredType = mimeByExtension[extension];
     const suppliedType = file.type.toLowerCase().split(";")[0];
-    const type = Object.values(mimeByExtension).includes(suppliedType) ? suppliedType : inferredType ?? "";
-    return type && file.type !== type ? new File([file], file.name, { type, lastModified: file.lastModified }) : file;
+    const suppliedTypeIsSupported = Object.values(mimeByExtension).includes(suppliedType);
+    const type = suppliedTypeIsSupported ? suppliedType : inferredType ?? "";
+    return {
+      file: type && file.type !== type ? new File([file], file.name, { type, lastModified: file.lastModified }) : file,
+      inferred: !suppliedTypeIsSupported && inferredType ? { extension, format: formatByMime[inferredType] } : null,
+    };
   }
   function selectedFiles(input: HTMLInputElement, folder: boolean) {
     const files = Array.from(input.files ?? []);
     input.value = "";
     setFolderMessage("");
-    if (!folder) { if (files.length > 0) onSelect?.(files.map(normalizeFileType)); return; }
     if (files.length === 0) {
+      if (!folder) return;
       setFolderMessage("No files were returned from that folder. Try Upload media and select multiple photos instead.");
       return;
     }
-    const photos = files.map(normalizeFileType).filter((file) => photoMimeTypes.has(file.type));
+    const preparedFiles = files.map(prepareFile);
+    const inferredFiles = preparedFiles.filter((entry) => entry.inferred);
+    if (inferredFiles.length) {
+      const fileList = inferredFiles.slice(0, 4)
+        .map(({ file, inferred }) => `• ${file.name} → ${inferred!.format} from .${inferred!.extension}`)
+        .join("\n");
+      const remaining = inferredFiles.length > 4 ? `\n…and ${inferredFiles.length - 4} more` : "";
+      const count = inferredFiles.length === 1 ? "one file" : `${inferredFiles.length} files`;
+      const confirmed = window.confirm(
+        `The browser could not identify ${count}'s type. Use the file extension to prepare ${count} for upload? The file data will remain unchanged, and the server will validate it.\n\n${fileList}${remaining}`,
+      );
+      if (!confirmed) {
+        setFolderMessage("Upload canceled. No files were sent.");
+        return;
+      }
+    }
+    if (!folder) {
+      onSelect?.(preparedFiles.map(({ file }) => file));
+      return;
+    }
+    const photos = preparedFiles.map(({ file }) => file).filter((file) => photoMimeTypes.has(file.type));
     const skipped = files.length - photos.length;
     setFolderMessage(photos.length ? `${photos.length} photos selected${skipped ? `; skipped ${skipped} unsupported files` : ""}.` : "No supported photos were found in that folder.");
     if (photos.length > 0) onSelect?.(photos);
