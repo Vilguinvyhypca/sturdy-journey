@@ -5,24 +5,29 @@ import { useState } from "react";
 export function UploadButton({ onSelect, uploading = false }: { onSelect?: (files: File[]) => void; uploading?: boolean }) {
   const [folderMessage, setFolderMessage] = useState("");
   const buttonClass = `rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition ${uploading ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-indigo-700"}`;
-  const photoMimeByExtension: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", avif: "image/avif", heic: "image/heic", heif: "image/heif" };
+  const mimeByExtension: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
+    webp: "image/webp", avif: "image/avif", heic: "image/heic", heif: "image/heif",
+    mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+  };
+  const photoMimeTypes = new Set(Object.values(mimeByExtension).filter((type) => type.startsWith("image/")));
+  function normalizeFileType(file: File) {
+    const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
+    const inferredType = mimeByExtension[extension];
+    const suppliedType = file.type.toLowerCase().split(";")[0];
+    const type = Object.values(mimeByExtension).includes(suppliedType) ? suppliedType : inferredType ?? "";
+    return type && file.type !== type ? new File([file], file.name, { type, lastModified: file.lastModified }) : file;
+  }
   function selectedFiles(input: HTMLInputElement, folder: boolean) {
     const files = Array.from(input.files ?? []);
     input.value = "";
     setFolderMessage("");
-    if (!folder) { if (files.length > 0) onSelect?.(files); return; }
+    if (!folder) { if (files.length > 0) onSelect?.(files.map(normalizeFileType)); return; }
     if (files.length === 0) {
       setFolderMessage("No files were returned from that folder. Try Upload media and select multiple photos instead.");
       return;
     }
-    const photos = files.flatMap((file) => {
-      const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
-      const inferredType = photoMimeByExtension[extension];
-      const suppliedType = file.type.toLowerCase().split(";")[0];
-      const type = Object.values(photoMimeByExtension).includes(suppliedType) ? suppliedType : inferredType;
-      if (!type || !Object.values(photoMimeByExtension).includes(type)) return [];
-      return [file.type === type ? file : new File([file], file.name, { type, lastModified: file.lastModified })];
-    });
+    const photos = files.map(normalizeFileType).filter((file) => photoMimeTypes.has(file.type));
     const skipped = files.length - photos.length;
     setFolderMessage(photos.length ? `${photos.length} photos selected${skipped ? `; skipped ${skipped} unsupported files` : ""}.` : "No supported photos were found in that folder.");
     if (photos.length > 0) onSelect?.(photos);
