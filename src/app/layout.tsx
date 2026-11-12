@@ -21,10 +21,10 @@ export const metadata: Metadata = {
     description: "A personal space for your photos and videos.",
     images: [
       {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "Hymecymeyseh — a personal space for your photos and videos",
+        url: "/hymecymeyseh-social-card.jpg",
+        width: 832,
+        height: 1232,
+        alt: "Hymecymeyseh social preview image",
       },
     ],
   },
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Hymecymeyseh",
     description: "A personal space for your photos and videos.",
-    images: ["/opengraph-image"],
+    images: ["/hymecymeyseh-social-card.jpg"],
   },
 };
 
