@@ -11,8 +11,29 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
-  title: "MediaSpace",
-  description: "Your personal media library",
+  title: "Hymecymeyseh",
+  description: "A personal space for your photos and videos.",
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Hymecymeyseh",
+    title: "Hymecymeyseh",
+    description: "A personal space for your photos and videos.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Hymecymeyseh — a personal space for your photos and videos",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hymecymeyseh",
+    description: "A personal space for your photos and videos.",
+    images: ["/opengraph-image"],
+  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
