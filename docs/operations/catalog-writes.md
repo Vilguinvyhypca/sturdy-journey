@@ -25,6 +25,9 @@ Covered paths:
 - Profile assignment (`scripts/assign-media-profile.mjs`, apply mode).
 - Playback backfills (`scripts/backfill-local-playback.mjs`), now using the
   configured `MEDIA_DATA_DIR` instead of a hard-coded working-directory catalog.
+  It creates missing playback copies by default. Pass `--rebuild` to replace
+  existing derived copies using the current smaller 720p encoding; source videos
+  remain unchanged. Rebuilding all copies is CPU and temporary-disk intensive.
 
 The shared helper is `src/lib/catalog-lock.cjs`. It uses the installed `flock`
 executable to lock an inherited descriptor. The parent retains that descriptor
