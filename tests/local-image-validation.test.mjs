@@ -66,7 +66,7 @@ test("image upload rejection cleans files before insertion; valid photos and HEI
     "@/lib/local-storage": { ...storage },
   };
   const route = {};
-  vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), { exports: route, require: (name) => mocks[name] ?? {}, Response, URL, process, console });
+  vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), { exports: route, require: (name) => mocks[name] ?? (name === "@/lib/operational-logging" ? { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} } : {}), Response, URL, process, console });
   const upload = (bytes, type, signal) => route.POST(new Request("https://site.test/api/local-upload", { method: "POST", headers: { "Content-Type": type, "X-Media-Name": "photo" }, body: bytes, signal }));
   const entries = await images();
   const jpeg = entries[0][1], png = entries[1][1], avif = entries[4][1];

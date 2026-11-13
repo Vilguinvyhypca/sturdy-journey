@@ -9,7 +9,7 @@ async function load(path, env = {}, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, TextDecoder, process: { env } });
+  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? (name === "@/lib/operational-logging" ? { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} } : {}), Response, URL, TextDecoder, process: { env } });
   return exports;
 }
 const canonical = "https://site.test";
@@ -83,7 +83,7 @@ test("a configured origin permits an authenticated theme update behind an intern
     "next-auth": { getServerSession: async () => ({ user: { isAdmin: true } }) },
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
     "@/lib/theme": { isSiteTheme: (theme) => theme === "dark" },
-    "@/lib/database": { saveSiteTheme: async (theme) => { saved = theme; } },
+    "@/lib/database": { getSiteTheme: async () => "light", saveSiteTheme: async (theme) => { saved = theme; } },
     "@/lib/request-json": json,
   });
   const result = await route.PATCH(new Request("http://127.0.0.1:3000/api/settings", {

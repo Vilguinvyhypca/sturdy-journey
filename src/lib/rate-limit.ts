@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { withCatalogLock } from "./catalog-lock.cjs";
+import { recordApplicationFailure } from "./operational-logging";
 
 const policies = { signin: 10, upload: 120, poll: 600, delete: 60 } as const;
 const labels = { signin: "sign-in attempts", upload: "uploads", poll: "upload-status checks", delete: "deletion requests" } as const;
@@ -36,7 +37,7 @@ export async function limitAdminAction(action: Action, now = Date.now()): Promis
       return null;
     });
   } catch (error) {
-    console.error("Administrator rate limit unavailable", error);
+    await recordApplicationFailure({ route: "service", operation: "admin_rate_limit_state", error });
     return Response.json({ error: "This action is temporarily unavailable. Please retry shortly." },
       { status: 503, headers: { ...headers, "Retry-After": "10" } });
   }

@@ -72,9 +72,11 @@ on November 8 at 11:35:24 and 11:35:28 AM Eastern:
 still active when checked. The journal did not include a useful stack trace, so
 the source and user impact are not identified by this observation.
 
-Current app failures are available through the systemd journal. This repository
-does not yet provide a safe, structured audit trail for administrator changes
-or enough contextual application-error records to diagnose this exception. That
-work remains open. The host's journal retention limits were not verified in this
-check and should be confirmed by DevOps; do not log passwords, session tokens,
-private file contents, or private-media URLs as a workaround.
+At the time of this November 8 check, application failures were available
+through the systemd journal, but the app did not yet have a structured
+administrator audit trail or contextual JSONL failure records. The follow-up
+implementation is documented in [application logs and audit](application-logs-and-audit.md);
+it adds app-managed 90-day records, but production still needs an approved merge
+and deployment before it uses them. The host's journal retention limits were not
+verified in this check and should be confirmed by DevOps. Never log passwords,
+session tokens, private file contents, or private-media URLs as a workaround.

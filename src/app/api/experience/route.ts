@@ -3,6 +3,7 @@ import { authOptions, isAdmin } from "@/lib/auth";
 import { recordExperienceEvent, validateExperienceEvent } from "@/lib/experience";
 import { validateRequestOrigin } from "@/lib/admin-origin";
 import { limitExperienceEvent } from "@/lib/experience-rate-limit";
+import { recordApplicationFailure } from "@/lib/operational-logging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     await recordExperienceEvent(event);
     return Response.json({ accepted: true }, { headers: responseHeaders });
   } catch (error) {
-    console.error("Experience event could not be stored", error);
+    await recordApplicationFailure({ route: "/api/experience", operation: "store_experience_event", error });
     return Response.json({ error: "Event could not be stored." }, { status: 503, headers: responseHeaders });
   }
 }

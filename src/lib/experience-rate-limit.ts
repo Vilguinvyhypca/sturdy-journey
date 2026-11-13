@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { withCatalogLock } from "./catalog-lock.cjs";
+import { recordApplicationFailure } from "./operational-logging";
 
 const windowMs = 60_000;
 const maximumEvents = 1_200;
@@ -44,7 +45,7 @@ export async function limitExperienceEvent(sessionId: string, now = Date.now()):
       return null;
     }, 1);
   } catch (error) {
-    console.error("Experience rate limit unavailable", error);
+    await recordApplicationFailure({ route: "service", operation: "experience_rate_limit_state", error });
     return Response.json({ error: "Event collection is temporarily unavailable." },
       { status: 503, headers: { ...headers, "Retry-After": "10" } });
   }

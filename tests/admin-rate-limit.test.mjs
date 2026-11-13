@@ -21,7 +21,7 @@ test("administrator quotas are atomic, persistent, bounded, independent, and rec
   function load() {
     const exports = {};
     new Function("require", "exports", "process", "Response", "console", code)(
-      (name) => name === "./catalog-lock.cjs" ? require("../src/lib/catalog-lock.cjs") : require(name), exports,
+      (name) => name === "./catalog-lock.cjs" ? require("../src/lib/catalog-lock.cjs") : name === "./operational-logging" ? { recordApplicationFailure: async () => {} } : require(name), exports,
       { env: { MEDIA_DATA_DIR: directory } }, Response, { error() {} },
     );
     return exports;

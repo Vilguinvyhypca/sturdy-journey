@@ -9,7 +9,7 @@ async function load(path, mocks = {}) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => name === "node:crypto" ? crypto : mocks[name] ?? {}, Response, Headers, File, Buffer, URL });
+  vm.runInNewContext(code, { exports, require: (name) => name === "node:crypto" ? crypto : mocks[name] ?? (name === "@/lib/operational-logging" ? { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} } : {}), Response, Headers, File, Buffer, URL });
   return exports;
 }
 
@@ -106,7 +106,7 @@ test("active administrator mutations prevent caching for rejected and successful
       "@/lib/auth": { isAdmin: (user) => user?.isAdmin === true },
       "@/lib/admin-origin": { validateAdminOrigin: () => null },
       "@/lib/local-storage": { usesLocalStorage: false },
-      "@/lib/database": { usesDatabase: false, saveSiteTheme: async () => { writes++; } },
+      "@/lib/database": { usesDatabase: false, getSiteTheme: async () => "light", saveSiteTheme: async () => { writes++; } },
       "@/lib/request-json": { readJsonObject: (request) => request.json() },
       "@/lib/theme": { isSiteTheme: (theme) => theme === "test" },
     };

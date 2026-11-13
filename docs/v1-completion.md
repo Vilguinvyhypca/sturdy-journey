@@ -151,9 +151,14 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 4. Application maintenance and documentation
 
-- [ ] Record administrator changes and important application failures with enough
+- [x] Record administrator changes and important application failures with enough
   context to diagnose them, without logging passwords, session tokens, or private
-  file contents. Define retention and how the operator reviews failures.
+  file contents. Define retention and how the operator reviews failures. The app
+  writes redacted audit/failure JSONL events with 90-day cleanup and mirrors
+  failures to journald. See [logging, audit coverage and limits](operations/application-logs-and-audit.md).
+  Implemented on `codex/v1-audit-logging`; merge/deploy is pending. DevOps still
+  needs to confirm backup inclusion and host journal retention; the earlier
+  `ERR_INVALID_STATE` observation remains unresolved without a new trace.
 - [x] Document the local catalog as the current production source of truth,
   its supported writer model, and the supported storage/provider combinations.
   Reconcile Prisma/runtime SQL documentation for retained legacy support; a Neon

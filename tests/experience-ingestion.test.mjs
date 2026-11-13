@@ -42,6 +42,7 @@ test("experience origin, UTF-8 and streamed-size checks run before quota or pers
       if (storageFails) throw new Error("disk unavailable");
       saved.push(value);
     }, readExperienceSummary: async () => ({ pageViews: saved.length }) },
+    "@/lib/operational-logging": { recordApplicationFailure: async () => {} },
     "@/lib/experience-rate-limit": { limitExperienceEvent: async () => { quota++; return limited; } },
   });
   const check = async (req, status) => {
@@ -103,6 +104,7 @@ test("experience quotas share bounded persistent state and cannot be bypassed by
   t.after(() => rm(directory, { recursive: true, force: true }));
   const make = () => load("../src/lib/experience-rate-limit.ts", { MEDIA_DATA_DIR: directory }, {
     "./catalog-lock.cjs": require("../src/lib/catalog-lock.cjs"),
+    "./operational-logging": { recordApplicationFailure: async () => {} },
   });
   const first = await make();
   assert.equal(await first.limitExperienceEvent(sessionId, 100_000), null);

@@ -10,7 +10,7 @@ async function load(path, mocks) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, process, TextDecoder });
+  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? (name === "@/lib/operational-logging" ? { recordAdminChange: async () => {}, recordApplicationFailure: async () => {} } : {}), Response, URL, process, TextDecoder });
   return exports;
 }
 
@@ -25,8 +25,9 @@ test("media edits reject malformed and non-object JSON before catalog changes", 
     "@/lib/admin-origin": { validateAdminOrigin: () => null },
     "@/lib/auth": { isAdmin: (user) => user.isAdmin },
     "@/lib/media": { isSignedMuxUrl: () => false, isMediaVisibility: (value) => ["public", "private", "unlisted"].includes(value) },
+    "@/lib/storage": { isPrivateBlobUrl: () => false },
     "@/lib/database": { usesDatabase: false },
-    "@/lib/db": { updateLocalMediaDetails: async (_id, title) => { writes++; return { title }; } },
+    "@/lib/db": { readMedia: async () => [], updateLocalMediaDetails: async (_id, title) => { writes++; return { id: "local:test", type: "photo", visibility: "private", title }; } },
   });
   const request = (body) => new Request("https://site.test/api/media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body });
   for (const body of ["{", "null", "[]", '"text"', "42", "true"]) {
