@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { addMedia, DuplicateMediaError, readMedia } from "@/lib/db";
 import { findMediaByHash, saveMedia, usesDatabase } from "@/lib/database";
-import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, storeLocalUpload, usesLocalStorage, validateLocalImage } from "@/lib/local-storage";
+import { convertLocalHeicToJpeg, deleteStoredLocalMedia, generateLocalPlayback, generateLocalThumbnail, LocalUploadError, maximumLocalUploadBytes, probeLocalVideoDuration, resolveLocalUploadContentType, storeLocalUpload, usesLocalStorage, validateLocalImage } from "@/lib/local-storage";
 import { normalizeOriginalFileName, type MediaItem } from "@/lib/media";
 import { limitAdminAction } from "@/lib/rate-limit";
 
@@ -24,10 +24,11 @@ async function uploadLocalMedia(request: Request) {
   if (!usesDatabase && !await getProfile(profileId)) return Response.json({ error: "Profile not found." }, { status: 404 });
   if (!request.body) return Response.json({ error: "Choose a file first." }, { status: 400 });
   if (Number(request.headers.get("content-length")) > maximumLocalUploadBytes) return Response.json({ error: "Files must be 500 MB or smaller." }, { status: 413 });
-  const contentType = request.headers.get("content-type")?.split(";")[0] ?? "";
+  const suppliedContentType = request.headers.get("content-type") ?? "";
   let stored: Awaited<ReturnType<typeof storeLocalUpload>> | undefined;
   try {
     const name = normalizeOriginalFileName(decodeURIComponent(request.headers.get("x-media-name") ?? "Untitled media")) || "Untitled media";
+    const contentType = resolveLocalUploadContentType(suppliedContentType, name);
     const captured = request.headers.get("x-media-captured-at");
     stored = await storeLocalUpload(request.body, contentType, request.signal);
     const storage = stored.storage;
