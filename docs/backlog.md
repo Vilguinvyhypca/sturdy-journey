@@ -26,6 +26,9 @@ its order alone does not define the release finish line.
   without disrupting Jellyfin or its existing media. Plan for upload processing,
   temporary transcodes, retained originals, backups, and isolated development
   data when sizing capacity.
+- [ ] Find why the external drive is mounted read-only despite its fstab entry
+  requesting read/write, and review the Jellyfin UID/GID ownership mapping before
+  allowing MediaSpace to write there.
 - [ ] Prepare a migration plan with checksummed transfer, restore rehearsal,
   service/DNS/tunnel cutover, and rollback steps. Keep existing backups until the
   new host and restore path are verified.
@@ -36,7 +39,9 @@ deployment releases 4.9 GB, and staged media imports about 1.9 GB. These sizes
 include media and generated files; the filesystem also contains other host data.
 An attached 1.9 TB external NTFS drive has about 291 GB free but is mounted
 read-only at `/mnt/jellyfin-media` for Jellyfin, so it is not currently available
-as writable MediaSpace storage.
+as writable MediaSpace storage. Its fstab entry requests read/write but maps
+ownership to Jellyfin (UID/GID 104:108); the live mount is read-only. The current
+MediaSpace account has no sudo or raw-device access to diagnose or remount it.
 
 Acceptance: document current usage and growth rate, select a target with enough
 headroom for peak uploads and video conversion, verify media/catalog checksums
