@@ -14,6 +14,35 @@ its order alone does not define the release finish line.
 
 - [x] Require a successful nonempty browser playback copy before accepting a video upload. Failed conversion returns a retryable error and cleans unaccepted files; cancellation is rechecked before catalog insertion. Optional thumbnail failures remain playable and are logged. Cleanup failures are reported explicitly. Implemented in development; not deployed. See v1 milestone 1 for tests and the separate maintenance-import behavior.
 
+## Operations and capacity
+
+### Server storage capacity and media growth
+
+- [ ] Inventory filesystem usage and growth across production media, development
+  media, playback copies, import staging, backups, deployment releases, and
+  system data. Establish warning and critical free-space thresholds.
+- [ ] Evaluate moving MediaSpace and its media storage to a larger server or
+  storage volume. Assess whether the attached external drive can be safely used
+  without disrupting Jellyfin or its existing media. Plan for upload processing,
+  temporary transcodes, retained originals, backups, and isolated development
+  data when sizing capacity.
+- [ ] Prepare a migration plan with checksummed transfer, restore rehearsal,
+  service/DNS/tunnel cutover, and rollback steps. Keep existing backups until the
+  new host and restore path are verified.
+
+Baseline recorded November 12, 2026: the 108 GB root filesystem was 94% used
+with 6.4 GB free. Production media used 7.8 GB, development media 4.4 GB,
+deployment releases 4.9 GB, and staged media imports about 1.9 GB. These sizes
+include media and generated files; the filesystem also contains other host data.
+An attached 1.9 TB external NTFS drive has about 291 GB free but is mounted
+read-only at `/mnt/jellyfin-media` for Jellyfin, so it is not currently available
+as writable MediaSpace storage.
+
+Acceptance: document current usage and growth rate, select a target with enough
+headroom for peak uploads and video conversion, verify media/catalog checksums
+and restore on the target, confirm the storage mount and filesystem are suitable,
+and retain a tested rollback path before cutover.
+
 ## Visitor experience and engagement — 2026-10-19
 
 These are prioritized improvement experiments, not additional v1 release blockers.
