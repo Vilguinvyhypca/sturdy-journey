@@ -1,7 +1,11 @@
 # Cloudflare tunnel fallback
 
 `ops/cloudflare/worker.mjs` runs on a Worker Route in front of the existing
-`hymecymeyseh.fun` tunnel. DNS and the tunnel destination remain unchanged.
+`hymecymeyseh.fun` tunnel. The canonical hostname is the apex domain;
+`www.hymecymeyseh.fun` redirects to it when its proxied DNS alias is configured.
+Enable the alias by adding a proxied CNAME DNS record named `www` targeting
+`hymecymeyseh.fun`. The production Worker route includes both hostnames and
+redirects `www` to the apex before forwarding requests.
 The Worker forwards requests to that existing origin using `fetch(request)`.
 For full-page GET/HEAD requests, HTTP 400–599 responses, fetch failures, and
 an eight-second origin timeout produce the branded video page stored with

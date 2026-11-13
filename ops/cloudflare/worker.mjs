@@ -58,6 +58,12 @@ export function createHandler({ fetchOrigin = fetch, timeoutMs = 8000 } = {}) {
   return {
     async fetch(request, env) {
       const url = new URL(request.url);
+      if (url.hostname === `www.${env.SITE_HOST}`) {
+        url.hostname = env.SITE_HOST;
+        url.protocol = 'https:';
+        url.port = '';
+        return Response.redirect(url.toString(), 301);
+      }
       if (['GET', 'HEAD'].includes(request.method) && ASSET_PATHS.has(url.pathname)) {
         if (url.pathname === '/offline-video.mp4') return videoAsset(request, env);
         return env.ASSETS.fetch(request);
