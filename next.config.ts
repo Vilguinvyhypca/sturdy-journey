@@ -10,13 +10,20 @@ const nextConfig = (phase: string): NextConfig => {
     if (release.ready) throw new Error("Published releases cannot be rebuilt in place. Run npm run deploy:prod from the development checkout.");
   }
   return {
+    async redirects() {
+      return [{
+        source: "/profile-picture.png",
+        destination: "/hymecymeyseh.fun.png",
+        permanent: true,
+      }];
+    },
     async headers() {
       return [{ source: "/:path*", headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "X-Frame-Options", value: "SAMEORIGIN" },
       ] }, {
-        source: "/profile-picture.png",
+        source: "/:avatar(hymecymeyseh\\.fun\\.png|profile-picture\\.png)",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
           { key: "Access-Control-Allow-Origin", value: "*" },
