@@ -26,9 +26,11 @@ its order alone does not define the release finish line.
   without disrupting Jellyfin or its existing media. Plan for upload processing,
   temporary transcodes, retained originals, backups, and isolated development
   data when sizing capacity.
-- [ ] Find why the external drive is mounted read-only despite its fstab entry
-  requesting read/write, and review the Jellyfin UID/GID ownership mapping before
-  allowing MediaSpace to write there.
+- [ ] Plan isolated MediaSpace write access on the external drive while preserving
+  Jellyfin ownership and permissions. November 13 host checks confirmed the drive
+  is read/write; earlier read-only observations came from the agent sandbox.
+  The actual constraint is the NTFS mount's Jellyfin UID/GID mapping (104:108)
+  and `umask=0022`.
 - [ ] Prepare a migration plan with checksummed transfer, restore rehearsal,
   service/DNS/tunnel cutover, and rollback steps. Keep existing backups until the
   new host and restore path are verified.
@@ -47,6 +49,12 @@ Acceptance: document current usage and growth rate, select a target with enough
 headroom for peak uploads and video conversion, verify media/catalog checksums
 and restore on the target, confirm the storage mount and filesystem are suitable,
 and retain a tested rollback path before cutover.
+
+November 13 update: cleanup recovered approximately 7.5 GB, increasing available
+space from 532 MB to 8.0 GB (93% used). The external drive is writable on the
+host, but not by the MediaSpace account. See the
+[domain and storage handoff](operations/2026-11-13-domain-storage-handoff.md)
+for verified cleanup, preserved files, corrected diagnosis, and next steps.
 
 ## Visitor experience and engagement — 2026-10-19
 
