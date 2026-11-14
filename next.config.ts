@@ -15,7 +15,13 @@ const nextConfig = (phase: string): NextConfig => {
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "X-Frame-Options", value: "SAMEORIGIN" },
-      ] }];
+      ] }, {
+        source: "/profile-picture.png",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
+      }];
     },
     distDir: process.env.NEXT_DIST_DIR ?? (phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next"),
     allowedDevOrigins: (process.env.MEDIA_DEV_ORIGINS ?? "").split(",").map((host) => host.trim()).filter(Boolean),
