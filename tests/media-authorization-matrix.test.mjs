@@ -9,7 +9,7 @@ async function load(path, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, console });
+  vm.runInNewContext(code, { exports, require: (name) => name === "@/lib/operation-log.cjs" ? { recordFailure: async () => {} } : mocks[name] ?? {}, Response, URL, console });
   return exports;
 }
 const roles = ["anonymous", "member", "administrator"];

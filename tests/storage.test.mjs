@@ -18,6 +18,7 @@ test("storage compatibility and local persistence", async (t) => {
     }).outputText);
   }
   await writeFile(join(directory, "catalog-lock.cjs"), await readFile(new URL("../src/lib/catalog-lock.cjs", import.meta.url)));
+  await writeFile(join(directory, "operation-log.cjs"), await readFile(new URL("../src/lib/operation-log.cjs", import.meta.url)));
   const require = createRequire(import.meta.url);
   const { inferMediaStorage } = require(join(directory, "media-storage.js"));
   for (const [url, provider, access, key, playbackId] of [

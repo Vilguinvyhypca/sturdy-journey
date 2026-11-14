@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { initialProfile, type Profile } from "./profile-types";
 import { withCatalogLock } from "./catalog-lock.cjs";
+import { recordOperation } from "./operation-log.cjs";
 
 const directory = process.env.MEDIA_DATA_DIR || join(process.cwd(), "data");
 const file = join(directory, "profiles.json");
@@ -71,6 +72,14 @@ export async function saveProfile(input: Record<string, unknown>, id?: string): 
     } finally { await rm(temporary, { force: true }); }
     return profile;
   }));
-  pending = operation.catch(() => undefined);
-  return operation;
+  const action = id ? "profile.update" : "profile.create";
+  const audited = operation.then(async (profile) => {
+    await recordOperation(directory, action, { id: profile.id, fields: Object.keys(fields).filter((key) => key !== "slug") });
+    return profile;
+  }).catch(async (error) => {
+    if (!(error instanceof ProfileInputError)) await recordOperation(directory, action, { id }, error);
+    throw error;
+  });
+  pending = audited.catch(() => undefined);
+  return audited;
 }

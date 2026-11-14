@@ -22,8 +22,9 @@ avatar and its filename redirect. Earlier checkpoint statements about pending
 branches/releases below are historical; their hardening code is present in the
 current reviewed source. See the
 [current local security review](operations/local-security-review-2026-11-14.md)
-for the route inventory and fresh validation evidence. Application audit logging,
-device acceptance and final owner sign-off remain open.
+for the route inventory and fresh validation evidence. Application logging is
+implemented in the subsequent development checkpoint below; deployment, device
+acceptance and final owner sign-off remain open.
 
 ## Finish line
 
@@ -168,9 +169,18 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 4. Application maintenance and documentation
 
-- [ ] Record administrator changes and important application failures with enough
+- [x] Record administrator changes and important application failures with enough
   context to diagnose them, without logging passwords, session tokens, or private
   file contents. Define retention and how the operator reviews failures.
+  Implemented in development on `codex/admin-operation-logging`: local catalog,
+  profile and theme changes; safe handled-failure records; Next's Node
+  request-error hook; 30-date retention and a 5 MiB/day file cap. See
+  [coverage, operator review and limits](operations/operation-logging.md).
+  Fresh validation: 153 Node tests, 12 Python tests, lint (zero errors/five
+  existing warnings), final build/TypeScript and 185 isolated HTTP checks passed.
+  The runtime check verified actual mutation records and error-hook redaction.
+  Logging is best-effort, not transactional or tamper-proof. Production deployment
+  remains a separate step; this does not certify capture of every process crash.
 - [x] Document the local catalog as the current production source of truth,
   its supported writer model, and the supported storage/provider combinations.
   Reconcile Prisma/runtime SQL documentation for retained legacy support; a Neon

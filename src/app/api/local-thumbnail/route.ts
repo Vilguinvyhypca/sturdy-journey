@@ -1,3 +1,4 @@
+import { recordFailure } from "@/lib/operation-log.cjs";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { getLocalMediaStorage, readMedia } from "@/lib/db";
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   try { return await localThumbnailResponse(storage.objectKey); }
   catch (error) {
     if (["ENOENT", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return missing();
-    console.error("Local thumbnail unavailable", error);
+    await recordFailure("media.thumbnail", error);
     return new Response("Thumbnail unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
