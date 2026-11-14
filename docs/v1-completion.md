@@ -1,7 +1,7 @@
 # MediaSpace v1 completion checklist
 
-Plan established: 2026-10-18; production status and maintenance documentation
-reviewed: 2026-11-08. This is the working completion plan for the current
+Plan established: 2026-10-18; local security review refreshed: 2026-11-14.
+This is the working completion plan for the current
 self-hosted application. It supersedes the ordering of historical phases in
 `PROJECT_STATUS.md`; it does not certify unchecked work or authorize deployment.
 
@@ -14,6 +14,16 @@ production host. See the [current production configuration and reporting
 check](operations/current-production-state-2026-11-08.md). This status does not
 certify completion of unchecked milestones, iPhone/sound acceptance or DevOps
 recovery acceptance.
+
+November 14 status: the production health endpoint reports isolated release
+`20261114T180120188442Z-bc058954`; rollback points to
+`20261114T174258046387Z-1eba4d34`. These releases published the standalone public
+avatar and its filename redirect. Earlier checkpoint statements about pending
+branches/releases below are historical; their hardening code is present in the
+current reviewed source. See the
+[current local security review](operations/local-security-review-2026-11-14.md)
+for the route inventory and fresh validation evidence. Application audit logging,
+device acceptance and final owner sign-off remain open.
 
 ## Finish line
 
@@ -109,7 +119,7 @@ These are starting points, not a fresh certification of every workflow:
   undeployed. All 118 Node regressions, targeted lint, TypeScript, and diff checks
   passed. The general endpoint-security review below still covers other mutation
   paths; inactive legacy cloud-upload creation is not a new local v1 blocker.
-- [ ] Audit request origins, input/file validation, response caching, security
+- [x] Audit request origins, input/file validation, response caching, security
   headers, and JSON-LD serialization for the active local-storage paths. Record
   fixes and regression evidence; local media already has private/no-store and
   several security headers, so preserve existing protections.
@@ -123,8 +133,12 @@ These are starting points, not a fresh certification of every workflow:
   hosts. The theme-input/media-cache follow-up applies the JSON limit to theme
   PATCH and private/no-store to all handled media-list GET responses. See the
   findings document for tests and remaining scope. The broader input/cache review
-  and route authorization matrix remain open; this audit item stays unchecked.
-- [ ] Add route-level authorization tests for anonymous, administrator, and
+  and route authorization matrix were open at that historical checkpoint.
+  Completed for the active local-storage scope in the
+  [November 14 route inventory and review](operations/local-security-review-2026-11-14.md).
+  Fresh full regressions and the built-app access check passed; configured legacy
+  cloud-provider workflows and interactive/device acceptance remain separate.
+- [x] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,
   edits, and deletion. Cover public, unlisted, and private visibility; test that
@@ -133,8 +147,11 @@ These are starting points, not a fresh certification of every workflow:
   playback, thumbnail, photo/video page and metadata role/visibility matrices,
   public-list isolation, and anonymous/member mutation-denial tests. See
   [coverage and limits](operations/media-authorization.md). The final browser
-  walkthrough and runtime cache/HEAD checks are still pending; keep this item
-  open until the remaining acceptance evidence is recorded.
+  walkthrough and runtime cache/HEAD checks were pending at that checkpoint.
+  November 14's fresh built-app run passed 176 checks on current source,
+  including automatic HEAD/cache handling and all four session phases. The
+  automated route-test milestone is complete; final browser/device acceptance
+  remains explicitly open in milestone 5.
   A [desktop browser review on October 24](operations/browser-access-review-2026-10-24.md)
   verified disposable-video visibility transitions, sign-out denial, byte ranges,
   runtime HEAD responses, basic playback and deletion against development source
@@ -175,8 +192,14 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 5. Final acceptance and application sign-off
 
-- [ ] Run applicable Node, Python, lint, TypeScript, and production build checks.
+- [x] Run applicable Node, Python, lint, TypeScript, and production build checks.
   Record results and distinguish any accepted existing warnings from failures.
+  November 14 source `bc058954`: 147 Node tests, 12 Python tests, full lint
+  (zero errors, five existing advisories), fresh build/TypeScript and 176 isolated
+  runtime access checks passed. See the
+  [validation record](operations/local-security-review-2026-11-14.md).
+  Rerun applicable checks after subsequent application-code changes; this does
+  not close the remaining sign-off items.
 - [ ] Walk through profile creation/editing, upload, duplicate rejection, media
   edits, visibility transitions, search/filter/pagination, sharing, and deletion
   using disposable development data as administrator and public visitor.

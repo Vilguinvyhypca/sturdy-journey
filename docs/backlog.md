@@ -6,6 +6,14 @@ its order alone does not define the release finish line.
 
 ## Administration
 
+- [ ] Add a single administrator action to make all videos private, leaving photos
+  unchanged. Deferred by the owner on November 14, 2026; do not implement as part
+  of the current v1 completion work. Confirm the site-wide scope and affected
+  count before applying the change, retain administrator access, and verify denial
+  on video pages, originals, playback copies, and thumbnails. Decide whether to
+  save previous public/unlisted visibility for a restore action before promising
+  reversibility. This is a bulk visibility edit, not a site-wide hiding switch.
+
 - [x] Make admin mode visually distinct from public browsing with CSS: add a clear Admin mode indicator, a distinct header treatment, and grouped management controls. Make it clear when an administrator is managing a profile versus previewing its public page, including when the administrator session remains active during public-page viewing. Browser review: [administrator mode clarity](operations/admin-mode-review-2026-11-07.md).
 
 ## Uploads
@@ -39,11 +47,11 @@ Baseline recorded November 12, 2026: the 108 GB root filesystem was 94% used
 with 6.4 GB free. Production media used 7.8 GB, development media 4.4 GB,
 deployment releases 4.9 GB, and staged media imports about 1.9 GB. These sizes
 include media and generated files; the filesystem also contains other host data.
-An attached 1.9 TB external NTFS drive has about 291 GB free but is mounted
-read-only at `/mnt/jellyfin-media` for Jellyfin, so it is not currently available
-as writable MediaSpace storage. Its fstab entry requests read/write but maps
-ownership to Jellyfin (UID/GID 104:108); the live mount is read-only. The current
-MediaSpace account has no sudo or raw-device access to diagnose or remount it.
+An attached 1.9 TB external NTFS drive has about 291 GB free at
+`/mnt/jellyfin-media`. The November 12 read-only observation was later traced to
+the agent sandbox: the host mount is read/write. It maps ownership to Jellyfin
+(UID/GID 104:108), and the MediaSpace account cannot write under its current
+permissions. The MediaSpace account has no sudo or raw-device access.
 
 Acceptance: document current usage and growth rate, select a target with enough
 headroom for peak uploads and video conversion, verify media/catalog checksums
