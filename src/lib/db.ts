@@ -5,6 +5,7 @@ import { inferMediaStorage, type MediaStorageRecord } from "./media-storage";
 import type { MediaItem } from "./media";
 import { mediaProfileId } from "./profile-types";
 import { withCatalogLock } from "./catalog-lock.cjs";
+import { recordOperation, type OperationAction } from "./operation-log.cjs";
 
 const dataDirectory = process.env.MEDIA_DATA_DIR && join(process.env.MEDIA_DATA_DIR) || join(process.cwd(), "data");
 const dataFile = join(dataDirectory, "media.json");
@@ -77,8 +78,19 @@ export class DuplicateMediaError extends Error {
   }
 }
 
+async function loggedChange<T>(action: OperationAction, details: Parameters<typeof recordOperation>[2], change: () => Promise<T>): Promise<T> {
+  try {
+    const result = await change();
+    if (result !== null && result !== false) await recordOperation(dataDirectory, action, details);
+    return result;
+  } catch (error) {
+    if (!(error instanceof DuplicateMediaError)) await recordOperation(dataDirectory, action, details, error);
+    throw error;
+  }
+}
+
 export async function addMedia(item: MediaItem, storage: MediaStorageRecord = inferMediaStorage(item)) {
-  return mutateRecords((media) => {
+  return loggedChange("media.create", { id: item.id, visibility: item.visibility ?? "public" }, () => mutateRecords((media) => {
     // Check in the same serialized operation as insertion, including legacy
     // records whose missing profileId means the default profile.
     if (item.contentHash && media.some((existing) => existing.contentHash === item.contentHash && mediaProfileId(existing) === mediaProfileId(item))) {
@@ -86,26 +98,28 @@ export async function addMedia(item: MediaItem, storage: MediaStorageRecord = in
     }
     media.unshift({ ...item, storage });
     return item;
-  });
+  }));
 }
 
 export async function updateLocalMediaDetails(id: string, title: string, description: string, visibility?: MediaItem["visibility"], profileId?: string) {
-  return mutateRecords((media) => {
+  const details = { id, fields: ["title", "description", ...(visibility ? ["visibility"] : []), ...(profileId ? ["profileId"] : [])], beforeVisibility: "", visibility };
+  return loggedChange("media.update", details, () => mutateRecords((media) => {
     const index = media.findIndex((item) => item.id === id);
     if (index === -1) return null;
+    details.beforeVisibility = media[index].visibility ?? "public";
     media[index] = { ...media[index], title, description, visibility: visibility ?? media[index].visibility ?? "public", ...(profileId ? { profileId } : {}) };
     return publicMedia(media[index]);
-  });
+  }));
 }
 
 export async function removeMedia(id: string, beforeRemove?: (item: MediaItem, storage: MediaStorageRecord | null) => Promise<void>) {
-  return mutateRecords(async (media) => {
+  return loggedChange("media.delete", { id }, () => mutateRecords(async (media) => {
     const index = media.findIndex((item) => item.id === id);
     if (index === -1) return false;
     if (beforeRemove) await beforeRemove(publicMedia(media[index]), media[index].storage ?? null);
     media.splice(index, 1);
     return true;
-  });
+  }));
 }
 
 // Keep internal locators out of public API responses and client component props.

@@ -1,3 +1,4 @@
+import { recordFailure } from "@/lib/operation-log.cjs";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { getLocalMediaStorage, readMedia } from "@/lib/db";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     return await localMediaResponse(storage.objectKey, request);
   } catch (error) {
     if (["ENOENT", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return missing();
-    console.error("Local media unavailable", error);
+    await recordFailure("media.original", error);
     return new Response("Media temporarily unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

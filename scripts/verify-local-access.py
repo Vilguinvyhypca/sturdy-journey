@@ -6,6 +6,7 @@ production services. Every fixture is held in an automatically removed temporary
 directory. Uses a random localhost port and stops its child app on exit.
 """
 import http.cookiejar
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -170,7 +171,56 @@ with tempfile.TemporaryDirectory(prefix='mediaspace-access-http-') as temporary:
             for item in records:
                 assert (item['title'] in html) == (item['visibility'] == 'public'), (phase, item['title'], 'public profile filter')
             checks += 2
-        result = {'runtimeChecks': checks, 'roles': ['anonymous', 'member', 'administrator', 'signed-out-after-admin'], 'fixtures': 6, 'administratorApiGates': 'passed', 'pageMetadataAndCache': 'passed', 'originalPlaybackThumbnailGetHeadRange': 'passed', 'listingAndPublicProfileFiltering': 'passed', 'isolatedTemporaryData': True, 'sourceCommit': source_commit, 'buildId': build_id}
+        # Exercise the real mutation routes and error hook against disposable data.
+        login()
+        def edit(path, method, value, expected=200):
+            status, headers, body = fetch(path, method, {'Origin': base, 'Content-Type': 'application/json'}, json.dumps(value).encode())
+            assert status == expected, (path, method, status, body)
+            return json.loads(body)
+        private_title = 'fixture-audit-private-title'
+        private_description = 'fixture-audit-private-description'
+        edited = records[0]
+        edit('/api/media', 'PATCH', {'id': edited['id'], 'title': private_title, 'description': private_description, 'visibility': 'private'})
+        profile_input = {'name': 'fixture-audit-private-name', 'slug': 'fixture-audit-profile', 'socialLinks': []}
+        profile = edit('/api/profiles', 'POST', profile_input, 201)['profile']
+        edit('/api/profiles', 'PATCH', {**profile_input, 'id': profile['id'], 'bio': 'fixture-audit-private-biography'})
+        edit('/api/settings', 'PATCH', {'theme': 'sunset'})
+        status, _, body = fetch('/api/local-upload', 'POST', {'Origin': base, 'Content-Type': 'image/png', 'X-Media-Name': 'fixture-audit-private-filename.png'}, (root / 'fixture.png').read_bytes())
+        assert status == 201, (status, body)
+        uploaded = json.loads(body)['media']
+        assert fetch('/api/media?pathname=' + urllib.parse.quote(uploaded['id']), 'DELETE', {'Origin': base})[0] == 200
+        checks += 6
+
+        # A directory at an original-file location yields a handled delivery error.
+        original = root / 'media' / edited['storage']['objectKey']
+        original.unlink()
+        original.mkdir()
+        assert fetch('/api/local-media?id=' + urllib.parse.quote(edited['id']))[0] == 503
+        # Invalid catalog JSON exercises Next's onRequestError hook, not a stub.
+        (root / 'data/media.json').write_text('fixture-audit-private-corrupt-data')
+        assert fetch('/api/media?private=fixture-audit-private-query')[0] == 500
+        checks += 2
+        def operation_records():
+            return [json.loads(line) for file in (root / 'data/operations').glob('*.jsonl') for line in file.read_text().splitlines() if line]
+        for attempt in range(40):
+            events = operation_records()
+            if any(event['action'] == 'request.error' for event in events):
+                break
+            time.sleep(0.05)
+        saved_actions = {event['action'] for event in events if event['outcome'] == 'saved'}
+        assert {'media.create', 'media.update', 'media.delete', 'profile.create', 'profile.update', 'theme.update'} <= saved_actions
+        update = next(event for event in events if event['action'] == 'media.update')
+        assert update['beforeVisibility'] == 'public' and update['visibility'] == 'private'
+        assert update['targetHash'] == hashlib.sha256(edited['id'].encode()).hexdigest()
+        assert any(event['action'] == 'media.original' and event['outcome'] == 'failed' for event in events)
+        assert any(event['action'] == 'request.error' and event.get('route') == '/api/media' and event.get('method') == 'GET' for event in events)
+        serialized = json.dumps(events)
+        for secret in [password, env['NEXTAUTH_SECRET'], private_title, private_description, profile_input['name'], profile_input['slug'],
+                       'fixture-audit-private-biography', 'fixture-audit-private-filename.png', 'fixture-audit-private-corrupt-data', 'fixture-audit-private-query',
+                       edited['id'], uploaded['id'], profile['id']]:
+            assert secret not in serialized, ('private value in operation records', secret)
+        checks += 1
+        result = {'runtimeChecks': checks, 'roles': ['anonymous', 'member', 'administrator', 'signed-out-after-admin'], 'fixtures': 6, 'administratorApiGates': 'passed', 'pageMetadataAndCache': 'passed', 'originalPlaybackThumbnailGetHeadRange': 'passed', 'listingAndPublicProfileFiltering': 'passed', 'operationLoggingAndRedaction': 'passed', 'isolatedTemporaryData': True, 'sourceCommit': source_commit, 'buildId': build_id}
     finally:
         server.terminate()
         try:

@@ -50,7 +50,7 @@ test("real upload validation rejects corrupt, audio-only, overlong, and empty fi
   };
   const route = {};
   vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), {
-    exports: route, require: (name) => { assert.ok(name in mocks, name); return mocks[name]; }, Response, URL, process, console,
+    exports: route, require: (name) => { if (name === "@/lib/operation-log.cjs") return { recordFailure: async () => {} }; assert.ok(name in mocks, name); return mocks[name]; }, Response, URL, process, console,
   });
   const upload = (bytes, contentType = "video/mp4") => route.POST(new Request("http://localhost/api/local-upload", {
     method: "POST", headers: { "Content-Type": contentType, "X-Media-Name": "test.mp4" }, body: bytes,

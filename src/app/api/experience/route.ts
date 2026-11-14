@@ -1,3 +1,4 @@
+import { recordFailure } from "@/lib/operation-log.cjs";
 import { getServerSession } from "next-auth";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { recordExperienceEvent, validateExperienceEvent } from "@/lib/experience";
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     await recordExperienceEvent(event);
     return Response.json({ accepted: true }, { headers: responseHeaders });
   } catch (error) {
-    console.error("Experience event could not be stored", error);
+    await recordFailure("experience.store", error);
     return Response.json({ error: "Event could not be stored." }, { status: 503, headers: responseHeaders });
   }
 }

@@ -65,7 +65,7 @@ test("processing errors remove originals and partial output without saving; retr
   };
   const route = {};
   vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), {
-    exports: route, require: (name) => { assert.ok(name in mocks, name); return mocks[name]; },
+    exports: route, require: (name) => { if (name === "@/lib/operation-log.cjs") return { recordFailure: async (...args) => { logs.push(args); } }; assert.ok(name in mocks, name); return mocks[name]; },
     Response, URL, process, console: { error: (...args) => logs.push(args) },
   });
   const upload = (signal) => route.POST(new Request("http://localhost/api/local-upload", {
@@ -87,7 +87,7 @@ test("processing errors remove originals and partial output without saving; retr
   assert.match(media.url, /^\/api\/local-playback\?/);
   assert.equal(saved, 1);
   assert.equal((await readdir(files)).length, 3);
-  assert.ok(logs.some(([message]) => message === "Could not generate video thumbnail"));
+  assert.ok(logs.some(([action]) => action === "upload.thumbnail"));
 
   // An abandoned request must not insert a record after processing finishes.
   const before = (await readdir(files)).sort();
@@ -112,5 +112,5 @@ test("processing errors remove originals and partial output without saving; retr
   assert.equal(cleanupFailed.status, 500);
   assert.match((await cleanupFailed.json()).error, /could not be fully removed/);
   assert.equal(saved, 1);
-  assert.ok(logs.some(([message]) => message === "Upload cleanup failed"));
+  assert.ok(logs.some(([action]) => action === "upload.cleanup"));
 });
