@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import type { MediaItem, MediaVisibility } from "./media";
 import { isSiteTheme, type SiteTheme } from "./theme";
+import { recordOperation } from "./operation-log.cjs";
 
 export type Album = {
   id: string;
@@ -193,7 +194,14 @@ export async function getSiteTheme(): Promise<SiteTheme> {
 
 export async function saveSiteTheme(theme: SiteTheme) {
   if (!usesDatabase) {
-    await saveLocalSetting("theme", theme);
+    const directory = path.dirname(localSettingsPath);
+    try {
+      await saveLocalSetting("theme", theme);
+      await recordOperation(directory, "theme.update", { fields: ["theme"] });
+    } catch (error) {
+      await recordOperation(directory, "theme.update", {}, error);
+      throw error;
+    }
     return;
   }
   await ensureDatabase();

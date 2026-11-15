@@ -1,3 +1,4 @@
+import { recordFailure } from "@/lib/operation-log.cjs";
 import { validateAdminOrigin } from "@/lib/admin-origin";
 import { defaultProfileId, mediaProfileId } from "@/lib/profile-types";
 import { getProfile } from "@/lib/profiles";
@@ -51,10 +52,10 @@ async function uploadLocalMedia(request: Request) {
       try {
         storage.playbackObjectKey = await generateLocalPlayback(storage.objectKey);
       } catch (error) {
-        console.error("Could not generate browser playback copy", error);
+        await recordFailure("upload.playback", error);
         throw new LocalUploadError("This video could not be prepared for playback. The upload was not saved. Please try again.", 503);
       }
-      await generateLocalThumbnail(storage.objectKey).catch((error) => console.error("Could not generate video thumbnail", error));
+      await generateLocalThumbnail(storage.objectKey).catch((error) => recordFailure("upload.thumbnail", error));
     }
     request.signal.throwIfAborted();
     if (usesDatabase) await saveMedia(media, storage);
@@ -64,7 +65,7 @@ async function uploadLocalMedia(request: Request) {
     if (stored) {
       try { await deleteStoredLocalMedia(stored.storage.objectKey); }
       catch (cleanupError) {
-        console.error("Upload cleanup failed", cleanupError);
+        await recordFailure("upload.cleanup", cleanupError);
         return Response.json({ error: "The upload failed and its files could not be fully removed. Please contact the administrator." }, { status: 500 });
       }
     }
@@ -72,7 +73,7 @@ async function uploadLocalMedia(request: Request) {
     if ((error as NodeJS.ErrnoException)?.code === "CATALOG_BUSY") return Response.json({ error: "The catalog is busy with another update. Please retry shortly." }, { status: 503, headers: { "Retry-After": "10", "Cache-Control": "private, no-store" } });
     if (error instanceof DuplicateMediaError) return Response.json({ error: error.message }, { status: 409 });
     if (error instanceof LocalUploadError) return Response.json({ error: error.message }, { status: error.status, headers: error.status === 503 ? { "Retry-After": "10", "Cache-Control": "private, no-store" } : undefined });
-    console.error("Local upload failed", error);
+    await recordFailure("upload.save", error);
     return Response.json({ error: "The server could not save this upload. Check local storage configuration and disk space." }, { status: 500 });
   }
 }

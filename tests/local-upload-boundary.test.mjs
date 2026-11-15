@@ -9,7 +9,7 @@ async function load(path, mocks = {}) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => name === "node:crypto" ? crypto : mocks[name] ?? {}, Response, Headers, File, Buffer, URL });
+  vm.runInNewContext(code, { exports, require: (name) => name === "@/lib/operation-log.cjs" ? { recordFailure: async () => {} } : name === "node:crypto" ? crypto : mocks[name] ?? {}, Response, Headers, File, Buffer, URL });
   return exports;
 }
 

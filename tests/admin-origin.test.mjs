@@ -9,7 +9,7 @@ async function load(path, env = {}, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: (name) => mocks[name] ?? {}, Response, URL, TextDecoder, process: { env } });
+  vm.runInNewContext(code, { exports, require: (name) => name === "@/lib/operation-log.cjs" ? { recordFailure: async () => {} } : mocks[name] ?? {}, Response, URL, TextDecoder, process: { env } });
   return exports;
 }
 const canonical = "https://site.test";

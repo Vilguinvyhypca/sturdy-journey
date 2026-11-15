@@ -17,12 +17,13 @@ test("overlapping upload requests save one record and clean only the rejected up
     await writeFile(join(directory, `${name}.cjs`), await compile(`../src/lib/${name}.ts`));
   }
   await writeFile(join(directory, "catalog-lock.cjs"), await readFile(new URL("../src/lib/catalog-lock.cjs", import.meta.url)));
+  await writeFile(join(directory, "operation-log.cjs"), await readFile(new URL("../src/lib/operation-log.cjs", import.meta.url)));
   const require = createRequire(import.meta.url);
   const load = (name) => require(join(directory, `${name}.cjs`));
   // Load the real catalog with a private test directory, without changing the app environment.
   const db = {};
   new Function("require", "exports", "process", await readFile(join(directory, "db.cjs"), "utf8"))(
-    (name) => name.startsWith("./") ? (name === "./catalog-lock.cjs" ? require(join(directory, "catalog-lock.cjs")) : load(name.slice(2))) : require(name), db,
+    (name) => name.startsWith("./") ? (name.endsWith(".cjs") ? require(join(directory, name)) : load(name.slice(2))) : require(name), db,
     { env: { MEDIA_DATA_DIR: directory } },
   );
   let nextId = 0;
@@ -66,7 +67,7 @@ test("overlapping upload requests save one record and clean only the rejected up
   };
   const route = {};
   vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), {
-    exports: route, require: (name) => { assert.ok(name in mocks, name); return mocks[name]; },
+    exports: route, require: (name) => { if (name === "@/lib/operation-log.cjs") return { recordFailure: async () => {} }; assert.ok(name in mocks, name); return mocks[name]; },
     Response, URL, console, process,
   });
   const upload = () => route.POST(new Request("http://localhost/api/local-upload", {
