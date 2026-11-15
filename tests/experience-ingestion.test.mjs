@@ -18,7 +18,7 @@ async function compile(path) {
 async function load(path, env = {}, mocks = {}) {
   const exports = {};
   new Function("require", "exports", "process", "Response", "URL", "TextDecoder", "console", await compile(path))(
-    (name) => name in mocks ? mocks[name] : require(name), exports, { env, cwd: process.cwd }, Response, URL, TextDecoder, { error() {} },
+    (name) => name === "@/lib/operation-log.cjs" ? { recordFailure: async () => {} } : name in mocks ? mocks[name] : require(name), exports, { env, cwd: process.cwd }, Response, URL, TextDecoder, { error() {} },
   );
   return exports;
 }

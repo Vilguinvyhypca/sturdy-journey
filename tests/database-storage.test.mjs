@@ -24,6 +24,7 @@ async function loadDatabase(pg) {
   };
   const unexpectedLocalAccess = () => { throw new Error("Database mode must not access local settings."); };
   const modules = new Map([
+    ["./operation-log.cjs", { recordOperation: async () => {} }],
     ["@neondatabase/serverless", { neon: () => adapter }],
     ["path", { default: path }],
     ["fs/promises", Object.fromEntries(["mkdir", "readFile", "rename", "writeFile"].map((name) => [name, unexpectedLocalAccess]))],

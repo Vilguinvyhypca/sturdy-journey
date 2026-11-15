@@ -22,6 +22,7 @@ async function fixture(t) {
     await writeFile(join(root, `${name}.js`), code);
   }
   await copyFile(new URL("../src/lib/catalog-lock.cjs", import.meta.url), join(root, "catalog-lock.cjs"));
+  await copyFile(new URL("../src/lib/operation-log.cjs", import.meta.url), join(root, "operation-log.cjs"));
   return { root, data, storage, source };
 }
 
@@ -32,7 +33,12 @@ function worker(t, root, data, operation, environment = {}) {
   t.after(() => { if (child.exitCode === null) child.kill("SIGKILL"); });
   let stdout = "";
   let stderr = "";
-  const ready = new Promise((resolve) => child.stdout.once("data", resolve));
+  const ready = new Promise((resolve, reject) => {
+    child.stdout.once("data", resolve);
+    child.once("error", reject);
+    child.once("exit", (code) => { if (code) reject(new Error(`Writer exited before readiness: ${stderr}`)); });
+  });
+  void ready.catch(() => undefined);
   child.stdout.on("data", (bytes) => { stdout += bytes; });
   child.stderr.on("data", (bytes) => { stderr += bytes; });
   const done = new Promise((resolve, reject) => {

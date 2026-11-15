@@ -101,7 +101,7 @@ test("local upload rejects unauthenticated requests before quota use and throttl
     "@/lib/rate-limit": { limitAdminAction: async () => { counted++; return new Response(null, { status: 429 }); } },
   };
   vm.runInNewContext(await compile("../src/app/api/local-upload/route.ts"), {
-    exports: route, require: (name) => mocks[name] ?? {}, Response,
+    exports: route, require: (name) => name === "@/lib/operation-log.cjs" ? { recordFailure: async () => {} } : mocks[name] ?? {}, Response,
   });
   const request = () => new Request("https://site.test/api/local-upload", { method: "POST", body: "bytes" });
   assert.equal((await route.POST(request())).status, 401);

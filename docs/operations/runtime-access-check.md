@@ -42,6 +42,12 @@ directory/process environment and are removed after the child server stops.
   while previewing as administrator.
 - Real administrator sign-in/sign-out and subsequent repeated anonymous access,
   warming the same private URLs as administrator before checking denial again.
+- After the access matrix, disposable administrator media/profile/theme edits,
+  a generated PNG upload and deletion verify saved operation records. A fixture
+  file replaced with a directory and deliberately invalid fixture catalog JSON
+  verify handled delivery logging and Next's request-error hook. Log checks
+  reject fixture passwords/secrets, private values, raw IDs and query strings.
+  These intentional failures affect only the temporary catalog/storage.
 
 The member fixture is a JWT signed with the disposable server's random secret,
 with isAdmin false, and checked through the real session endpoint. This verifies
