@@ -7,13 +7,14 @@ self-hosted application. It supersedes the ordering of historical phases in
 
 ## Current release status — 2026-11-08
 
-Read-only host verification found production running isolated release
-`20261106T225749970236Z-4717446f`, with local JSON catalog and media storage.
-Vercel remains connected for pull-request preview builds; it is not the
-production host. See the [current production configuration and reporting
-check](operations/current-production-state-2026-11-08.md). This status does not
-certify completion of unchecked milestones, iPhone/sound acceptance or DevOps
-recovery acceptance.
+Read-only host verification on November 8 found production running isolated
+release `20261106T225749970236Z-4717446f`, with local JSON catalog and media
+storage. See the [production configuration and reporting
+snapshot](operations/current-production-state-2026-11-08.md).
+
+As of November 15, 2026, Vercel is no longer part of the MediaSpace build,
+preview, or release process. This status does not certify completion of
+unchecked milestones, iPhone/sound acceptance or DevOps recovery acceptance.
 
 ## Finish line
 
@@ -170,8 +171,8 @@ These are starting points, not a fresh certification of every workflow:
   the [production check](operations/current-production-state-2026-11-08.md) and
   [traffic report operations](operations/traffic-reports.md). The timer is
   enabled and recent reports were submitted to the local relay; recipient inbox
-  delivery still requires SMTP2GO message-activity confirmation. Vercel builds
-  pull-request previews and does not host the active production release.
+  delivery still requires SMTP2GO message-activity confirmation. Production
+  changes use the self-hosted release workflow in `docs/deployments.md`.
 
 ### 5. Final acceptance and application sign-off
 

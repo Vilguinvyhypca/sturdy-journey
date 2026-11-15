@@ -2,7 +2,8 @@
 
 These are separate self-hosted deployments on `hymecymeyseh`, managed by the
 `mediaspacedev` user's systemd services. Cloudflare forwards public traffic only
-to production on `127.0.0.1:3000`.
+to production on `127.0.0.1:3000`. Vercel is not part of the current MediaSpace
+build, preview, or release process.
 
 | Resource | Development | Production |
 | --- | --- | --- |
