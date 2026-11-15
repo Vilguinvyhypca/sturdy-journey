@@ -158,9 +158,10 @@ These are starting points, not a fresh certification of every workflow:
   profile and theme changes; safe handled-failure records; Next's Node
   request-error hook; 30-date retention and a 5 MiB/day file cap. See
   [coverage, operator review and limits](operations/operation-logging.md).
-  Fresh validation: 153 Node tests, 12 Python tests, lint (zero errors/five
-  existing warnings), final build/TypeScript and 185 isolated HTTP checks passed.
-  The runtime check verified actual mutation records and error-hook redaction.
+  Current isolated-branch validation: 153 Node tests, 12 Python tests, lint
+  (zero errors/five existing warnings), and the production-mode build/TypeScript
+  passed. The earlier 185-check isolated HTTP run belongs to the original
+  development checkpoint and has not been repeated on this branch.
   Logging is best-effort, not transactional or tamper-proof. Production deployment
   remains a separate step; this does not certify capture of every process crash.
 - [x] Document the local catalog as the current production source of truth,

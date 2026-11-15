@@ -101,24 +101,24 @@ profile creation/update, theme save, PNG upload/deletion, a handled delivery err
 and Next's unhandled request-error hook, all with disposable data. It inspects the
 resulting files for sensitive values.
 
-Validation was recorded on the original logging working tree based on parent
-`7508ed8`. This implementation was isolated onto current `main` for review;
-the validations below have not been rerun against the rebased branch:
+Validation on the isolated branch `codex/operation-logging-review`, based on
+current `main`:
 
 - All 153 Node regressions and 12 Python tests passed.
-- Full lint passed with zero errors and the five existing font/raw-image warnings.
-- Final production-mode build and TypeScript passed; fresh build ID
-  `DinumrJAf2BQXJ2L37c5S` includes route-template/method context in the error hook.
-- Expanded isolated HTTP check passed 185 checks, including saved operations,
+- `npm run test:deployment` passed all 6 release-workflow tests.
+- `npm run lint` passed with zero errors and five existing font/raw-image warnings.
+- `npm run build` passed, including TypeScript and static-page generation.
+- On the original development checkpoint based on parent `7508ed8`, an expanded
+  isolated HTTP check passed 185 checks, including saved operations,
   handled file-delivery failure, Next's request-error hook and sensitive-value
   exclusion. It confirmed its temporary server stopped and data was removed.
   Its reported `sourceCommit` is the parent because implementation changes were
   uncommitted during verification; the build and tests used the logging changes.
-- Diff whitespace checks and Python compilation passed.
+  That expanded HTTP check was not repeated on the isolated branch.
 
 Sandbox subprocess stdout suppression affected the initial runs; the verified
-full Node suite, build and HTTP test ran outside that sandbox. The remaining
-full-suite assertion was an upload test expecting the old free-form error text;
-it now verifies the structured failure actions. A final full run passed.
+full Node suite, build and HTTP test ran outside that sandbox. A prior full-suite
+assertion expected the old free-form upload error text; it now verifies the
+structured failure actions. The current isolated-branch full suite passed.
 
 No production deployment or production media changes were made in this checkpoint.
