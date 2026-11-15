@@ -177,9 +177,16 @@ These are starting points, not a fresh certification of every workflow:
 
 - [ ] Run applicable Node, Python, lint, TypeScript, and production build checks.
   Record results and distinguish any accepted existing warnings from failures.
-- [ ] Walk through profile creation/editing, upload, duplicate rejection, media
+- [x] Walk through profile creation/editing, upload, duplicate rejection, media
   edits, visibility transitions, search/filter/pagination, sharing, and deletion
   using disposable development data as administrator and public visitor.
+  Completed the [November 14 desktop walkthrough](operations/desktop-final-acceptance-2026-11-14.md)
+  on `ddd801f` with a separate temporary app/catalog/storage and administrator/
+  visitor Chromium sessions. Actual forms, uploads, visibility changes, distinct
+  12/24/30 pagination, search/type/visibility filters, cancellation/deletion and
+  sign-out passed. Share reported success, but independent clipboard reads were
+  denied; native sharing/confirmations and device-specific acceptance remain in
+  the next item. All temporary server data and credentials were removed.
 - [ ] Verify photo viewing and video startup, buffering, pause/resume, sound,
   swiping, and loader behavior on the user's iPhone and a desktop browser.
   Document observed loading behavior; adaptive streaming is not a v1 promise.
