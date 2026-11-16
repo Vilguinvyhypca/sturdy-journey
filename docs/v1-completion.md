@@ -200,7 +200,12 @@ These are starting points, not a fresh certification of every workflow:
   the next item. All temporary server data and credentials were removed.
 - [ ] Verify photo viewing and video startup, buffering, pause/resume, sound,
   swiping, and loader behavior on the user's iPhone and a desktop browser.
-  Document observed loading behavior; adaptive streaming is not a v1 promise.
+  Owner-reported iPhone 14 Pro Max/Safari checks on Wi-Fi and cellular passed
+  photo/video playback and swiping, video buffering/seeking/sound, and sharing
+  after a brief initial compile/load delay. See the
+  [November 15 iPhone results](operations/iphone-safari-acceptance-2026-11-15.md).
+  Loader visibility/behavior still needs confirmation; adaptive streaming is not
+  a v1 promise.
 - [ ] Deploy the approved application changes through the isolated release
   process, verify public pages/API/media and private-access denial, and record
   the release/commit and rollback target. Destructive tests use disposable data.
