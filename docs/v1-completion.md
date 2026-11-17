@@ -208,9 +208,15 @@ These are starting points, not a fresh certification of every workflow:
   [November 15 iPhone results](operations/iphone-safari-acceptance-2026-11-15.md).
   Owner confirmed the branded loader appeared while video loaded/buffered and
   cleared once playback began. Adaptive streaming is not a v1 promise.
-- [ ] Deploy the approved application changes through the isolated release
+- [x] Deploy the approved application changes through the isolated release
   process, verify public pages/API/media and private-access denial, and record
-  the release/commit and rollback target. Destructive tests use disposable data.
+  the release/commit and rollback target. Release
+  `20261117T032302835328Z-8b9ef6fb` (commit
+  `8b9ef6fb2d9ab6682b9502b8771310edb14899b6`) is active; previous release
+  `20261114T180120188442Z-bc058954` is the rollback target. Public pages/API
+  returned 200; anonymous original/playback/thumbnail requests for an existing
+  private local video returned 404/no-store, with no ID/title disclosure. See
+  the [November 16 release and access check](operations/production-release-2026-11-16.md).
 - [ ] Record owner acceptance of the core workflows and any explicit nonblocking
   limitations. No unresolved data-loss, unauthorized-access, or broken-core-flow
   defects may be silently moved into the optional backlog.
