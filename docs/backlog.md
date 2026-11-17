@@ -14,6 +14,59 @@ its order alone does not define the release finish line.
 
 - [x] Require a successful nonempty browser playback copy before accepting a video upload. Failed conversion returns a retryable error and cleans unaccepted files; cancellation is rechecked before catalog insertion. Optional thumbnail failures remain playable and are logged. Cleanup failures are reported explicitly. Implemented in development; not deployed. See v1 milestone 1 for tests and the separate maintenance-import behavior.
 
+## Operations and capacity
+
+### Server storage capacity and media growth
+
+- [ ] Inventory filesystem usage and growth across production media, development
+  media, playback copies, import staging, backups, deployment releases, and
+  system data. Establish warning and critical free-space thresholds.
+- [ ] Evaluate moving MediaSpace and its media storage to a larger server or
+  storage volume. Assess whether the attached external drive can be safely used
+  without disrupting Jellyfin or its existing media. Plan for upload processing,
+  temporary transcodes, retained originals, backups, and isolated development
+  data when sizing capacity.
+- [ ] Find why the external drive is mounted read-only despite its fstab entry
+  requesting read/write, and review the Jellyfin UID/GID ownership mapping before
+  allowing MediaSpace to write there.
+- [ ] Prepare a migration plan with checksummed transfer, restore rehearsal,
+  service/DNS/tunnel cutover, and rollback steps. Keep existing backups until the
+  new host and restore path are verified.
+
+Baseline recorded November 12, 2026: the 108 GB root filesystem was 94% used
+with 6.4 GB free. Production media used 7.8 GB, development media 4.4 GB,
+deployment releases 4.9 GB, and staged media imports about 1.9 GB. These sizes
+include media and generated files; the filesystem also contains other host data.
+An attached 1.9 TB external NTFS drive has about 291 GB free but is mounted
+read-only at `/mnt/jellyfin-media` for Jellyfin, so it is not currently available
+as writable MediaSpace storage. Its fstab entry requests read/write but maps
+ownership to Jellyfin (UID/GID 104:108); the live mount is read-only. The current
+MediaSpace account has no sudo or raw-device access to diagnose or remount it.
+
+Updated November 16, 2026: the root filesystem is now 97% used (100 GB of
+108 GB) with only 3.4 GB free. Current measured MediaSpace data includes 7.8 GB
+of production media, 4.4 GB of development media, 693 MB of active import
+staging, 59 MB in the dated import directory, 18 MB of shared deployment data,
+and 4.1 GB of deployment releases. These figures are component measurements,
+not an accounting of all root usage. The attached external drive remains
+`/dev/sdb1`, NTFS (`fuseblk`), mounted read-only, with 291 GB free. The host has
+7.2 GiB RAM and 4 CPUs. The immediate priority is to provision a larger host or
+dedicated writable storage and plan a verified migration; do not redirect writes
+to the Jellyfin drive while it remains read-only and shared with that service.
+
+Owner clarification, November 17, 2026: migrate MediaSpace only; Jellyfin and
+its media library can remain on the current computer. A 250 GB destination is a
+hypothetical candidate, not a selected host. It appears large enough for the
+currently measured approximately 17 GB MediaSpace footprint plus the OS and
+application, subject to confirming actual free space and allowing for future
+media growth, upload staging, and backups. The migration acceptance does not
+include moving the Jellyfin library.
+
+Acceptance: document current usage and growth rate, select a target with enough
+headroom for peak uploads and video conversion, verify media/catalog checksums
+and restore on the target, confirm the storage mount and filesystem are suitable,
+and retain a tested rollback path before cutover.
+
 ## Visitor experience and engagement — 2026-10-19
 
 These are prioritized improvement experiments, not additional v1 release blockers.
