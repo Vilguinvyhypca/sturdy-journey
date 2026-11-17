@@ -6,8 +6,8 @@ MediaSpace is a public photo and video gallery with a private administration are
 
 Production is self-hosted on the Ubuntu server. Cloudflare sends public traffic
 through its tunnel to the MediaSpace service on `127.0.0.1:3000`. The app uses
-local uploads and a local JSON catalog; Vercel is connected to the GitHub repo
-for pull-request preview builds, not production hosting. See
+local uploads and a local JSON catalog. Vercel is no longer part of the
+MediaSpace build, preview, or release process. See
 [deployment and data boundaries](docs/deployments.md) and the
 [verified production state](docs/operations/current-production-state-2026-11-08.md).
 
@@ -26,8 +26,8 @@ no management controls.
 
 Production runs from versioned release directories managed by `npm run
 deploy:prod`; `npm run rollback:prod` restores the previous validated release.
-Pushing a pull-request branch still triggers Vercel preview builds through the
-GitHub integration. Those previews do not change `hymecymeyseh.fun`.
+Production changes are made through the repository's self-hosted release
+workflow; see [deployment operations](docs/deployments.md).
 
 ## Production, development, and data ownership
 
