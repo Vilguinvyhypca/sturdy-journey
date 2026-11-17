@@ -196,16 +196,18 @@ These are starting points, not a fresh certification of every workflow:
   visitor Chromium sessions. Actual forms, uploads, visibility changes, distinct
   12/24/30 pagination, search/type/visibility filters, cancellation/deletion and
   sign-out passed. Share reported success, but independent clipboard reads were
-  denied; native sharing/confirmations and device-specific acceptance remain in
-  the next item. All temporary server data and credentials were removed.
-- [ ] Verify photo viewing and video startup, buffering, pause/resume, sound,
+  denied. The owner later confirmed iPhone photo/video sharing and device
+  acceptance in the [November 15–16 iPhone report](operations/iphone-safari-acceptance-2026-11-15.md).
+  Native delete dialogs were not manually clicked in this desktop walkthrough.
+  All temporary server data and credentials were removed.
+- [x] Verify photo viewing and video startup, buffering, pause/resume, sound,
   swiping, and loader behavior on the user's iPhone and a desktop browser.
   Owner-reported iPhone 14 Pro Max/Safari checks on Wi-Fi and cellular passed
   photo/video playback and swiping, video buffering/seeking/sound, and sharing
   after a brief initial compile/load delay. See the
   [November 15 iPhone results](operations/iphone-safari-acceptance-2026-11-15.md).
-  Loader visibility/behavior still needs confirmation; adaptive streaming is not
-  a v1 promise.
+  Owner confirmed the branded loader appeared while video loaded/buffered and
+  cleared once playback began. Adaptive streaming is not a v1 promise.
 - [ ] Deploy the approved application changes through the isolated release
   process, verify public pages/API/media and private-access denial, and record
   the release/commit and rollback target. Destructive tests use disposable data.

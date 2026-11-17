@@ -1,4 +1,4 @@
-# iPhone Safari acceptance — November 15, 2026
+# iPhone Safari acceptance — November 15–16, 2026
 
 Owner-reported checks on the MediaSpace development site. No production media or
 settings were changed as part of these checks.
@@ -20,9 +20,8 @@ settings were changed as part of these checks.
 | Photo playback and swiping | Pass | Pass | Brief initial compile/load delay; afterward, no problem reported. |
 | Video playback, buffering/seeking, and sound | Pass | Pass | Brief initial compile/load delay; afterward, no problem reported. |
 | Sharing a photo or video | Pass | Pass | No problem reported. |
-| Loader visibility and behavior | Needs confirmation | Needs confirmation | Loading takes a few seconds; the report did not explicitly say whether the branded loader appeared or behaved as expected. |
+| Loader visibility and behavior | Pass | Pass | Owner confirmed on November 16 that the Hymecymeyseh wordmark appeared while video loaded/buffered. It disappeared once playback began. |
 
 No screen recording, media identifiers, or measured timings were supplied.
 Results are owner-reported rather than independently captured browser evidence.
-The final iPhone acceptance item remains open until loader visibility and its
-behavior during the wait are confirmed.
+The iPhone acceptance checks are complete based on the owner's report.
