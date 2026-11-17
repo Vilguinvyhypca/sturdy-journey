@@ -54,6 +54,14 @@ not an accounting of all root usage. The attached external drive remains
 dedicated writable storage and plan a verified migration; do not redirect writes
 to the Jellyfin drive while it remains read-only and shared with that service.
 
+Owner clarification, November 17, 2026: migrate MediaSpace only; Jellyfin and
+its media library can remain on the current computer. A 250 GB destination is a
+hypothetical candidate, not a selected host. It appears large enough for the
+currently measured approximately 17 GB MediaSpace footprint plus the OS and
+application, subject to confirming actual free space and allowing for future
+media growth, upload staging, and backups. The migration acceptance does not
+include moving the Jellyfin library.
+
 Acceptance: document current usage and growth rate, select a target with enough
 headroom for peak uploads and video conversion, verify media/catalog checksums
 and restore on the target, confirm the storage mount and filesystem are suitable,
