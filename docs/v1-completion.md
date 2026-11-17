@@ -186,8 +186,13 @@ These are starting points, not a fresh certification of every workflow:
 
 ### 5. Final acceptance and application sign-off
 
-- [ ] Run applicable Node, Python, lint, TypeScript, and production build checks.
-  Record results and distinguish any accepted existing warnings from failures.
+- [x] Run applicable Node, Python, lint, TypeScript, and production build checks.
+  The operation-logging implementation passed all 153 Node tests and 12 Python
+  tests; `npm run test:deployment` passed all six release-workflow tests. Lint
+  had zero errors and five existing warnings. The production-mode build passed,
+  including TypeScript/static-page generation; the deployment build and smoke
+  check also passed. See the [operation logging validation record](operations/operation-logging.md)
+  and [production release record](operations/production-release-2026-11-16.md).
 - [x] Walk through profile creation/editing, upload, duplicate rejection, media
   edits, visibility transitions, search/filter/pagination, sharing, and deletion
   using disposable development data as administrator and public visitor.
@@ -217,9 +222,14 @@ These are starting points, not a fresh certification of every workflow:
   returned 200; anonymous original/playback/thumbnail requests for an existing
   private local video returned 404/no-store, with no ID/title disclosure. See
   the [November 16 release and access check](operations/production-release-2026-11-16.md).
-- [ ] Record owner acceptance of the core workflows and any explicit nonblocking
+- [x] Record owner acceptance of the core workflows and any explicit nonblocking
   limitations. No unresolved data-loss, unauthorized-access, or broken-core-flow
-  defects may be silently moved into the optional backlog.
+  defects may be silently moved into the optional backlog. Owner-reported iPhone
+  checks passed on Wi-Fi and cellular, including the branded video loader; the
+  owner then directed deployment after acceptance. Desktop and production access
+  checks are recorded above. Exact loading durations were not measured, and
+  adaptive streaming is outside the v1 acceptance promise. DevOps recovery sign-off
+  remains separate.
 
 ## DevOps handoff — separate owner
 
