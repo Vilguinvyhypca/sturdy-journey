@@ -43,6 +43,17 @@ as writable MediaSpace storage. Its fstab entry requests read/write but maps
 ownership to Jellyfin (UID/GID 104:108); the live mount is read-only. The current
 MediaSpace account has no sudo or raw-device access to diagnose or remount it.
 
+Updated November 16, 2026: the root filesystem is now 97% used (100 GB of
+108 GB) with only 3.4 GB free. Current measured MediaSpace data includes 7.8 GB
+of production media, 4.4 GB of development media, 693 MB of active import
+staging, 59 MB in the dated import directory, 18 MB of shared deployment data,
+and 4.1 GB of deployment releases. These figures are component measurements,
+not an accounting of all root usage. The attached external drive remains
+`/dev/sdb1`, NTFS (`fuseblk`), mounted read-only, with 291 GB free. The host has
+7.2 GiB RAM and 4 CPUs. The immediate priority is to provision a larger host or
+dedicated writable storage and plan a verified migration; do not redirect writes
+to the Jellyfin drive while it remains read-only and shared with that service.
+
 Acceptance: document current usage and growth rate, select a target with enough
 headroom for peak uploads and video conversion, verify media/catalog checksums
 and restore on the target, confirm the storage mount and filesystem are suitable,
