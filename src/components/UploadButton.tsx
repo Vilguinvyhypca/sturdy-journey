@@ -37,7 +37,10 @@ export function UploadButton({ onSelect, uploading = false }: { onSelect?: (file
       return;
     }
     const preparedFiles = files.map(prepareFile);
-    const inferredFiles = preparedFiles.filter((entry) => entry.inferred);
+    const uploadCandidates = folder
+      ? preparedFiles.filter((entry) => photoMimeTypes.has(entry.file.type))
+      : preparedFiles;
+    const inferredFiles = uploadCandidates.filter((entry) => entry.inferred);
     if (inferredFiles.length) {
       const fileList = inferredFiles.slice(0, 4)
         .map(({ file, inferred }) => `• ${file.name} → ${inferred!.format} from .${inferred!.extension}`)
@@ -53,10 +56,10 @@ export function UploadButton({ onSelect, uploading = false }: { onSelect?: (file
       }
     }
     if (!folder) {
-      onSelect?.(preparedFiles.map(({ file }) => file));
+      onSelect?.(uploadCandidates.map(({ file }) => file));
       return;
     }
-    const photos = preparedFiles.map(({ file }) => file).filter((file) => photoMimeTypes.has(file.type));
+    const photos = uploadCandidates.map(({ file }) => file);
     const skipped = files.length - photos.length;
     setFolderMessage(photos.length ? `${photos.length} photos selected${skipped ? `; skipped ${skipped} unsupported files` : ""}.` : "No supported photos were found in that folder.");
     if (photos.length > 0) onSelect?.(photos);
