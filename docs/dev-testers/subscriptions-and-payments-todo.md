@@ -1,14 +1,28 @@
 # Subscriptions and payments — developer/tester TODO
 
 Status: active post-v1 priority, per owner direction on November 18, 2026.
-The original v1 acceptance remains complete. Subscription and payment behavior
-is not implemented or specified in this repository yet. Keep all development and
-acceptance activity in the payment provider's sandbox; do not charge real cards.
+The original v1 acceptance remains complete. No subscription or payment code is
+implemented yet. Keep all development and acceptance activity in the payment
+provider's sandbox; do not charge real cards.
+
+## Product direction confirmed November 19, 2026
+
+- Subscriber accounts are for `hymecymeyseh.fun` and each customer should have a
+  unique email address associated with the service. Whether that address is a
+  working mailbox or an app/login alias is still undecided.
+- Payment by itself must not unlock the whole catalog. After signing in, a user
+  should choose what they want to watch or hide. The product rules must clarify
+  whether those choices filter the feed or define per-profile/content access.
+- Account identity, provider-confirmed plan status, and user content choices are
+  separate inputs. Enforce the resulting access on the server; neither visiting
+  the domain nor a browser-reported payment status grants access by itself.
 
 ## 1. Decide the MVP before implementation
 
-- [ ] Define who can subscribe and what a subscription unlocks (site-wide access,
-  a profile, or another clearly named entitlement).
+- [ ] Decide whether the unique service email is a working mailbox or a login
+  alias, including verification and password-recovery behavior.
+- [ ] Define how a confirmed plan combines with the user's watch/hide choices:
+  feed personalization, per-profile access, or another explicit rule.
 - [ ] Choose the smallest launch plan set: price, currency, billing interval,
   trial policy, and whether subscriptions renew automatically.
 - [ ] Define cancellation, failed-payment/grace-period, refund, plan-change, and

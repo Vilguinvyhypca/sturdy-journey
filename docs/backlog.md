@@ -17,8 +17,9 @@ its order alone does not define the release finish line.
 ## Subscriptions and payments — active post-v1 priority
 
 - [ ] Define the smallest subscription MVP (plans, payment provider, prices,
-  renewal/cancellation rules, and the content access each plan grants), then
-  implement it with server-verified payment state and authorization.
+  renewal/cancellation rules, the unique service-email behavior, and how a
+  verified plan combines with user watch/hide choices), then implement it with
+  server-verified payment state and authorization.
 - [ ] Complete developer-tester sandbox acceptance before enabling real charges.
   See the [subscriptions and payments developer/tester TODO](dev-testers/subscriptions-and-payments-todo.md)
   for implementation order, lifecycle cases, access checks, and release criteria.
