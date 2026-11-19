@@ -174,12 +174,14 @@ Operational incident notes: [September 23 Wi-Fi outage and prevention plan](docs
 - Add search across titles, descriptions, dates, albums, and extracted metadata.
 - Add adaptive video streaming improvements as the video library grows.
 
-MediaSpace is managed by one administrator. There are no subscriber accounts,
-paid plans, or subscription billing in the current product direction. Future
-product work should improve the administrator dashboard and support importing
-new photos and videos from tracked social accounts: detect a new-post notice,
-match it to a MediaSpace profile, retrieve the media through a supported source,
-then let the administrator review and publish it to that profile.
+MediaSpace is currently managed by one administrator. The owner has made
+subscriber accounts and paid subscriptions an active post-v1 priority; plans,
+payment provider, and entitlement rules still need to be defined. Track the
+implementation and sandbox acceptance work in the
+[subscriptions and payments developer/tester TODO](docs/dev-testers/subscriptions-and-payments-todo.md).
+Social-account import remains a separate future direction: detect a new-post
+notice, match it to a MediaSpace profile, retrieve media through a supported
+source, then let the administrator review and publish it to that profile.
 
 ## Retained optional database and provider integrations
 
