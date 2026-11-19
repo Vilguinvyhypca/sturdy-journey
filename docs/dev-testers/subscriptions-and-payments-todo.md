@@ -1,88 +1,92 @@
-# Subscriptions and payments — developer/tester TODO
+# Paid domain email and free services — developer/tester TODO
 
-Status: active post-v1 priority, per owner direction on November 18, 2026.
-The original v1 acceptance remains complete. No subscription or payment code is
-implemented yet. Keep all development and acceptance activity in the payment
-provider's sandbox; do not charge real cards.
+Status: active post-v1 priority, per owner direction on November 18–19, 2026.
+The original v1 acceptance remains complete. No mailbox provisioning, customer
+accounts, or payment code has been implemented for this service. Keep development
+and acceptance in a payment-provider sandbox; do not charge real cards.
 
 ## Product direction confirmed November 19, 2026
 
-- Subscriber accounts are for `hymecymeyseh.fun` and each customer should have a
-  unique email address associated with the service. Whether that address is a
-  working mailbox or an app/login alias is still undecided.
-- Payment by itself must not unlock the whole catalog. After signing in, a user
-  should choose what they want to watch or hide. The product rules must clarify
-  whether those choices filter the feed or define per-profile/content access.
-- Account identity, provider-confirmed plan status, and user content choices are
-  separate inputs. Enforce the resulting access on the server; neither visiting
-  the domain nor a browser-reported payment status grants access by itself.
+- The paid product is a real, unique `@hymecymeyseh.fun` email mailbox for each
+  member. An alias or app-only login address does not meet the requirement.
+- Members pay for the mailbox plan. MediaSpace, Jellyfin, and the owner's other
+  services are free to use through the member's domain account; do not add a
+  separate media or service-access charge.
+- After sign-in, members can choose what they want to watch or hide. Keep that
+  preference separate from mailbox billing and service authentication.
+- The payment gateway is used to charge for and provision email mailboxes. Each
+  service must still enforce its own account and data permissions.
 
-## 1. Decide the MVP before implementation
+## 1. Resolve email and account operations before implementation
 
-- [ ] Decide whether the unique service email is a working mailbox or a login
-  alias, including verification and password-recovery behavior.
-- [ ] Define how a confirmed plan combines with the user's watch/hide choices:
-  feed personalization, per-profile access, or another explicit rule.
-- [ ] Choose the smallest launch plan set: price, currency, billing interval,
-  trial policy, and whether subscriptions renew automatically.
-- [ ] Define cancellation, failed-payment/grace-period, refund, plan-change, and
-  account-deletion behavior for the MVP.
-- [ ] Select a payment provider and confirm a sandbox account, test credentials,
-  webhook delivery method, and required receipt/notification behavior.
-- [ ] Confirm which content remains public/free and how existing private or
-  unlisted media behaves for signed-out, free, active, past-due, and canceled
-  accounts.
+- [ ] Select the email hosting/mailbox platform and confirm that it supports
+  automated creation, suspension, recovery, and deletion of individual
+  `@hymecymeyseh.fun` mailboxes.
+- [ ] Define the mailbox plan: price, currency, billing interval, storage/quota,
+  renewal, cancellation, failed payment, grace period, refunds, and what happens
+  to the mailbox and its data after cancellation.
+- [ ] Confirm inbound and outbound delivery, DNS records, sender authentication,
+  spam/abuse controls, password reset, account recovery, and support ownership.
+- [ ] Decide whether the same login identity will be shared across MediaSpace
+  and Jellyfin or securely linked between separate accounts. A paid mailbox must
+  not grant access to another member's data.
+- [ ] Define whether watch/hide choices only filter a member's feed or affect
+  which profiles they can view. Services remain free; this is a content and
+  privacy rule, not a second paid entitlement.
+- [ ] Confirm a sandbox account, payment credentials, webhook delivery method,
+  and billing notifications before implementation. Keep credentials out of Git.
 
-## 2. Build the smallest secure subscription flow
+## 2. Build the smallest secure mailbox flow
 
-- [ ] Add subscriber account flows and persist provider customer, subscription,
-  and payment references plus a normalized subscription status. Never store raw
-  card numbers or security codes.
-- [ ] Implement sandbox checkout and a clear success, cancel, and recoverable
-  failure path. The browser must not be able to grant its own entitlement.
-- [ ] Process signed provider webhooks on the server. Verify signatures, make
-  event handling idempotent, tolerate retries and out-of-order events, and record
-  safe diagnostics without payment secrets.
-- [ ] Enforce content access from server-verified subscription state on every
-  relevant page and media/API route. Preserve administrator authorization
-  boundaries.
-- [ ] Add the minimum subscriber self-service and administrator visibility needed
-  for the agreed MVP. Keep provider secrets out of source control and separate
-  development, sandbox, and production configuration.
+- [ ] Add subscriber account registration and verification tied to a provisioned
+  mailbox. Keep administrator sign-in and permissions separate.
+- [ ] Use hosted checkout. Never store raw card numbers or security codes.
+- [ ] Provision one unique real mailbox only after the payment provider confirms
+  the purchase. Handle duplicate addresses and failed provisioning without
+  charging twice or granting a broken account.
+- [ ] Process signed provider webhooks server-side. Verify signatures, make
+  events idempotent, tolerate retries and out-of-order delivery, and record safe
+  diagnostics without payment or mailbox secrets.
+- [ ] Apply the approved active/suspended/canceled mailbox state to account login
+  consistently in MediaSpace and Jellyfin. Do not trust browser-reported payment
+  status or email text alone.
+- [ ] Store account, billing-event, and user preference data durably with a
+  documented backup/recovery plan. Current MediaSpace authentication is
+  administrator-only and its catalog is not a subscriber account store.
+- [ ] Add the minimal watch/hide preference UI without changing the services'
+  free-access policy or weakening existing private-media checks.
 
 ## 3. Developer tester acceptance checklist
 
-Use sandbox accounts and disposable test media. Record the build/commit, browser
-and device, test account state, expected result, actual result, and evidence for
-each failure. Never use real payment details or production customer data.
+Use sandbox accounts and disposable content. Record the build/commit, browser
+and device, mailbox/account state, expected result, actual result, and evidence.
+Never use real payment details or production member data.
 
-- [ ] Complete a successful sandbox checkout and confirm the correct account and
-  subscription state are recorded once.
+- [ ] Complete a successful sandbox mailbox purchase and confirm exactly one
+  unique, working domain mailbox is provisioned.
+- [ ] Verify the mailbox can receive and send test messages as defined by the
+  selected plan, and that password reset/account recovery works.
 - [ ] Try declined, abandoned, canceled, and repeated checkout attempts; confirm
-  the UI explains the outcome and no duplicate entitlement/payment record appears.
-- [ ] Exercise the supported renewal, cancellation, failed-payment, refund, and
-  plan-change paths from the approved MVP rules.
-- [ ] Replay duplicate events; deliver invalid-signature and out-of-order events;
-  verify invalid events are rejected and valid events do not grant excess access.
-- [ ] Check access as signed-out, free, active, past-due, canceled, and admin
-  accounts. Probe direct page/API/media URLs as well as visible UI links.
-- [ ] Confirm private media is denied when the account lacks an active entitlement
-  and remains available only to the authorized account/admin under the agreed
-  rules. Check that shared URLs do not bypass those rules.
-- [ ] Verify users cannot edit price, status, account ID, or entitlement in the
-  browser to obtain access.
-- [ ] Check desktop and iPhone Safari checkout return, account status, and
-  cancellation flows. Test keyboard access and readable errors.
-- [ ] Confirm test-mode receipts/notifications, privacy-safe logs, and sandbox
-  data cleanup behave as specified.
+  no mailbox is incorrectly provisioned and no duplicate charge/account appears.
+- [ ] Replay duplicate events and send invalid-signature or out-of-order webhook
+  events; verify invalid events are rejected and valid events apply once.
+- [ ] Test renewal, cancellation, failed payment, grace period, refund, and
+  mailbox/data retention behavior exactly as approved.
+- [ ] Sign in to MediaSpace and Jellyfin with the domain account. Confirm neither
+  service adds a separate service fee and one member cannot access another
+  member's mailbox, profile choices, or private data.
+- [ ] Verify watch/hide selections persist and affect only the approved content
+  behavior; probe direct pages, APIs, and media URLs.
+- [ ] Check administrator access, desktop and iPhone Safari flows, privacy-safe
+  logs, sandbox cleanup, and mailbox abuse/rate limits.
 
 ## 4. Ready-to-release criteria
 
-- [ ] Owner approves the written MVP rules, provider, prices, currency, and
-  customer-facing billing/cancellation language.
-- [ ] Developer checks and tester acceptance pass in sandbox, including direct
-  access-denial probes and webhook replay/failure cases.
-- [ ] Production secrets and webhook endpoint are configured separately from
-  development; a rollback plan and production smoke-check are documented.
-- [ ] Owner explicitly approves enabling real charges. Until then, production
-  checkout remains disabled.
+- [ ] Owner approves the mailbox provider, plan, price, billing/lifecycle rules,
+  account recovery policy, and Jellyfin account-linking model.
+- [ ] Mailbox delivery and account provisioning pass sandbox acceptance, along
+  with webhook replay/failure and cross-member access-denial checks.
+- [ ] Production secrets, DNS/mail records, backups, and rollback/recovery steps
+  are configured and reviewed separately from development.
+- [ ] Owner explicitly approves enabling real mailbox charges. Until then,
+  production billing remains disabled.
