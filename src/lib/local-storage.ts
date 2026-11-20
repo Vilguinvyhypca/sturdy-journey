@@ -15,10 +15,24 @@ const formats: Record<string, string> = {
   "image/webp": "webp", "image/avif": "avif", "image/heic": "heic", "image/heif": "heif",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
 };
+const contentTypesByExtension: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
+  webp: "image/webp", avif: "image/avif", heic: "image/heic", heif: "image/heif",
+  mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+};
 const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|heic|heif|mp4|webm|mov)(\.web\.mp4)?$/;
 
 export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
+}
+
+export function resolveLocalUploadContentType(contentType: string, fileName: string) {
+  const suppliedType = contentType.toLowerCase().split(";")[0].trim();
+  if (formats[suppliedType]) return suppliedType;
+  const extension = fileName.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? "";
+  const inferredType = contentTypesByExtension[extension];
+  if (inferredType) return inferredType;
+  throw new LocalUploadError("Choose a JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, MP4, WebM, or MOV file.", 415);
 }
 
 export const maximumLocalVideoDurationSeconds = 5 * 60;
