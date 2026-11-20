@@ -17,8 +17,9 @@ its order alone does not define the release finish line.
 ## Paid domain email and free service access — active post-v1 priority
 
 - [ ] Define and implement paid provisioning for unique, working
-  `@hymecymeyseh.fun` mailboxes. Billing is for the mailbox; MediaSpace, Jellyfin,
-  and other services remain free for members using their domain account.
+  `@hymecymeyseh.fun` mailboxes through Mailbridge C, the selected future host.
+  Billing is for the mailbox; MediaSpace, Jellyfin, and other services remain
+  free for members using their domain account.
 - [ ] Complete mailbox, account, free-service access, and payment sandbox
   acceptance before enabling real charges. See the
   [paid email and free services developer/tester TODO](dev-testers/subscriptions-and-payments-todo.md)
