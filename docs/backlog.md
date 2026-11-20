@@ -14,6 +14,17 @@ its order alone does not define the release finish line.
 
 - [x] Require a successful nonempty browser playback copy before accepting a video upload. Failed conversion returns a retryable error and cleans unaccepted files; cancellation is rechecked before catalog insertion. Optional thumbnail failures remain playable and are logged. Cleanup failures are reported explicitly. Implemented in development; not deployed. See v1 milestone 1 for tests and the separate maintenance-import behavior.
 
+## Paid domain email and free service access — active post-v1 priority
+
+- [ ] Define and implement paid provisioning for unique, working
+  `@hymecymeyseh.fun` mailboxes through Mailbridge C, the selected future host.
+  Billing is for the mailbox; MediaSpace, Jellyfin, and other services remain
+  free for members using their domain account.
+- [ ] Complete mailbox, account, free-service access, and payment sandbox
+  acceptance before enabling real charges. See the
+  [paid email and free services developer/tester TODO](dev-testers/subscriptions-and-payments-todo.md)
+  for implementation order and lifecycle checks.
+
 ## Visitor experience and engagement — 2026-10-19
 
 These are prioritized improvement experiments, not additional v1 release blockers.

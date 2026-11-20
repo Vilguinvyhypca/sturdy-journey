@@ -242,7 +242,10 @@ See the existing operations proposals for the historical recovery scope.
 ## Outside this v1 finish line
 
 - Social notification monitoring, automated retrieval, and import review queues.
-- Subscriber accounts, paid plans, and billing.
+- Paid domain mailboxes and their account integration are outside the original
+  v1 finish line. They are active post-v1 work; MediaSpace, Jellyfin, and other
+  services are free under the owner's current direction. See the
+  [paid email and free services developer/tester TODO](dev-testers/subscriptions-and-payments-todo.md).
 - Mux webhook rollout or renewed Mux adoption (explicitly out of current scope).
 - Adaptive streaming, optional album covers, location features, and iCloud imports.
 - Migration to Neon/Vercel or new provider-selection policies.
