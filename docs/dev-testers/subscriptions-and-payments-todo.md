@@ -16,17 +16,19 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
   preference separate from mailbox billing and service authentication.
 - The payment gateway is used to charge for and provision email mailboxes. Each
   service must still enforce its own account and data permissions.
-- Mailbridge C is the selected future member-mailbox host. Its current bootstrap
-  state does not yet establish production mailbox hosting or provisioning.
+- Mailbridge C is the selected future member-mailbox host. Its current code has a
+  private HTTP API, terminal client, and Cloudflare inbound Worker/KV path; those
+  do not yet establish member mailbox ownership or standard mail-client access.
 
 ## 1. Resolve email and account operations before implementation
 
 - [x] Select Mailbridge C as the future member-mailbox host (owner direction,
   November 19, 2026).
 - [ ] Extend and verify Mailbridge C for customer mailboxes: automated creation,
-  suspension, recovery, deletion, public inbound and outbound delivery,
-  deliverability, and abuse controls. Its current README describes a bootstrapping
-  private message service; these production capabilities are not yet established.
+  suspension, recovery, deletion, per-mailbox authorization, and standard
+  IMAP/SMTP client access. The current API uses a shared token and does not enforce
+  mailbox ownership. Verify inbound activation and outbound delivery,
+  deliverability, and abuse controls for member accounts.
 - [ ] Select the payment provider independently of the mailbox host and verify
   hosted checkout, signed webhooks, refunds, and sandbox support.
 - [ ] Define the mailbox plan: price, currency, billing interval, storage/quota,
