@@ -9,10 +9,12 @@ const root = process.env.MEDIA_STORAGE_ROOT;
 if (!root || !isAbsolute(root)) throw new Error("MEDIA_STORAGE_ROOT must be an absolute path.");
 const dataDirectory = process.env.MEDIA_DATA_DIR || join(process.cwd(), "data");
 const dataFile = join(dataDirectory, "media.json");
+const rebuild = process.argv.includes("--rebuild");
 async function run() {
   const records = JSON.parse(await readFile(dataFile, "utf8"));
   const videos = records.filter((item) => item.type === "video" && item.storage?.provider === "local" && /^[0-9a-f-]+\.(mp4|webm|mov)$/.test(item.storage.objectKey));
   let created = 0;
+  let rebuilt = 0;
   let existing = 0;
   let failed = 0;
   for (const [index, item] of videos.entries()) {
@@ -21,8 +23,12 @@ async function run() {
     const destination = join(root, key);
     try {
       const present = await stat(destination).catch(() => null);
-      if (present?.isFile() && present.size > 0) existing++;
-      else { await generatePlayback(source); created++; }
+      if (present?.isFile() && present.size > 0 && !rebuild) existing++;
+      else {
+        await generatePlayback(source);
+        if (present?.isFile() && present.size > 0) rebuilt++;
+        else created++;
+      }
       item.storage.playbackObjectKey = key;
       const temporary = `${dataFile}.${randomUUID()}.tmp`;
       await writeFile(temporary, JSON.stringify(records, null, 2), { mode: 0o600 });
@@ -31,7 +37,7 @@ async function run() {
       failed++;
       console.error(`${index + 1}/${videos.length} ${item.id}: ${error.message}`);
     }
-    if ((index + 1) % 5 === 0 || index + 1 === videos.length) console.log(`${index + 1}/${videos.length} videos checked; ${created} created, ${existing} existing, ${failed} failed`);
+    if ((index + 1) % 5 === 0 || index + 1 === videos.length) console.log(`${index + 1}/${videos.length} videos checked; ${created} created, ${rebuilt} rebuilt, ${existing} existing, ${failed} failed`);
   }
   if (failed) process.exitCode = 1;
 

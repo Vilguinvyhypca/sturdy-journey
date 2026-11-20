@@ -15,10 +15,24 @@ const formats: Record<string, string> = {
   "image/webp": "webp", "image/avif": "avif", "image/heic": "heic", "image/heif": "heif",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
 };
+const contentTypesByExtension: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
+  webp: "image/webp", avif: "image/avif", heic: "image/heic", heif: "image/heif",
+  mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+};
 const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|gif|webp|avif|heic|heif|mp4|webm|mov)(\.web\.mp4)?$/;
 
 export class LocalUploadError extends Error {
   constructor(message: string, public status: number) { super(message); }
+}
+
+export function resolveLocalUploadContentType(contentType: string, fileName: string) {
+  const suppliedType = contentType.toLowerCase().split(";")[0].trim();
+  if (formats[suppliedType]) return suppliedType;
+  const extension = fileName.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? "";
+  const inferredType = contentTypesByExtension[extension];
+  if (inferredType) return inferredType;
+  throw new LocalUploadError("Choose a JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, MP4, WebM, or MOV file.", 415);
 }
 
 export const maximumLocalVideoDurationSeconds = 5 * 60;
@@ -177,13 +191,13 @@ export async function generateLocalPlayback(key: string) {
   const destination = `${source}.web.mp4`;
   const temporary = `${destination}.${randomUUID()}.tmp.mp4`;
   try {
-    const { stdout } = await promisify(execFile)("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "json", source], { timeout: 30_000, maxBuffer: 4_096 });
-    const video = JSON.parse(stdout).streams?.[0];
-    // H.264 alone is not enough: 10-bit/4:4:4 video and copied audio can fail in browsers.
-    const codecArgs = video?.codec_name === "h264" && video?.pix_fmt === "yuv420p"
-      ? ["-c:v", "copy"]
-      : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-vf", "scale=ceil(iw/2)*2:ceil(ih/2)*2", "-pix_fmt", "yuv420p"];
-    codecArgs.push("-c:a", "aac", "-profile:a", "aac_low", "-ac", "2", "-b:a", "128k");
+    const codecArgs = [
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
+      "-maxrate", "2M", "-bufsize", "4M",
+      "-vf", "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+      "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-profile:a", "aac_low", "-ac", "2", "-b:a", "96k",
+    ];
     await new Promise<void>((resolve, reject) => {
       const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", source, "-map", "0:v:0", "-map", "0:a:0?", ...codecArgs, "-movflags", "+faststart", "-y", temporary], { stdio: "ignore", timeout: 10 * 60_000, killSignal: "SIGKILL" });
       child.once("error", reject);
