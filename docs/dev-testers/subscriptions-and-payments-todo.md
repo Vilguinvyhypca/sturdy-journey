@@ -22,6 +22,10 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 - [ ] Select the email hosting/mailbox platform and confirm that it supports
   automated creation, suspension, recovery, and deletion of individual
   `@hymecymeyseh.fun` mailboxes.
+- [ ] Evaluate the existing Mailbridge C project before treating it as the
+  member mailbox host. Its README describes a bootstrapping private message
+  service; public inbound delivery, customer mailbox provisioning, deliverability,
+  and recovery behavior are not yet established there.
 - [ ] Define the mailbox plan: price, currency, billing interval, storage/quota,
   renewal, cancellation, failed payment, grace period, refunds, and what happens
   to the mailbox and its data after cancellation.
