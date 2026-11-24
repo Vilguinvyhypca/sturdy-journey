@@ -16,8 +16,10 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 - Payments are crypto and customer-initiated for each billing period. Do not
   automatically debit a wallet or silently renew a payment. If a member does not
   pay, pause access to the other services while keeping their email mailbox
-  working for sending and receiving, subject to an explicit storage quota.
-  Define mailbox quota, over-quota behavior, and retention before launch.
+  working for sending and receiving, subject to an explicit storage quota. The
+  current target is 5–10 GB per mailbox; the exact quota depends on the storage
+  DevOps can reserve after backups and operational headroom.
+  Define over-quota behavior and retention before launch.
 - After sign-in, members can choose what they want to watch or hide. Keep that
   preference separate from mailbox billing and service authentication.
 - The payment gateway is used to charge for and provision email mailboxes. Each
@@ -99,9 +101,9 @@ behavior and notification policy; it must not silently delete existing mail.
   complete; otherwise the sender's system may eventually report nondelivery.
 - Let members delete messages to free space. An export or migration tool can be
   optional; members should not have to export mail to keep it safe. The operator
-  owns tested backups and restore procedures. Define the actual quota and
-  warning thresholds only after mail-storage capacity and the operational
-  reserve are set.
+  owns tested backups and restore procedures. Choose the final quota within the
+  5–10 GB per-mailbox target range only after mail-storage capacity, expected
+  member count, backups, and the operational reserve are known.
 - Reference policies: [Proton storage-limit behavior](https://proton.me/support/free-plan-limits),
   [plan downgrade behavior](https://proton.me/support/manage-subscription), and
   [inactive-account policy](https://proton.me/support/inactive-accounts). Review
