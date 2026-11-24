@@ -89,9 +89,11 @@ behavior and notification policy; it must not silently delete existing mail.
   with an SMTP 4xx response (for example, 452 for insufficient storage) so the
   sender's mail system can retry. If space is freed in time, delivery can
   complete; otherwise the sender's system may eventually report nondelivery.
-- Give the member a way to delete, export, or archive mail to free space. Define
-  the actual quota and warning thresholds only after the mail-storage capacity
-  and operational reserve are set.
+- Let members delete messages to free space. An export or migration tool can be
+  optional; members should not have to export mail to keep it safe. The operator
+  owns tested backups and restore procedures. Define the actual quota and
+  warning thresholds only after mail-storage capacity and the operational
+  reserve are set.
 
 - [ ] Add subscriber account registration and verification tied to a provisioned
   mailbox. Keep administrator sign-in and permissions separate.
