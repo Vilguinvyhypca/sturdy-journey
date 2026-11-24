@@ -58,12 +58,33 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 
 ## 2. Build the smallest secure mailbox flow
 
+### Customer and payment lifecycle
+
+Keep mailbox state separate from access to MediaSpace/Jellyfin. The expected
+behavior is:
+
+| Event | Mailbox | Other services |
+| --- | --- | --- |
+| Before first confirmed payment | Not provisioned; the customer may select a desired address during checkout. | No member access. |
+| Customer completes a crypto invoice and the server verifies settlement | Provision one unique mailbox and enable sending/receiving within its quota. | Enable member access without a separate service charge. |
+| A paid period ends without a new customer-initiated payment | Keep the mailbox working for sending/receiving within its quota; do not delete mail or disable the address solely for nonpayment. | Pause access until a new payment is verified. |
+| Customer chooses to renew and a new payment is verified | Keep the same mailbox and its stored messages. | Restore access. |
+| Administrator suspends for abuse/security or a user requests deletion | Apply the separately documented mailbox suspension/deletion and retention policy. | Apply the related account security policy. |
+
+The checkout must clearly show the amount, crypto asset/network, paid period,
+renewal date, mailbox quota, manual-renewal requirement, and what access pauses
+if payment is skipped. It must not imply that an invoice reminder charges the
+customer. Settle provider/network confirmation rules before activating a mailbox
+or restoring service access. Mailbox quota exhaustion must have an explicit
+behavior and notification policy; it must not silently delete existing mail.
+
 - [ ] Add subscriber account registration and verification tied to a provisioned
   mailbox. Keep administrator sign-in and permissions separate.
 - [ ] Use hosted checkout. Never store raw card numbers or security codes.
 - [ ] Provision one unique real mailbox only after the payment provider confirms
   the purchase. Handle duplicate addresses and failed provisioning without
-  charging twice or granting a broken account.
+  charging twice or granting a broken account. Let the customer choose a
+  requested address before provisioning and communicate conflicts/retries safely.
 - [ ] Process signed provider webhooks server-side. Verify signatures, make
   events idempotent, tolerate retries and out-of-order delivery, and record safe
   diagnostics without payment or mailbox secrets.
@@ -85,6 +106,8 @@ Never use real payment details or production member data.
 
 - [ ] Complete a successful sandbox mailbox purchase and confirm exactly one
   unique, working domain mailbox is provisioned.
+- [ ] Confirm no mailbox or other-service entitlement is activated from a
+  browser return URL without a verified server-side payment event.
 - [ ] Verify the mailbox can receive and send test messages as defined by the
   selected plan, and that password reset/account recovery works.
 - [ ] Try declined, abandoned, canceled, and repeated checkout attempts; confirm
@@ -92,7 +115,10 @@ Never use real payment details or production member data.
 - [ ] Replay duplicate events and send invalid-signature or out-of-order webhook
   events; verify invalid events are rejected and valid events apply once.
 - [ ] Test renewal, cancellation, failed payment, grace period, refund, and
-  mailbox/data retention behavior exactly as approved.
+  mailbox/data retention behavior exactly as approved. Verify that a skipped
+  manual renewal pauses only other-service access and leaves the mailbox
+  working; a later verified payment restores that access without duplicating or
+  replacing the mailbox.
 - [ ] Sign in to MediaSpace and Jellyfin with the domain account. Confirm neither
   service adds a separate service fee and one member cannot access another
   member's mailbox, profile choices, or private data.
