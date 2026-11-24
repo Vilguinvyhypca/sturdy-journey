@@ -91,6 +91,12 @@ behavior and notification policy; it must not silently delete existing mail.
 - Show a mailbox storage meter on the inbox page with bytes used, total quota,
   and bytes remaining. Update it after delivery and deletion; make the numbers
   understandable with accessible text and a visible percentage/progress state.
+  Mailbridge C currently has no quotas or first-party web inbox. It must first
+  provide per-mailbox usage accounting and enforcement. Expose quota through the
+  standard [IMAP QUOTA extension (RFC 9208)](https://www.rfc-editor.org/rfc/rfc9208.html)
+  for compatible clients; because client support is limited, a consistent
+  inbox-page meter also requires a first-party Mailbridge inbox/account page.
+  Decide that UI scope before promising a meter in every mail client.
 - Preserve existing mail. Never silently delete messages or disable the mailbox
   because it is full or because a paid period ended.
 - Keep outbound sending enabled under separate rate and abuse controls. Verify
