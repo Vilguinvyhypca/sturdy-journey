@@ -10,8 +10,14 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 - The paid product is a real, unique `@hymecymeyseh.fun` email mailbox for each
   member. An alias or app-only login address does not meet the requirement.
 - Members pay for the mailbox plan. MediaSpace, Jellyfin, and the owner's other
-  services are free to use through the member's domain account; do not add a
-  separate media or service-access charge.
+  services have no separate service charge and are accessed through the member's
+  domain account while its paid plan is current. Do not add a separate media or
+  service-access fee.
+- Payments are crypto and customer-initiated for each billing period. Do not
+  automatically debit a wallet or silently renew a payment. If a member does not
+  pay, pause access to the other services while keeping their email mailbox
+  working for sending and receiving, subject to an explicit storage quota.
+  Define mailbox quota, over-quota behavior, and retention before launch.
 - After sign-in, members can choose what they want to watch or hide. Keep that
   preference separate from mailbox billing and service authentication.
 - The payment gateway is used to charge for and provision email mailboxes. Each
@@ -25,12 +31,17 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 - [x] Select Mailbridge C as the future member-mailbox host (owner direction,
   November 19, 2026).
 - [ ] Extend and verify Mailbridge C for customer mailboxes: automated creation,
-  suspension, recovery, deletion, per-mailbox authorization, and standard
-  IMAP/SMTP client access. The current API uses a shared token and does not enforce
-  mailbox ownership. Verify inbound activation and outbound delivery,
+  administrative/abuse suspension, recovery, deletion, per-mailbox authorization,
+  and standard IMAP/SMTP client access. Billing lapse must not suspend the
+  mailbox under the current policy. The current API uses a shared token and does
+  not enforce mailbox ownership. Verify inbound activation and outbound delivery,
   deliverability, and abuse controls for member accounts.
 - [ ] Select the payment provider independently of the mailbox host and verify
-  hosted checkout, signed webhooks, refunds, and sandbox support.
+  crypto checkout, signed payment notifications, refunds, and sandbox support.
+  Start with the [provider screening and application packet](payment-provider-screening.md);
+  listed providers are candidates only until they approve the exact offer. Each
+  billing period must require an explicit customer payment; an emailed invoice
+  reminder is acceptable, automatic wallet debits are not.
 - [ ] Define the mailbox plan: price, currency, billing interval, storage/quota,
   renewal, cancellation, failed payment, grace period, refunds, and what happens
   to the mailbox and its data after cancellation.
@@ -56,9 +67,10 @@ and acceptance in a payment-provider sandbox; do not charge real cards.
 - [ ] Process signed provider webhooks server-side. Verify signatures, make
   events idempotent, tolerate retries and out-of-order delivery, and record safe
   diagnostics without payment or mailbox secrets.
-- [ ] Apply the approved active/suspended/canceled mailbox state to account login
-  consistently in MediaSpace and Jellyfin. Do not trust browser-reported payment
-  status or email text alone.
+- [ ] Keep email mailbox status separate from service-access status. Apply the
+  verified paid-plan state to MediaSpace and Jellyfin access consistently, while
+  leaving the mailbox active after nonpayment under the approved quota/retention
+  policy. Do not trust browser-reported payment status or email text alone.
 - [ ] Store account, billing-event, and user preference data durably with a
   documented backup/recovery plan. Current MediaSpace authentication is
   administrator-only and its catalog is not a subscriber account store.
