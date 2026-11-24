@@ -80,6 +80,11 @@ behavior and notification policy; it must not silently delete existing mail.
 
 ### Full-mailbox behavior agreed November 23, 2026
 
+- Use Proton Mail as a product-pattern reference for a visible storage meter and
+  clear storage-limit messaging, not as terms to copy verbatim. Our account
+  continues sending and receiving within quota after a paid period ends, and
+  nonpayment does not trigger mailbox deletion. Payments remain customer-
+  initiated; do not copy automatic renewal.
 - Warn the member before the limit and show current usage in the mail interface.
 - Show a mailbox storage meter on the inbox page with bytes used, total quota,
   and bytes remaining. Update it after delivery and deletion; make the numbers
@@ -97,6 +102,11 @@ behavior and notification policy; it must not silently delete existing mail.
   owns tested backups and restore procedures. Define the actual quota and
   warning thresholds only after mail-storage capacity and the operational
   reserve are set.
+- Reference policies: [Proton storage-limit behavior](https://proton.me/support/free-plan-limits),
+  [plan downgrade behavior](https://proton.me/support/manage-subscription), and
+  [inactive-account policy](https://proton.me/support/inactive-accounts). Review
+  them as examples only; our manual-payment, mailbox-continuity, and retention
+  policy above takes precedence for this product.
 
 Acceptance for the storage meter: show accurate used/total/remaining values for
 an empty inbox, a partially used mailbox, and a full mailbox; verify values
