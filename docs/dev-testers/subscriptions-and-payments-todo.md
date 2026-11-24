@@ -81,6 +81,9 @@ behavior and notification policy; it must not silently delete existing mail.
 ### Full-mailbox behavior agreed November 23, 2026
 
 - Warn the member before the limit and show current usage in the mail interface.
+- Show a mailbox storage meter on the inbox page with bytes used, total quota,
+  and bytes remaining. Update it after delivery and deletion; make the numbers
+  understandable with accessible text and a visible percentage/progress state.
 - Preserve existing mail. Never silently delete messages or disable the mailbox
   because it is full or because a paid period ended.
 - Keep outbound sending enabled under separate rate and abuse controls. Verify
@@ -94,6 +97,13 @@ behavior and notification policy; it must not silently delete existing mail.
   owns tested backups and restore procedures. Define the actual quota and
   warning thresholds only after mail-storage capacity and the operational
   reserve are set.
+
+Acceptance for the storage meter: show accurate used/total/remaining values for
+an empty inbox, a partially used mailbox, and a full mailbox; verify values
+change after receiving and deleting a message with an attachment. The full
+state must explain that incoming mail is temporarily deferred and link to the
+member's mail cleanup controls. Do not rely on color alone to communicate the
+quota state.
 
 - [ ] Add subscriber account registration and verification tied to a provisioned
   mailbox. Keep administrator sign-in and permissions separate.
