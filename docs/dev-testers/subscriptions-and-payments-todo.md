@@ -78,6 +78,21 @@ customer. Settle provider/network confirmation rules before activating a mailbox
 or restoring service access. Mailbox quota exhaustion must have an explicit
 behavior and notification policy; it must not silently delete existing mail.
 
+### Full-mailbox behavior agreed November 23, 2026
+
+- Warn the member before the limit and show current usage in the mail interface.
+- Preserve existing mail. Never silently delete messages or disable the mailbox
+  because it is full or because a paid period ended.
+- Keep outbound sending enabled under separate rate and abuse controls. Verify
+  and explain what happens to a Sent-folder copy when no storage remains.
+- Do not accept an incoming message that cannot be stored. Temporarily defer it
+  with an SMTP 4xx response (for example, 452 for insufficient storage) so the
+  sender's mail system can retry. If space is freed in time, delivery can
+  complete; otherwise the sender's system may eventually report nondelivery.
+- Give the member a way to delete, export, or archive mail to free space. Define
+  the actual quota and warning thresholds only after the mail-storage capacity
+  and operational reserve are set.
+
 - [ ] Add subscriber account registration and verification tied to a provisioned
   mailbox. Keep administrator sign-in and permissions separate.
 - [ ] Use hosted checkout. Never store raw card numbers or security codes.
