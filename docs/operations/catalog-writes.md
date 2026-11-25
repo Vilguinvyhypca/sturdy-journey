@@ -25,9 +25,34 @@ Covered paths:
 - Profile assignment (`scripts/assign-media-profile.mjs`, apply mode).
 - Playback backfills (`scripts/backfill-local-playback.mjs`), now using the
   configured `MEDIA_DATA_DIR` instead of a hard-coded working-directory catalog.
-  It creates missing playback copies by default. Pass `--rebuild` to replace
-  existing derived copies using the current smaller 720p encoding; source videos
-  remain unchanged. Rebuilding all copies is CPU and temporary-disk intensive.
+  It creates missing playback copies by default. The resumable job processes at
+  most ten videos per invocation by default; use `--batch-size N` to select 1–100.
+  Each conversion happens outside the shared catalog lock, then the script briefly
+  locks, reloads, and updates that one current record. A separate job lock prevents
+  concurrent backfill processes. State is stored in
+  `MEDIA_DATA_DIR/backfill-local-playback-state.json`; originals remain unchanged.
+  Failed items are retried on resume. Pass `--rebuild` on both the first invocation
+  and every resume to replace existing derived copies using the current smaller
+  720p encoding. Rebuilding all copies is CPU and temporary-disk intensive.
+
+### Resumable playback backfill
+
+Run from a release that contains the reviewed backfill script, using the same
+production environment and paths as the app. Start during a quieter period with
+a small batch, inspect its result, and continue only when resources look healthy:
+
+```sh
+node scripts/backfill-local-playback.mjs --batch-size 5
+node scripts/backfill-local-playback.mjs --status
+node scripts/backfill-local-playback.mjs --resume --batch-size 5
+```
+
+Repeat the `--resume` command until status shows no pending or failed items. Do not
+start a new run while the state has pending or failed items. Use `--rebuild` on
+both the first command and each resume only when deliberately replacing existing
+copies. The script does not delete originals. A failure leaves the item retryable;
+review available storage and the reported error before resuming. This procedure
+does not replace the separate DevOps backup/restore sign-off.
 
 The shared helper is `src/lib/catalog-lock.cjs`. It uses the installed `flock`
 executable to lock an inherited descriptor. The parent retains that descriptor
