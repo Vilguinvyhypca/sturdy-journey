@@ -11,11 +11,15 @@ const nextConfig = (phase: string): NextConfig => {
   }
   return {
     async headers() {
-      return [{ source: "/:path*", headers: [
+      const securityHeaders = [
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "X-Frame-Options", value: "SAMEORIGIN" },
-      ] }];
+      ];
+      if (process.env.NODE_ENV === "production") {
+        securityHeaders.push({ key: "Strict-Transport-Security", value: "max-age=15768000" });
+      }
+      return [{ source: "/:path*", headers: securityHeaders }];
     },
     distDir: process.env.NEXT_DIST_DIR ?? (phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next"),
     allowedDevOrigins: (process.env.MEDIA_DEV_ORIGINS ?? "").split(",").map((host) => host.trim()).filter(Boolean),

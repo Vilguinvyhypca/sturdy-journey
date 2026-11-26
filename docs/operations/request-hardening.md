@@ -1,5 +1,31 @@
 # Request and response hardening — first pass
 
+## Current audit status — November 26, 2026
+
+The focused fixes documented below are merged and present in the active
+application. A review of the current local-storage request paths found that
+administrator mutations authenticate and validate the configured origin before
+reading their capped JSON bodies; uploads enforce streaming size and content
+checks; session-dependent media/profile responses are private/no-store; local
+media bytes use private/no-store and `nosniff`; and video JSON-LD escapes `<`.
+Public `/api/settings` returns only the site theme. The active release is
+configured for local uploads with database, Blob, and Mux integrations disabled.
+
+The November 26 live response did not include HSTS. Branch
+`codex/v1-production-hsts` adds a production-only `Strict-Transport-Security`
+header with a six-month `max-age`, without applying the policy to subdomains.
+This change has not been deployed; verify the header on the live HTTPS response
+after review/release. No global Content Security Policy was introduced because
+the app uses inline JSON-LD and Next.js scripts; protected local media responses
+retain their restrictive sandbox CSP. HSTS/preload and all disabled database,
+Blob, Mux, and external-provider paths are outside this local-storage review.
+
+The operator folder importer remains a separate follow-up for validating files
+before catalog insertion; browser uploads already use the active validation
+pipeline. See the [backlog](../backlog.md). The broader active local HTTP audit is
+otherwise complete at source review, pending production verification of the HSTS
+header after the proposed change is approved and released.
+
 Development branch: `codex/v1-request-hardening`, based on the still-pending
 `codex/v1-poll-delete-limits` commit `e8dfc1b`. Neither branch is merged or deployed
 by this checkpoint. Review the hardening diff against its parent branch to keep
