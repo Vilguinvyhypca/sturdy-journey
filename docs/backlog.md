@@ -25,6 +25,16 @@ its order alone does not define the release finish line.
   [paid email and free services developer/tester TODO](dev-testers/subscriptions-and-payments-todo.md)
   for implementation order and lifecycle checks.
 
+## Production media maintenance
+
+- [ ] Resume browser-ready playback copies for legacy local videos. The resumable
+  job state is saved at `MEDIA_DATA_DIR/backfill-local-playback-state.json`.
+  On November 26 it recorded 440 complete, 239 pending, and one failed item. The
+  failed source was confirmed by FFprobe to contain AAC audio only, with no video
+  stream; the original and catalog entry remain unchanged. The runner stopped on
+  that error as configured. Decide whether to repair the source or mark that
+  record skipped before resuming. The runner stops below 4 GiB free on `/`.
+
 ## Visitor experience and engagement — 2026-10-19
 
 These are prioritized improvement experiments, not additional v1 release blockers.

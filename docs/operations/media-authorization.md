@@ -3,6 +3,22 @@
 Branch `codex/v1-media-authorization-matrix` is stacked on `885e4d3`.
 This checkpoint adds isolated route/page tests; it changes no application policy.
 
+## Status update — November 26, 2026
+
+The authorization matrix and related local-storage hardening changes are merged
+into main and were included in production release
+`20261117T032302835328Z-8b9ef6fb`. The built-app HTTP check, final desktop
+walkthrough, and owner-reported iPhone/Safari acceptance are recorded in
+[`v1-completion.md`](../v1-completion.md). The current production release also
+passed read-only public-route and private-media-denial checks on November 26; see
+the [release follow-up](production-release-2026-11-16.md).
+This completes the local v1 authorization acceptance described here. It does
+not certify disabled legacy database/Blob providers or close the separate broad
+input/cache audit.
+
+The pending-acceptance language below reflects the state of this checkpoint when
+it was first written; the later evidence linked above supersedes it.
+
 ## Expected access
 
 | Surface | Anonymous visitor | Signed-in non-administrator | Administrator |
