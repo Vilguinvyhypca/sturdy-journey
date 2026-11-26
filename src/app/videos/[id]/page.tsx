@@ -12,6 +12,9 @@ import { isSignedMuxUrl, muxPlaybackIdFromUrl, type MediaItem } from "@/lib/medi
 import { getSiteUrl } from "@/lib/site-url";
 import { authOptions, isAdmin } from "@/lib/auth";
 import { createMuxPlaybackTokens } from "@/lib/mux";
+import { getProfile } from "@/lib/profiles";
+import { mediaProfileId } from "@/lib/profile-types";
+import { usesLocalStorage } from "@/lib/local-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +96,9 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
   const { id } = await params;
   const item = await findVideo(id, await canViewPrivateMedia());
   if (!item) notFound();
+  const profile = !usesDatabase && usesLocalStorage
+    ? await getProfile(mediaProfileId(item))
+    : null;
 
   const playbackId = muxPlaybackIdFromUrl(item.url);
   const muxTokens = playbackId && isSignedMuxUrl(item.url) ? createMuxPlaybackTokens(playbackId) : undefined;
@@ -128,6 +134,7 @@ export default async function VideoPage({ params }: PageProps<"/videos/[id]">) {
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{item.title}</h1>
         {item.description && <p className="mt-4 whitespace-pre-wrap leading-7 text-slate-200">{item.description}</p>}
         <ShareMediaButton mediaId={item.id} href={`/videos/${encodeURIComponent(item.id)}`} title={item.title} />
+        {profile && <Link href={`/p/${encodeURIComponent(profile.slug)}`} className="mt-4 inline-flex rounded-xl border border-white/20 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10">Watch more from {profile.name}</Link>}
         <MediaDetails item={item} className="px-0 pt-3 text-slate-300" />
         <p className="mt-6 text-sm leading-6 text-slate-300">{item.visibility === "public" ? "This public video can appear in the library, feed, and search engines." : item.visibility === "unlisted" ? "This unlisted video is available to people who have its direct link and is excluded from search indexing." : "This private video is visible only while signed in as the administrator."}</p>
       </div>
