@@ -133,8 +133,13 @@ These are starting points, not a fresh certification of every workflow:
   hosts. The theme-input/media-cache follow-up applies the JSON limit to theme
   PATCH and private/no-store to all handled media-list GET responses. These
   branches are merged into main and included in the November 17 production
-  release. See the findings document for tests and remaining scope. The full
-  input/cache audit remains open; the route authorization matrix below is complete.
+  release. The November 26 review covered the active local-storage HTTP routes;
+  the live response had no HSTS header. Branch `codex/v1-production-hsts` adds
+  production-only HSTS without covering subdomains. Keep this audit item open
+  until that change is reviewed/released and the live HTTPS header is confirmed.
+  Operator folder-import validation and disabled provider routes remain separate
+  follow-ups. See the [audit record](operations/request-hardening.md). The route
+  authorization matrix below is complete.
 - [x] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,
