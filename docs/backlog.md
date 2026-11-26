@@ -29,11 +29,12 @@ its order alone does not define the release finish line.
 
 - [ ] Resume browser-ready playback copies for legacy local videos. The resumable
   job state is saved at `MEDIA_DATA_DIR/backfill-local-playback-state.json`.
-  On November 26 it recorded 440 complete, 239 pending, and one failed item. The
-  failed source was confirmed by FFprobe to contain AAC audio only, with no video
-  stream; the original and catalog entry remain unchanged. The runner stopped on
-  that error as configured. Decide whether to repair the source or mark that
-  record skipped before resuming. The runner stops below 4 GiB free on `/`.
+  At the November 26 restart it recorded 440 complete, one skipped, and 239
+  pending. FFprobe confirmed the skipped private source contains AAC audio and no
+  video stream. Only the job state changed; the original and catalog entry remain
+  unchanged. The runner resumed in a separate persistent session, processing
+  batches of five and stopping below 4 GiB free on `/`. Progress and errors are
+  recorded in `MEDIA_DATA_DIR/backfill-local-playback-run.log`.
 
 ## Visitor experience and engagement — 2026-10-19
 
