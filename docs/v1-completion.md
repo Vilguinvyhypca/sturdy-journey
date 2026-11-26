@@ -1,20 +1,27 @@
 # MediaSpace v1 completion checklist
 
 Plan established: 2026-10-18; production status and maintenance documentation
-reviewed: 2026-11-08. This is the working completion plan for the current
+reviewed: 2026-11-26. This is the working completion plan for the current
 self-hosted application. It supersedes the ordering of historical phases in
 `PROJECT_STATUS.md`; it does not certify unchecked work or authorize deployment.
 
-## Current release status — 2026-11-08
+## Current release status — 2026-11-26
 
-Read-only host verification on November 8 found production running isolated
-release `20261106T225749970236Z-4717446f`, with local JSON catalog and media
-storage. See the [production configuration and reporting
-snapshot](operations/current-production-state-2026-11-08.md).
+The production `current` symlink points to isolated release
+`20261125T231917135343Z-eebe6d1c`, built from main commit
+`eebe6d1c780e8c20d15139d624f1d2a643e62886` (`ready: true`, clean source tree).
+The `previous` symlink points to `20261125T223021881610Z-8bd3b1fe`. The November
+25 source includes local browser-upload changes as well as the resumable playback
+backfill. On November 26, the active health endpoint identified this release;
+`/`, `/photos`, `/videos`, `/api/health`, and `/api/media` returned 200. Anonymous
+requests for an existing private local video returned 404 with private/no-store
+on original, playback, and thumbnail routes and 404 on its page. Its ID was absent
+from the public media list. These read-only checks made no production changes.
+See the [production release record](operations/production-release-2026-11-16.md)
+and [production configuration snapshot](operations/current-production-state-2026-11-08.md).
 
 As of November 15, 2026, Vercel is no longer part of the MediaSpace build,
-preview, or release process. This status does not certify completion of
-unchecked milestones, iPhone/sound acceptance or DevOps recovery acceptance.
+preview, or release process. DevOps recovery acceptance remains separate.
 
 ## Finish line
 
@@ -104,42 +111,49 @@ These are starting points, not a fresh certification of every workflow:
   Development now limits login attempts to 10/minute and authenticated local
   uploads to 120/minute with persistent shared quotas. See
   [administrator request limits](operations/admin-rate-limits.md) for the global
-  policy, proxy-header tradeoff, and tests. The follow-up feature branch adds
-  private-photo status polling (600/minute), a shared media/album deletion allowance
-  (60/minute), and client Retry-After handling. These additions remain unmerged and
-  undeployed. All 118 Node regressions, targeted lint, TypeScript, and diff checks
-  passed. The general endpoint-security review below still covers other mutation
-  paths; inactive legacy cloud-upload creation is not a new local v1 blocker.
+  policy, proxy-header tradeoff, and tests. The follow-up branch's private-photo
+  status polling limit (600/minute), shared media/album deletion allowance
+  (60/minute), and client Retry-After handling are merged into main. All 118 Node
+  regressions, targeted lint, TypeScript, and diff checks passed at that checkpoint.
+  The general endpoint-security review below still covers other mutation paths;
+  inactive legacy cloud-upload creation is not a new local v1 blocker.
 - [ ] Audit request origins, input/file validation, response caching, security
   headers, and JSON-LD serialization for the active local-storage paths. Record
   fixes and regression evidence; local media already has private/no-store and
-  several security headers, so preserve existing protections.
+  several security headers, so preserve existing protections. The focused
+  hardening checkpoints described below are merged and shipped; this item remains
+  open for a complete review of all active paths.
   The first hardening pass on `codex/v1-request-hardening` fixes malformed media
   edit JSON, thumbnail cache lifetime, legacy video JSON-LD escaping, and baseline
   response headers. See [findings and open review work](operations/request-hardening.md).
   The follow-up `codex/v1-bounded-admin-json` branch adds a 64 KiB streaming
   JSON-object limit and content-type/UTF-8 validation to media PATCH and profile
-  POST/PATCH after authorization. The pending origin-validation branch restricts
+  POST/PATCH after authorization. The origin-validation follow-up restricts
   administrator mutations to exact configured origins without trusting forwarded
   hosts. The theme-input/media-cache follow-up applies the JSON limit to theme
-  PATCH and private/no-store to all handled media-list GET responses. See the
-  findings document for tests and remaining scope. The broader input/cache review
-  and route authorization matrix remain open; this audit item stays unchecked.
-- [ ] Add route-level authorization tests for anonymous, administrator, and
+  PATCH and private/no-store to all handled media-list GET responses. These
+  branches are merged into main and included in the November 17 production
+  release. See the findings document for tests and remaining scope. The full
+  input/cache audit remains open; the route authorization matrix below is complete.
+- [x] Add route-level authorization tests for anonymous, administrator, and
   authenticated non-administrator sessions across media lists, individual pages,
   original bytes, converted playback, thumbnails, profile updates, uploads,
   edits, and deletion. Cover public, unlisted, and private visibility; test that
   public previews remain public-only even during an administrator session.
-  The pending `codex/v1-media-authorization-matrix` branch adds isolated original,
-  playback, thumbnail, photo/video page and metadata role/visibility matrices,
-  public-list isolation, and anonymous/member mutation-denial tests. See
-  [coverage and limits](operations/media-authorization.md). The final browser
-  walkthrough and runtime cache/HEAD checks are still pending; keep this item
-  open until the remaining acceptance evidence is recorded.
+  `codex/v1-media-authorization-matrix` and its related regressions are merged
+  into main and included in release `20261117T032302835328Z-8b9ef6fb`. They cover
+  original, playback, thumbnail, photo/video page and metadata role/visibility
+  matrices, public-list isolation, and anonymous/member mutation denial. See
+  [coverage and limits](operations/media-authorization.md). The November 5
+  built-app HTTP check covered runtime caching and GET/HEAD/range behavior; the
+  November 14 desktop walkthrough and November 15–16 owner-reported iPhone checks
+  complete the documented local v1 acceptance. The broader input/cache audit in
+  the preceding item remains open.
   A [desktop browser review on October 24](operations/browser-access-review-2026-10-24.md)
   verified disposable-video visibility transitions, sign-out denial, byte ranges,
   runtime HEAD responses, basic playback and deletion against development source
-  `e6667df`. Photo workflows, form interaction and iPhone acceptance remain open.
+  `e6667df`. Later desktop, photo and iPhone acceptance is recorded under
+  [final acceptance](#5-final-acceptance-and-application-sign-off).
 
 ### 3. Administrator clarity
 
@@ -215,13 +229,13 @@ These are starting points, not a fresh certification of every workflow:
   cleared once playback began. Adaptive streaming is not a v1 promise.
 - [x] Deploy the approved application changes through the isolated release
   process, verify public pages/API/media and private-access denial, and record
-  the release/commit and rollback target. Release
-  `20261117T032302835328Z-8b9ef6fb` (commit
-  `8b9ef6fb2d9ab6682b9502b8771310edb14899b6`) is active; previous release
-  `20261114T180120188442Z-bc058954` is the rollback target. Public pages/API
-  returned 200; anonymous original/playback/thumbnail requests for an existing
-  private local video returned 404/no-store, with no ID/title disclosure. See
-  the [November 16 release and access check](operations/production-release-2026-11-16.md).
+  the release/commit and rollback target. Current release
+  `20261125T231917135343Z-eebe6d1c` (commit
+  `eebe6d1c780e8c20d15139d624f1d2a643e62886`) is active; previous release
+  `20261125T223021881610Z-8bd3b1fe` is the rollback target. The November 26
+  checks verified the active release ID, public routes, public media list, and
+  anonymous denial of a private video's original, playback, thumbnail, and page.
+  See the [production release and access record](operations/production-release-2026-11-16.md).
 - [x] Record owner acceptance of the core workflows and any explicit nonblocking
   limitations. No unresolved data-loss, unauthorized-access, or broken-core-flow
   defects may be silently moved into the optional backlog. Owner-reported iPhone

@@ -29,3 +29,20 @@ Read-only HTTPS checks against `https://hymecymeyseh.fun` after activation:
 The private media was not modified; the checks only attempted unauthenticated
 reads. Production traffic remains on the self-hosted Ubuntu server behind
 Cloudflare. DevOps backup/restore acceptance remains separate.
+
+## Follow-up on the active release — November 26, 2026
+
+Read-only checks against the active release `20261125T231917135343Z-eebe6d1c`
+(source `eebe6d1c780e8c20d15139d624f1d2a643e62886`) confirmed:
+
+- `/`, `/photos`, `/videos`, `/api/health`, and `/api/media` returned HTTP 200.
+- `/api/health` reported the active release ID.
+- An existing private local video was absent from the public media list. Anonymous
+  requests to its original, playback, and thumbnail endpoints returned HTTP 404
+  with `private, no-store`; its individual video page also returned HTTP 404.
+- The release's previous rollback target is
+  `20261125T223021881610Z-8bd3b1fe`.
+
+No production records or media were modified. These checks close the access-check
+gap for the current release noted in the v1 checklist. They do not provide DevOps
+backup/restore sign-off.
